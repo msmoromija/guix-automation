@@ -129,6 +129,89 @@ html {
   animation: gx-rise 0.35s ease both;
 }
 
+.gx-acordeao {
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.gx-acordeao__cabeca {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.gx-acordeao__cabeca:hover {
+  background: #f8fafc;
+}
+
+.gx-acordeao.is-open .gx-acordeao__cabeca {
+  border-bottom: 1px solid var(--color-line);
+  background: #fafbfc;
+}
+
+.gx-acordeao__titulo {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+
+.gx-acordeao__resumo {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.gx-acordeao__chev {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.gx-acordeao__corpo {
+  padding: 1rem 1.15rem 1.2rem;
+  animation: gx-rise 0.28s ease both;
+}
+
+.gx-acordeao--destaque {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-line));
+  box-shadow:
+    0 16px 40px -22px rgba(249, 115, 22, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.gx-acordeao-item {
+  overflow: hidden;
+  border-radius: 0.95rem;
+  border: 1px solid var(--color-line);
+  background: #fff;
+}
+
+.gx-acordeao-item__cabeca {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.gx-acordeao-item.is-open {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-line));
+}
+
 .gx-horario-card {
   display: grid;
 }

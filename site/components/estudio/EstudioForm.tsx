@@ -25,6 +25,7 @@ import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
 import { IconeRede } from "@/components/estudio/IconeRede";
 import { GradeExpediente } from "@/components/estudio/GradeExpediente";
+import { SecaoColapsavel } from "@/components/estudio/SecaoColapsavel";
 import { CANAIS, extrasDeRedes, type CanalId } from "@/lib/estudio/canais";
 import {
   agendaProParaVisual,
@@ -182,6 +183,9 @@ export function EstudioForm() {
   /** Aba ativa por profissional: identidade | grade | ausencias */
   const [proAba, setProAba] = useState<Record<number, "identidade" | "grade" | "ausencias">>({});
   const [proAberto, setProAberto] = useState(0);
+  /** Acordeão da etapa Contato (um bloco aberto por vez — menos scroll no mobile). */
+  const [blocoAberto, setBlocoAberto] = useState("contato");
+  const [srvAberto, setSrvAberto] = useState(0);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
@@ -911,6 +915,7 @@ export function EstudioForm() {
   useEffect(() => {
     // Nova etapa sempre começa no topo da coluna (evita “abrir de baixo”).
     window.setTimeout(() => scrollFormAoTopo(null), 0);
+    if (etapa === 4) setBlocoAberto("contato");
   }, [etapa]);
 
   function scrollFormAoTopo(el?: HTMLElement | null) {
@@ -925,13 +930,43 @@ export function EstudioForm() {
     col.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
+  function toggleBloco(id: string) {
+    setBlocoAberto((atual) => {
+      const prox = atual === id ? "" : id;
+      if (prox) {
+        window.setTimeout(() => {
+          const el = document.getElementById(`bloco-${prox}`);
+          if (el) scrollFormAoTopo(el);
+        }, 40);
+      }
+      return prox;
+    });
+  }
+
   function ir(n: number, alvo?: AlvoEdicao) {
     const destino = Math.min(5, Math.max(1, n));
     setEtapa(destino);
     setErro("");
     if (destino !== 3) setAviso("");
+    if (destino === 4) {
+      const mapa: Record<string, string> = {
+        contato: "contato",
+        servicos: "servicos",
+        equipe: "equipe",
+      };
+      setBlocoAberto(mapa[alvo || ""] || "contato");
+    }
     window.setTimeout(() => {
-      const id = alvo === "contato" ? "estudio-contato" : alvo ? `estudio-${alvo}` : destino === 4 ? "estudio-contato" : "";
+      const id =
+        alvo === "contato"
+          ? "bloco-contato"
+          : alvo === "servicos"
+            ? "bloco-servicos"
+            : alvo === "equipe"
+              ? "bloco-equipe"
+              : destino === 4
+                ? "bloco-contato"
+                : "";
       const el = id ? document.getElementById(id) : null;
       if (el) scrollFormAoTopo(el);
       else scrollFormAoTopo(null);
@@ -1444,12 +1479,21 @@ export function EstudioForm() {
 
           {etapa === 4 ? (
             <>
-              <section id="estudio-contato" className="gx-step space-y-4">
-                <div className="gx-form-card p-5 sm:p-6">
-                  <h2 className="text-base font-semibold">Como o cliente te encontra</h2>
-                  <p className="mt-1 text-sm text-muted">Cada campo entra no bloco Contato do site, com o ícone padrão.</p>
-
-                  <div className="mt-5 space-y-3">
+              <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted sm:hidden">
+                Toque em cada bloco para abrir. Só um fica aberto — assim você não se perde no celular.
+              </p>
+              <section id="estudio-contato" className="gx-step space-y-3">
+                <SecaoColapsavel
+                  id="bloco-contato"
+                  titulo="Como o cliente te encontra"
+                  resumo={[whatsapp.trim() && "WhatsApp ok", email.trim() && "E-mail ok", visual.agendamento && "Agenda ligada"]
+                    .filter(Boolean)
+                    .join(" · ") || "WhatsApp, e-mail e agendamento"}
+                  aberto={blocoAberto === "contato"}
+                  onToggle={() => toggleBloco("contato")}
+                >
+                  <p className="text-sm text-muted">Cada campo entra no bloco Contato do site, com o ícone padrão.</p>
+                  <div className="mt-4 space-y-3">
                     <div className="rounded-2xl border border-line p-4">
                       <div className="flex items-center gap-3">
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366]/15 text-[#128C7E]">
@@ -1470,7 +1514,7 @@ export function EstudioForm() {
                     <label className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
                       <span>
                         <span className="block text-sm font-semibold">Agendar no site</span>
-                        <span className="text-xs text-muted">Serviço → profissional → dia → hora → WhatsApp.</span>
+                        <span className="text-xs text-muted">Serviço → profissional → dia → hora.</span>
                       </span>
                       <input type="checkbox" className="h-5 w-5" checked={visual.agendamento} onChange={(e) => setVisual((v) => ({ ...v, agendamento: e.target.checked }))} />
                     </label>
@@ -1480,21 +1524,22 @@ export function EstudioForm() {
                       <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@seunegocio.com.br" />
                     </label>
                   </div>
-                </div>
+                </SecaoColapsavel>
 
-                <div className="gx-form-card gx-horario-card p-5 sm:p-6">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold tracking-tight">Horário de trabalho</h3>
-                    <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
-                      Escolha os dias, o expediente e, se quiser, a pausa de almoço. O site usa isso no agendamento.
-                    </p>
-                  </div>
-
-                  <div className="mt-5">
+                <SecaoColapsavel
+                  id="bloco-horario"
+                  titulo="Horário de trabalho"
+                  resumo={horario || "Defina dias e expediente"}
+                  aberto={blocoAberto === "horario"}
+                  onToggle={() => toggleBloco("horario")}
+                >
+                  <p className="text-sm leading-relaxed text-muted">
+                    Escolha os dias, o expediente e, se quiser, a pausa de almoço.
+                  </p>
+                  <div className="mt-4">
                     <GradeExpediente atalhos value={expediente} onChange={setExpediente} />
                   </div>
-
-                  <div className="gx-horario-resumo mt-5">
+                  <div className="gx-horario-resumo mt-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Resumo no site</p>
                     <p className="mt-1 text-sm font-medium text-ink">{horario || "Horário a combinar"}</p>
                     <label className="mt-3 block text-xs font-medium text-muted">
@@ -1507,14 +1552,17 @@ export function EstudioForm() {
                       />
                     </label>
                   </div>
-                </div>
+                </SecaoColapsavel>
 
-                <div className="gx-form-card p-5 sm:p-6">
+                <SecaoColapsavel
+                  id="bloco-avisos"
+                  titulo="Avisos e recessos"
+                  resumo={notasAgenda.length ? `${notasAgenda.length} aviso(s)` : "Opcional"}
+                  aberto={blocoAberto === "avisos"}
+                  onToggle={() => toggleBloco("avisos")}
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">Avisos e recessos</h3>
-                      <p className="mt-1 text-xs text-muted">Ex.: “25/12 não atenderemos — Natal” ou “recesso 25/12 a 01/01”.</p>
-                    </div>
+                    <p className="text-xs text-muted">Ex.: “25/12 não atenderemos — Natal”.</p>
                     <button
                       type="button"
                       className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
@@ -1544,11 +1592,16 @@ export function EstudioForm() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </SecaoColapsavel>
 
-                <div className="gx-form-card p-5 sm:p-6">
-                  <p className="text-sm font-semibold">Redes sociais</p>
-                  <p className="mt-1 text-xs text-muted">Ícones oficiais no contato e no rodapé.</p>
+                <SecaoColapsavel
+                  id="bloco-redes"
+                  titulo="Redes sociais"
+                  resumo={canaisAtivos.length ? `${canaisAtivos.length} rede(s)` : "Opcional"}
+                  aberto={blocoAberto === "redes"}
+                  onToggle={() => toggleBloco("redes")}
+                >
+                  <p className="text-xs text-muted">Ícones oficiais no contato e no rodapé.</p>
                   <div className="mt-3 space-y-2">
                     {canaisAtivos.map((id) => {
                       const canal = CANAIS.find((c) => c.id === id);
@@ -1613,10 +1666,17 @@ export function EstudioForm() {
                       ))}
                     </select>
                   </label>
-                </div>
-                <div className="gx-pulse-cep rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5 shadow-[0_16px_40px_-22px_rgba(249,115,22,0.55)]">
-                  <p className="text-[11px] font-semibold tracking-[0.16em] text-accent">ENDEREÇO PELO CEP</p>
-                  <p className="mt-1 text-sm text-muted">Digite o CEP: rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
+                </SecaoColapsavel>
+
+                <SecaoColapsavel
+                  id="bloco-endereco"
+                  titulo="Endereço pelo CEP"
+                  resumo={[logradouro, cidade, estado].filter(Boolean).join(", ") || "Digite o CEP"}
+                  aberto={blocoAberto === "endereco"}
+                  onToggle={() => toggleBloco("endereco")}
+                  destaque
+                >
+                  <p className="text-sm text-muted">Rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
                     <label className="block min-w-0 flex-1 text-sm font-medium">
                       CEP
@@ -1642,8 +1702,8 @@ export function EstudioForm() {
                       {buscandoCep ? "Buscando…" : "Buscar endereço"}
                     </button>
                   </div>
-                  {cepOk ? <p className="gx-pulse-cep mt-3 text-sm font-medium text-ink">{cepOk}</p> : null}
-                  <div className={`mt-4 grid gap-3 sm:grid-cols-6 ${cepOk || logradouro ? "gx-pulse-cep" : ""}`}>
+                  {cepOk ? <p className="mt-3 text-sm font-medium text-ink">{cepOk}</p> : null}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-6">
                     <label className="block text-sm sm:col-span-4">
                       Rua
                       <input className={campo} value={logradouro} onChange={(e) => { setEnderecoLivre(""); setLogradouro(e.target.value); }} />
@@ -1665,13 +1725,17 @@ export function EstudioForm() {
                       <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} />
                     </label>
                   </div>
-                </div>
-                <div className="gx-form-card p-5 sm:p-6">
+                </SecaoColapsavel>
+
+                <SecaoColapsavel
+                  id="bloco-eventos"
+                  titulo="Eventos da casa"
+                  resumo={eventos.length ? `${eventos.length} evento(s)` : "Opcional"}
+                  aberto={blocoAberto === "eventos"}
+                  onToggle={() => toggleBloco("eventos")}
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">Eventos da casa</h3>
-                      <p className="mt-1 text-xs text-muted">Opcional — noites especiais, workshops, lançamentos.</p>
-                    </div>
+                    <p className="text-xs text-muted">Noites especiais, workshops, lançamentos.</p>
                     <button
                       type="button"
                       className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
@@ -1693,15 +1757,18 @@ export function EstudioForm() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </SecaoColapsavel>
               </section>
 
-              <section id="estudio-faq" className="gx-step gx-form-card p-5 sm:p-6">
+              <SecaoColapsavel
+                id="bloco-faq"
+                titulo="Dúvidas frequentes"
+                resumo={faqsForm.itens.length ? `${faqsForm.itens.length} pergunta(s)` : "Opcional · até 10"}
+                aberto={blocoAberto === "faq"}
+                onToggle={() => toggleBloco("faq")}
+              >
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold">Dúvidas frequentes</h2>
-                    <p className="mt-1 text-sm text-muted">Até 10 perguntas. Dá para reescrever, incluir ou apagar todas.</p>
-                  </div>
+                  <p className="text-sm text-muted">Até 10 perguntas. Reescreva, inclua ou apague.</p>
                   <div className="flex gap-2">
                     {faqsForm.itens.length > 0 ? (
                       <button type="button" className="rounded-full border border-line px-3 py-1.5 text-xs" onClick={() => setFaqs({ ...faqsForm, itens: [] })}>
@@ -1756,20 +1823,21 @@ export function EstudioForm() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </SecaoColapsavel>
 
-              <section id="estudio-servicos" className="gx-step gx-form-card p-5 sm:p-6">
+              <SecaoColapsavel
+                id="bloco-servicos"
+                titulo="Serviços no site"
+                resumo={`${servicos.length} serviço(s)`}
+                aberto={blocoAberto === "servicos"}
+                onToggle={() => toggleBloco("servicos")}
+              >
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold">Serviços no site</h2>
-                    <p className="mt-1 text-sm text-muted">
-                      Os serviços do modelo já estão aqui. Edite, troque a foto (sua ou da biblioteca) e veja no site.
-                    </p>
-                  </div>
+                  <p className="text-sm text-muted">Edite, troque a foto e veja no preview. Toque no serviço para expandir.</p>
                   <button
                     type="button"
                     className="rounded-full bg-ink px-4 py-2 text-sm text-white"
-                    onClick={() =>
+                    onClick={() => {
                       setServicos((s) => [
                         ...s,
                         {
@@ -1779,88 +1847,115 @@ export function EstudioForm() {
                           descricao: "",
                           imagemSrc: fotoModelo(nicho, s.length),
                         },
-                      ])
-                    }
+                      ]);
+                      setSrvAberto(servicos.length);
+                    }}
                   >
                     Criar serviço
                   </button>
                 </div>
-                <div className="mt-4 space-y-4">
-                  {servicos.map((s, i) => (
-                    <article key={`srv-${i}`} className="gx-card-in space-y-3 rounded-2xl border border-line p-3">
-                      <button
-                        type="button"
-                        className="block w-full overflow-hidden rounded-xl bg-canvas text-left"
-                        onClick={() => setSlotFoto({ tipo: "servico", indice: i })}
-                      >
-                        {s.imagemSrc ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.imagemSrc} alt="" className="aspect-[16/10] w-full object-cover" />
-                        ) : (
-                          <div className="flex aspect-[16/10] items-center justify-center text-xs text-muted">Sem foto</div>
-                        )}
-                        <span className="block bg-canvas px-2 py-1.5 text-xs font-medium">Trocar foto</span>
-                      </button>
-                      <label className="block text-xs font-medium text-muted">
-                        Nome
-                        <input
-                          className={campo}
-                          value={s.nome}
-                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                        />
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="block text-xs font-medium text-muted">
-                          Preço
-                          <input
-                            className={`${campo} font-semibold text-accent`}
-                            value={s.preco}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
-                          />
-                        </label>
-                        <label className="block text-xs font-medium text-muted">
-                          Duração
-                          <input
-                            className={campo}
-                            value={s.duracao}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
-                          />
-                        </label>
-                      </div>
-                      <label className="block text-xs font-medium text-muted">
-                        Texto
-                        <textarea
-                          rows={4}
-                          className={`${campo} min-h-[5.5rem] resize-y`}
-                          value={s.descricao}
-                          onChange={(e) => {
-                            manuais.current.add(`srv.${i}.descricao`);
-                            setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)));
-                          }}
-                        />
-                      </label>
-                      {servicos.length > 1 ? (
+                <div className="mt-4 space-y-2">
+                  {servicos.map((s, i) => {
+                    const aberto = srvAberto === i;
+                    return (
+                      <article key={`srv-${i}`} className={`gx-acordeao-item ${aberto ? "is-open" : ""}`}>
                         <button
                           type="button"
-                          className="rounded-full px-3 py-1.5 text-xs text-muted"
-                          onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
+                          className="gx-acordeao-item__cabeca"
+                          aria-expanded={aberto}
+                          onClick={() => setSrvAberto((atual) => (atual === i ? -1 : i))}
                         >
-                          Remover
+                          <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-ink">
+                            {s.nome.trim() || `Serviço ${i + 1}`}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted">
+                            {[s.preco, s.duracao].filter(Boolean).join(" · ")}
+                          </span>
+                          <span className="gx-acordeao__chev" aria-hidden>
+                            {aberto ? "▴" : "▾"}
+                          </span>
                         </button>
-                      ) : null}
-                    </article>
-                  ))}
+                        {aberto ? (
+                          <div className="space-y-3 px-3 pb-3">
+                            <button
+                              type="button"
+                              className="block w-full overflow-hidden rounded-xl bg-canvas text-left"
+                              onClick={() => setSlotFoto({ tipo: "servico", indice: i })}
+                            >
+                              {s.imagemSrc ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={s.imagemSrc} alt="" className="aspect-[16/10] w-full object-cover" />
+                              ) : (
+                                <div className="flex aspect-[16/10] items-center justify-center text-xs text-muted">Sem foto</div>
+                              )}
+                              <span className="block bg-canvas px-2 py-1.5 text-xs font-medium">Trocar foto</span>
+                            </button>
+                            <label className="block text-xs font-medium text-muted">
+                              Nome
+                              <input
+                                className={campo}
+                                value={s.nome}
+                                onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                              />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="block text-xs font-medium text-muted">
+                                Preço
+                                <input
+                                  className={`${campo} font-semibold text-accent`}
+                                  value={s.preco}
+                                  onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
+                                />
+                              </label>
+                              <label className="block text-xs font-medium text-muted">
+                                Duração
+                                <input
+                                  className={campo}
+                                  value={s.duracao}
+                                  onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
+                                />
+                              </label>
+                            </div>
+                            <label className="block text-xs font-medium text-muted">
+                              Texto
+                              <textarea
+                                rows={3}
+                                className={`${campo} min-h-[4.5rem] resize-y`}
+                                value={s.descricao}
+                                onChange={(e) => {
+                                  manuais.current.add(`srv.${i}.descricao`);
+                                  setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)));
+                                }}
+                              />
+                            </label>
+                            {servicos.length > 1 ? (
+                              <button
+                                type="button"
+                                className="rounded-full px-3 py-1.5 text-xs text-muted"
+                                onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
+                              >
+                                Remover
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </div>
-              </section>
+              </SecaoColapsavel>
 
-              <section id="estudio-equipe" className="gx-step gx-form-card p-5 sm:p-6">
+              <SecaoColapsavel
+                id="bloco-equipe"
+                titulo="Equipe e agenda"
+                resumo={pros.length ? `${pros.length} profissional(is)` : "Opcional · Sem preferência"}
+                aberto={blocoAberto === "equipe"}
+                onToggle={() => toggleBloco("equipe")}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 max-w-xl">
-                    <h2 className="text-base font-semibold tracking-tight">Equipe e agenda</h2>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                      Cadastre quem atende, o horário de cada um e as ausências. O site só libera horários em que a pessoa está disponível.
-                    </p>
-                  </div>
+                  <p className="max-w-xl text-sm leading-relaxed text-muted">
+                    Cadastre quem atende, o horário de cada um e as ausências.
+                  </p>
                   <button
                     type="button"
                     className="shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-sm"
@@ -2240,7 +2335,7 @@ export function EstudioForm() {
                     })}
                   </div>
                 )}
-              </section>
+              </SecaoColapsavel>
             </>
           ) : null}
 
