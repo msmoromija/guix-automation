@@ -62,13 +62,14 @@ function Conta() {
   }
 
   const editarUrl = `/visualizar/${dados.id}`;
+  const agendaUrl = `/conta/${dados.id}/agenda?t=${encodeURIComponent(token)}`;
   const agendarAbsoluto = `${origem}${dados.agendarUrl || `/visualizar/${dados.id}#agendar`}`;
 
   const cards = [
     {
       titulo: "Editar agenda e horários",
-      texto: "Horário da casa, recessos, grade e ausências de cada profissional — tudo editável no site de teste.",
-      href: `${editarUrl}#agendar`,
+      texto: "Horário da casa, turnos e ausências de cada profissional — atualize quando a rotina mudar; o site de agendamento acompanha na hora.",
+      href: agendaUrl,
       cta: "Abrir editor de agenda",
     },
     {

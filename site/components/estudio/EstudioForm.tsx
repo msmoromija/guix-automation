@@ -1920,8 +1920,10 @@ export function EstudioForm() {
                           <div>
                             <div className="flex flex-wrap items-end justify-between gap-2">
                               <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Grade semanal</p>
-                                <p className="mt-1 text-xs text-muted">Marque o dia e o intervalo em que esta pessoa atende.</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Grade desta pessoa</p>
+                                <p className="mt-1 text-xs text-muted">
+                                  Dias, turno e almoço próprios — independentes do horário da casa. Depois você também altera isso na área do cliente.
+                                </p>
                               </div>
                               <button
                                 type="button"
@@ -1944,7 +1946,9 @@ export function EstudioForm() {
                             </div>
                             <div className="mt-3">
                               <GradeExpediente
-                                compacto
+                                atalhos
+                                detalheAberto
+                                vazio="Marque os dias em que esta pessoa atende."
                                 value={p.expediente}
                                 onChange={(prox) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, expediente: prox } : r)))}
                               />
@@ -1968,7 +1972,7 @@ export function EstudioForm() {
                                         ? {
                                             ...r,
                                             ausencias:
-                                              r.ausencias.length >= 6
+                                              r.ausencias.length >= 24
                                                 ? r.ausencias
                                                 : [...r.ausencias, { de: "", ate: "", motivo: "Ausente" }],
                                           }

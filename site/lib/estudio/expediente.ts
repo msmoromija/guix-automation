@@ -322,3 +322,88 @@ export function horarioCompartilhado(dias: DiaExpediente[]) {
     homogeneo,
   };
 }
+
+/** Reconstrói a grade a partir dos intervalos do schema 1.0.0. */
+export function schemaParaExpediente(
+  lista: Array<{ dia: string; label?: string; intervalos?: string[] }> | undefined,
+): DiaExpediente[] {
+  const mapa = new Map((lista || []).map((d) => [d.dia, d]));
+  return DIAS_SEMANA.map((meta) => {
+    const item = mapa.get(meta.dia);
+    const slots = [...(item?.intervalos || [])]
+      .filter((h) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(h))
+      .sort((a, b) => horaParaMin(a) - horaParaMin(b));
+    if (!slots.length) {
+      return normalizarDiaExpediente({ dia: meta.dia, label: meta.label, aberto: false });
+    }
+    const inicio = slots[0];
+    const fim = minParaHora(horaParaMin(slots[slots.length - 1]) + 60);
+    let pausa = false;
+    let pausaInicio = "12:00";
+    let pausaFim = "13:00";
+    for (let i = 1; i < slots.length; i++) {
+      const gap = horaParaMin(slots[i]) - horaParaMin(slots[i - 1]);
+      if (gap > 60) {
+        pausa = true;
+        pausaInicio = minParaHora(horaParaMin(slots[i - 1]) + 60);
+        pausaFim = slots[i];
+        break;
+      }
+    }
+    return {
+      dia: meta.dia,
+      label: meta.label,
+      aberto: true,
+      inicio,
+      fim,
+      pausa,
+      pausaInicio,
+      pausaFim,
+    };
+  });
+}
+
+/** Grade editável a partir da agenda visual do profissional. */
+export function agendaProParaExpediente(agenda: AgendaProVisual | undefined | null): DiaExpediente[] {
+  const mapa = new Map((agenda?.dias || []).map((d) => [d.dia, d]));
+  return DIAS_SEMANA.map((meta) => {
+    const g = mapa.get(meta.dia);
+    if (!g) return normalizarDiaExpediente({ dia: meta.dia, label: meta.label, aberto: false });
+    return {
+      dia: meta.dia,
+      label: meta.label,
+      aberto: true,
+      inicio: g.inicio || "09:00",
+      fim: g.fim || "18:00",
+      pausa: Boolean(g.pausa),
+      pausaInicio: g.pausaInicio || "12:00",
+      pausaFim: g.pausaFim || "13:00",
+    };
+  });
+}
+
+/** Atalhos de turno — aplica só nos dias abertos. */
+export function aplicarTurnoNosAbertos(
+  dias: DiaExpediente[],
+  turno: "manha" | "tarde" | "integral" | "noite",
+): DiaExpediente[] {
+  const mapa = {
+    manha: { inicio: "08:00", fim: "12:00", pausa: false },
+    tarde: { inicio: "13:00", fim: "18:00", pausa: false },
+    integral: { inicio: "09:00", fim: "18:00", pausa: true, pausaInicio: "12:00", pausaFim: "13:00" },
+    noite: { inicio: "18:00", fim: "22:00", pausa: false },
+  } as const;
+  const t = mapa[turno];
+  return dias.map((d) =>
+    d.aberto
+      ? {
+          ...d,
+          inicio: t.inicio,
+          fim: t.fim,
+          pausa: "pausa" in t ? t.pausa : false,
+          pausaInicio: "pausaInicio" in t ? t.pausaInicio : d.pausaInicio,
+          pausaFim: "pausaFim" in t ? t.pausaFim : d.pausaFim,
+        }
+      : d,
+  );
+}

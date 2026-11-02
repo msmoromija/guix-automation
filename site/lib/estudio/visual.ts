@@ -39,8 +39,18 @@ export interface VisualConfig {
   /** Agenda por profissional — fora do schema congelado. */
   agendaEquipe?: Array<{
     nome: string;
-    /** Legado: só ids de dia. Novo: grade com início/fim. */
-    dias: Array<string | { dia: string; inicio: string; fim: string }>;
+    /** Legado: só ids de dia. Novo: grade com início/fim e pausa. */
+    dias: Array<
+      | string
+      | {
+          dia: string;
+          inicio: string;
+          fim: string;
+          pausa?: boolean;
+          pausaInicio?: string;
+          pausaFim?: string;
+        }
+    >;
     inicio?: string;
     fim?: string;
     nota?: string;

@@ -179,6 +179,75 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
   }
 
+  /** Atualiza só horário da casa + grade/ausências por profissional (área do cliente). */
+  if (body.somenteAgenda === true) {
+    const site = structuredClone(pacote.site);
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    if (Array.isArray(body.expediente)) {
+      empresa.expediente = body.expediente
+        .map((raw) => {
+          const d = raw as { dia?: string; label?: string; intervalos?: string[] };
+          const dia = String(d.dia || "").slice(0, 3);
+          const intervalos = Array.isArray(d.intervalos)
+            ? d.intervalos.map((h) => String(h).slice(0, 5)).filter((h) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(h)).slice(0, 24)
+            : [];
+          if (!dia || !intervalos.length) return null;
+          return { dia, label: String(d.label || dia).slice(0, 24), intervalos };
+        })
+        .filter(Boolean)
+        .slice(0, 7);
+    }
+    site.empresa = empresa;
+
+    const visualBase = { ...visualPadrao(pacote.nicho), ...(pacote.visual || {}) };
+    let agendaEquipe = visualBase.agendaEquipe || [];
+    if (Array.isArray(body.agendaEquipe)) {
+      agendaEquipe = body.agendaEquipe
+        .map((raw) => {
+          const a = raw as {
+            nome?: string;
+            dias?: Array<string | { dia?: string; inicio?: string; fim?: string; pausa?: boolean; pausaInicio?: string; pausaFim?: string }>;
+            ausencias?: Array<{ de?: string; ate?: string; motivo?: string }>;
+          };
+          const nome = String(a.nome || "").trim().slice(0, 80);
+          if (!nome) return null;
+          const dias = (a.dias || [])
+            .map((item) => {
+              if (typeof item === "string") {
+                if (!["dom", "seg", "ter", "qua", "qui", "sex", "sab"].includes(item)) return null;
+                return { dia: item, inicio: "09:00", fim: "18:00" };
+              }
+              const dia = String(item?.dia || "");
+              if (!["dom", "seg", "ter", "qua", "qui", "sex", "sab"].includes(dia)) return null;
+              return {
+                dia,
+                inicio: String(item.inicio || "09:00").slice(0, 5),
+                fim: String(item.fim || "18:00").slice(0, 5),
+                pausa: Boolean(item.pausa),
+                pausaInicio: String(item.pausaInicio || "12:00").slice(0, 5),
+                pausaFim: String(item.pausaFim || "13:00").slice(0, 5),
+              };
+            })
+            .filter(Boolean)
+            .slice(0, 7);
+          const ausencias = (a.ausencias || [])
+            .map((u) => ({
+              de: String(u.de || "").slice(0, 10),
+              ate: String(u.ate || u.de || "").slice(0, 10),
+              motivo: String(u.motivo || "Ausente").slice(0, 80),
+            }))
+            .filter((u) => /^\d{4}-\d{2}-\d{2}$/.test(u.de))
+            .slice(0, 24);
+          return { nome, dias, ausencias };
+        })
+        .filter(Boolean)
+        .slice(0, 24) as NonNullable<VisualConfig["agendaEquipe"]>;
+    }
+    const visual: VisualConfig = { ...visualBase, agendaEquipe };
+    await gravarPacote({ ...pacote, site, visual });
+    return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
+  }
+
   const campo = String(body.campo || "");
   const valorCampo = String(body.valor || "");
   if (campo && valorCampo && body.nome == null && !body.visual && !body.fotoSrc) {
