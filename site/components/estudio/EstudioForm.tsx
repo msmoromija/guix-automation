@@ -15,13 +15,14 @@ import { MarcaStudio } from "@/components/estudio/MarcaStudio";
 import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
 import { IconeRede } from "@/components/estudio/IconeRede";
+import { GradeExpediente } from "@/components/estudio/GradeExpediente";
 import { CANAIS, extrasDeRedes, type CanalId } from "@/lib/estudio/canais";
 import {
-  DIAS_SEMANA,
   agendaProParaVisual,
   expedientePadrao,
   expedienteParaSchema,
   expedienteProPadrao,
+  normalizarDiaExpediente,
   resumoDoExpediente,
   type AusenciaPro,
   type DiaExpediente,
@@ -657,8 +658,13 @@ export function EstudioForm() {
     setEstado(m.estado);
     setCep(m.cep);
     setServicos(m.servicos);
-    setPros(m.pros);
-    setExpediente(m.expediente);
+    setPros(
+      m.pros.map((p) => ({
+        ...p,
+        expediente: (p.expediente || expedienteProPadrao()).map((d) => normalizarDiaExpediente(d)),
+      })),
+    );
+    setExpediente((m.expediente || expedientePadrao()).map((d) => normalizarDiaExpediente(d)));
     setNotasAgenda(m.notasAgenda);
     setCopia(m.copia);
     setMenuLivre(m.menuLivre);
@@ -1123,7 +1129,7 @@ export function EstudioForm() {
       <form onSubmit={enviar} className="mt-6">
         <div className="space-y-5">
           {etapa === 1 ? (
-            <section id="estudio-negocio" className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-negocio" className="gx-step gx-form-card p-5 sm:p-6">
               <h2 className="text-base font-semibold">Identidade do negócio</h2>
               <p className="mt-1 text-sm text-muted">
                 O que você digitar aqui aparece na hora no site à direita: nome no topo, frase e tom dos textos.
@@ -1201,7 +1207,7 @@ export function EstudioForm() {
           ) : null}
 
           {etapa === 2 ? (
-            <section id="estudio-aparencia" className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-aparencia" className="gx-step gx-form-card p-5 sm:p-6">
               <h2 className="text-base font-semibold">Escolha um visual</h2>
               <p className="mt-1 text-sm text-muted">
                 Cada cartão já junta cores e letras. O site à direita muda na hora.
@@ -1261,7 +1267,7 @@ export function EstudioForm() {
           ) : null}
 
           {etapa === 3 ? (
-            <section id="estudio-marca" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-marca" className="gx-step gx-form-card p-5 sm:p-6">
               <h2 className="text-base font-semibold">Como a marca aparece no topo</h2>
               <p className="mt-1 text-sm text-muted">Escolha o resultado. A prévia à direita já mostra o cabeçalho.</p>
               <div className="mt-4 grid gap-3">
@@ -1373,7 +1379,7 @@ export function EstudioForm() {
           {etapa === 4 ? (
             <>
               <section id="estudio-contato" className="gx-step space-y-4">
-                <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="gx-form-card p-5 sm:p-6">
                   <h2 className="text-base font-semibold">Como o cliente te encontra</h2>
                   <p className="mt-1 text-sm text-muted">Cada campo entra no bloco Contato do site, com o ícone padrão.</p>
 
@@ -1410,50 +1416,24 @@ export function EstudioForm() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="gx-form-card p-5 sm:p-6">
                   <div className="flex items-end justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">Horário de trabalho</h3>
-                      <p className="mt-1 text-xs text-muted">Agenda da semana — alimenta o site e os horários do agendar.</p>
+                      <p className="mt-1 text-xs text-muted">Marque os dias, o expediente e a pausa de almoço — o agendar respeita os buracos.</p>
                     </div>
-                    <p className="max-w-[12rem] text-right text-[11px] text-muted">{horario}</p>
+                    <p className="max-w-[13rem] text-right text-[11px] text-muted">{horario}</p>
                   </div>
-                  <div className="mt-3 space-y-2">
-                    {expediente.map((dia) => (
-                      <div key={dia.dia} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-xl border border-line px-3 py-2.5 sm:gap-3">
-                        <input
-                          type="checkbox"
-                          checked={dia.aberto}
-                          onChange={(e) =>
-                            setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, aberto: e.target.checked } : d)))
-                          }
-                          aria-label={`${dia.label} aberto`}
-                        />
-                        <span className={`text-sm ${dia.aberto ? "font-medium text-ink" : "text-muted"}`}>{dia.label}</span>
-                        <input
-                          type="time"
-                          className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
-                          value={dia.inicio}
-                          disabled={!dia.aberto}
-                          onChange={(e) => setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, inicio: e.target.value } : d)))}
-                        />
-                        <input
-                          type="time"
-                          className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
-                          value={dia.fim}
-                          disabled={!dia.aberto}
-                          onChange={(e) => setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, fim: e.target.value } : d)))}
-                        />
-                      </div>
-                    ))}
+                  <div className="mt-4">
+                    <GradeExpediente value={expediente} onChange={setExpediente} />
                   </div>
-                  <label className="mt-3 block text-xs font-medium text-muted">
+                  <label className="mt-4 block text-xs font-medium text-muted">
                     Resumo no site (opcional)
-                    <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 9h às 18h" />
+                    <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 9h às 18h (almoço 12h–13h)" />
                   </label>
                 </div>
 
-                <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="gx-form-card p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">Avisos e recessos</h3>
@@ -1490,7 +1470,7 @@ export function EstudioForm() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="gx-form-card p-5 sm:p-6">
                   <p className="text-sm font-semibold">Redes sociais</p>
                   <p className="mt-1 text-xs text-muted">Ícones oficiais no contato e no rodapé.</p>
                   <div className="mt-3 space-y-2">
@@ -1558,7 +1538,7 @@ export function EstudioForm() {
                     </select>
                   </label>
                 </div>
-                <div className="gx-pulse-cep rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5">
+                <div className="gx-pulse-cep rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5 shadow-[0_16px_40px_-22px_rgba(249,115,22,0.55)]">
                   <p className="text-[11px] font-semibold tracking-[0.16em] text-accent">ENDEREÇO PELO CEP</p>
                   <p className="mt-1 text-sm text-muted">Digite o CEP: rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -1610,7 +1590,7 @@ export function EstudioForm() {
                     </label>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="gx-form-card p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">Eventos da casa</h3>
@@ -1640,7 +1620,7 @@ export function EstudioForm() {
                 </div>
               </section>
 
-              <section id="estudio-faq" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-faq" className="gx-step gx-form-card p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Dúvidas frequentes</h2>
@@ -1702,7 +1682,7 @@ export function EstudioForm() {
                 </div>
               </section>
 
-              <section id="estudio-servicos" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-servicos" className="gx-step gx-form-card p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Serviços no site</h2>
@@ -1797,7 +1777,7 @@ export function EstudioForm() {
                 </div>
               </section>
 
-              <section id="estudio-equipe" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-equipe" className="gx-step gx-form-card p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Equipe e agenda</h2>
@@ -1816,7 +1796,7 @@ export function EstudioForm() {
                 ) : (
                   <div className="mt-4 space-y-5">
                     {pros.map((p, i) => (
-                      <article key={`pro-${i}`} className="gx-card-in overflow-hidden rounded-2xl border border-line">
+                      <article key={`pro-${i}`} className="gx-card-in overflow-hidden rounded-2xl border border-line shadow-[0_10px_28px_-18px_rgba(15,23,42,0.4)]">
                         <div className="border-b border-line bg-canvas/60 px-4 py-3 sm:px-5">
                           <p className="text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
                           <p className="text-xs text-muted">{p.cargo.trim() || "Preencha identidade, grade e ausências"}</p>
@@ -1888,7 +1868,7 @@ export function EstudioForm() {
                                       j === i
                                         ? {
                                             ...r,
-                                            expediente: expediente.map((d) => ({ ...d })),
+                                            expediente: expediente.map((d) => normalizarDiaExpediente(d)),
                                           }
                                         : r,
                                     ),
@@ -1898,65 +1878,12 @@ export function EstudioForm() {
                                 Copiar horário da casa
                               </button>
                             </div>
-                            <div className="mt-3 space-y-2">
-                              {p.expediente.map((dia) => (
-                                <div key={dia.dia} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-xl border border-line px-3 py-2 sm:gap-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={dia.aberto}
-                                    onChange={(e) =>
-                                      setPros((rows) =>
-                                        rows.map((r, j) =>
-                                          j === i
-                                            ? {
-                                                ...r,
-                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, aberto: e.target.checked } : d)),
-                                              }
-                                            : r,
-                                        ),
-                                      )
-                                    }
-                                    aria-label={`${dia.label} aberto`}
-                                  />
-                                  <span className={`text-sm ${dia.aberto ? "font-medium text-ink" : "text-muted"}`}>{dia.label}</span>
-                                  <input
-                                    type="time"
-                                    className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
-                                    value={dia.inicio}
-                                    disabled={!dia.aberto}
-                                    onChange={(e) =>
-                                      setPros((rows) =>
-                                        rows.map((r, j) =>
-                                          j === i
-                                            ? {
-                                                ...r,
-                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, inicio: e.target.value } : d)),
-                                              }
-                                            : r,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                  <input
-                                    type="time"
-                                    className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
-                                    value={dia.fim}
-                                    disabled={!dia.aberto}
-                                    onChange={(e) =>
-                                      setPros((rows) =>
-                                        rows.map((r, j) =>
-                                          j === i
-                                            ? {
-                                                ...r,
-                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, fim: e.target.value } : d)),
-                                              }
-                                            : r,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                </div>
-                              ))}
+                            <div className="mt-3">
+                              <GradeExpediente
+                                compacto
+                                value={p.expediente}
+                                onChange={(prox) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, expediente: prox } : r)))}
+                              />
                             </div>
                             <p className="mt-2 text-[11px] text-muted">{resumoDoExpediente(p.expediente)}</p>
                           </div>
@@ -2085,7 +2012,7 @@ export function EstudioForm() {
           ) : null}
 
           {etapa === 5 ? (
-            <section className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section className="gx-step gx-form-card p-5 sm:p-6">
               <h2 className="text-base font-semibold">Você vai receber um link válido por 3 dias</h2>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>

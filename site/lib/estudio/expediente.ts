@@ -6,6 +6,10 @@ export type DiaExpediente = {
   aberto: boolean;
   inicio: string;
   fim: string;
+  /** Pausa para almoço no meio do expediente. */
+  pausa: boolean;
+  pausaInicio: string;
+  pausaFim: string;
 };
 
 export type NotaAgenda = {
@@ -21,9 +25,18 @@ export type AusenciaPro = {
   motivo: string;
 };
 
+export type GradeProDia = {
+  dia: DiaSemana;
+  inicio: string;
+  fim: string;
+  pausa?: boolean;
+  pausaInicio?: string;
+  pausaFim?: string;
+};
+
 export type AgendaProVisual = {
   nome: string;
-  dias: Array<{ dia: DiaSemana; inicio: string; fim: string }>;
+  dias: GradeProDia[];
   ausencias?: AusenciaPro[];
 };
 
@@ -37,14 +50,40 @@ export const DIAS_SEMANA: { dia: DiaSemana; label: string; curto: string }[] = [
   { dia: "dom", label: "Domingo", curto: "Dom" },
 ];
 
-export function expedientePadrao(): DiaExpediente[] {
-  return DIAS_SEMANA.map((d) => ({
+function diaBase(d: (typeof DIAS_SEMANA)[number], aberto: boolean): DiaExpediente {
+  return {
     dia: d.dia,
     label: d.label,
-    aberto: d.dia !== "dom" && d.dia !== "sab",
+    aberto,
     inicio: "09:00",
     fim: "18:00",
-  }));
+    pausa: aberto && d.dia !== "sab" && d.dia !== "dom",
+    pausaInicio: "12:00",
+    pausaFim: "13:00",
+  };
+}
+
+export function expedientePadrao(): DiaExpediente[] {
+  return DIAS_SEMANA.map((d) => diaBase(d, d.dia !== "dom" && d.dia !== "sab"));
+}
+
+export function expedienteProPadrao(): DiaExpediente[] {
+  return DIAS_SEMANA.map((d) => diaBase(d, d.dia !== "dom"));
+}
+
+/** Garante campos de pausa em grades antigas sem almoço. */
+export function normalizarDiaExpediente(d: Partial<DiaExpediente> & { dia: DiaSemana; label?: string }): DiaExpediente {
+  const meta = DIAS_SEMANA.find((x) => x.dia === d.dia);
+  return {
+    dia: d.dia,
+    label: d.label || meta?.label || d.dia,
+    aberto: Boolean(d.aberto),
+    inicio: d.inicio || "09:00",
+    fim: d.fim || "18:00",
+    pausa: Boolean(d.pausa),
+    pausaInicio: d.pausaInicio || "12:00",
+    pausaFim: d.pausaFim || "13:00",
+  };
 }
 
 function horaParaMin(h: string) {
@@ -62,10 +101,23 @@ function minParaHora(n: number) {
 export function intervalosEntre(inicio: string, fim: string) {
   const a = horaParaMin(inicio);
   const b = horaParaMin(fim);
-  if (b <= a) return [inicio];
+  if (b <= a) return [];
   const out: string[] = [];
   for (let t = a; t < b; t += 60) out.push(minParaHora(t));
-  return out.length ? out : [inicio];
+  return out;
+}
+
+/** Gera slots de 1h respeitando pausa de almoço. */
+export function slotsDoDia(d: Pick<DiaExpediente, "aberto" | "inicio" | "fim" | "pausa" | "pausaInicio" | "pausaFim">) {
+  if (!d.aberto) return [];
+  if (d.pausa) {
+    const manha = intervalosEntre(d.inicio, d.pausaInicio || "12:00");
+    const tarde = intervalosEntre(d.pausaFim || "13:00", d.fim);
+    const juntos = [...manha, ...tarde];
+    return juntos.length ? juntos : intervalosEntre(d.inicio, d.fim);
+  }
+  const continuo = intervalosEntre(d.inicio, d.fim);
+  return continuo.length ? continuo : [d.inicio];
 }
 
 export function expedienteParaSchema(dias: DiaExpediente[]) {
@@ -75,8 +127,9 @@ export function expedienteParaSchema(dias: DiaExpediente[]) {
     .map((d) => ({
       dia: d.dia,
       label: d.label,
-      intervalos: intervalosEntre(d.inicio, d.fim),
-    }));
+      intervalos: slotsDoDia(d),
+    }))
+    .filter((d) => d.intervalos.length);
   return lista.length
     ? lista
     : [{ dia: "seg" as const, label: "Segunda", intervalos: intervalosEntre("09:00", "18:00") }];
@@ -88,13 +141,24 @@ export function resumoDoExpediente(dias: DiaExpediente[]) {
   const fmt = (h: string) => h.replace(/^0/, "").replace(":00", "h");
   const mesmos =
     abertos.length > 1 &&
-    abertos.every((d) => d.inicio === abertos[0].inicio && d.fim === abertos[0].fim);
+    abertos.every(
+      (d) =>
+        d.inicio === abertos[0].inicio &&
+        d.fim === abertos[0].fim &&
+        d.pausa === abertos[0].pausa &&
+        (!d.pausa || (d.pausaInicio === abertos[0].pausaInicio && d.pausaFim === abertos[0].pausaFim)),
+    );
   if (mesmos && abertos.length >= 3) {
-    return `${abertos[0].label} a ${abertos[abertos.length - 1].label}, ${fmt(abertos[0].inicio)} às ${fmt(abertos[0].fim)}`;
+    const base = `${abertos[0].label} a ${abertos[abertos.length - 1].label}, ${fmt(abertos[0].inicio)} às ${fmt(abertos[0].fim)}`;
+    if (abertos[0].pausa) {
+      return `${base} (almoço ${fmt(abertos[0].pausaInicio)}–${fmt(abertos[0].pausaFim)})`.slice(0, 160);
+    }
+    return base.slice(0, 160);
   }
   return abertos
     .map((d) => {
       const curto = DIAS_SEMANA.find((x) => x.dia === d.dia)?.curto || d.label.slice(0, 3);
+      if (d.pausa) return `${curto} ${fmt(d.inicio)}–${fmt(d.pausaInicio)}/${fmt(d.pausaFim)}–${fmt(d.fim)}`;
       return `${curto} ${fmt(d.inicio)}–${fmt(d.fim)}`;
     })
     .join(" · ")
@@ -115,16 +179,6 @@ export function intervalosDoDia(expediente: { dia: string; intervalos: string[] 
   return item?.intervalos?.length ? item.intervalos : null;
 }
 
-export function expedienteProPadrao(): DiaExpediente[] {
-  return DIAS_SEMANA.map((d) => ({
-    dia: d.dia,
-    label: d.label,
-    aberto: d.dia !== "dom",
-    inicio: "09:00",
-    fim: "18:00",
-  }));
-}
-
 export function dataEmAusencia(ausencias: AusenciaPro[] | undefined, iso: string) {
   if (!ausencias?.length || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
   for (const a of ausencias) {
@@ -135,6 +189,19 @@ export function dataEmAusencia(ausencias: AusenciaPro[] | undefined, iso: string
     if (iso >= de && iso <= fim) return a;
   }
   return null;
+}
+
+function horaNaGrade(h: string, grade: GradeProDia) {
+  const m = horaParaMin(h);
+  const ini = horaParaMin(grade.inicio || "09:00");
+  const fim = horaParaMin(grade.fim || "18:00");
+  if (m < ini || m >= fim) return false;
+  if (grade.pausa) {
+    const pIni = horaParaMin(grade.pausaInicio || "12:00");
+    const pFim = horaParaMin(grade.pausaFim || "13:00");
+    if (m >= pIni && m < pFim) return false;
+  }
+  return true;
 }
 
 /** Cruza expediente da casa com a grade do profissional e bloqueia ausências. */
@@ -157,12 +224,7 @@ export function intervalosDoProfissional(
   const grade = (agenda.dias || []).find((d) => d.dia === dia);
   if (!grade) return { slots: null, motivo: "Este profissional não atende neste dia." };
 
-  const ini = horaParaMin(grade.inicio || "09:00");
-  const fim = horaParaMin(grade.fim || "18:00");
-  const lista = base.filter((h) => {
-    const m = horaParaMin(h);
-    return m >= ini && m < fim;
-  });
+  const lista = base.filter((h) => horaNaGrade(h, grade));
   return lista.length
     ? { slots: lista }
     : { slots: null, motivo: "Sem horário livre com este profissional neste dia." };
@@ -170,7 +232,7 @@ export function intervalosDoProfissional(
 
 export function normalizarAgendaPro(raw: {
   nome: string;
-  dias?: Array<string | { dia: string; inicio?: string; fim?: string }>;
+  dias?: Array<string | { dia: string; inicio?: string; fim?: string; pausa?: boolean; pausaInicio?: string; pausaFim?: string }>;
   inicio?: string;
   fim?: string;
   ausencias?: AusenciaPro[];
@@ -190,6 +252,9 @@ export function normalizarAgendaPro(raw: {
         dia: item.dia as DiaSemana,
         inicio: item.inicio || inicioPadrao,
         fim: item.fim || fimPadrao,
+        pausa: Boolean(item.pausa),
+        pausaInicio: item.pausaInicio || "12:00",
+        pausaFim: item.pausaFim || "13:00",
       });
     }
   }
@@ -205,7 +270,27 @@ export function agendaProParaVisual(nome: string, expediente: DiaExpediente[], a
     nome: nome.trim(),
     dias: expediente
       .filter((d) => d.aberto)
-      .map((d) => ({ dia: d.dia, inicio: d.inicio, fim: d.fim })),
+      .map((d) => ({
+        dia: d.dia,
+        inicio: d.inicio,
+        fim: d.fim,
+        pausa: d.pausa,
+        pausaInicio: d.pausaInicio,
+        pausaFim: d.pausaFim,
+      })),
     ausencias: ausencias.filter((a) => a.de),
   };
+}
+
+export function aplicarAlmocoNosAbertos(dias: DiaExpediente[], ligado: boolean, inicio = "12:00", fim = "13:00"): DiaExpediente[] {
+  return dias.map((d) =>
+    d.aberto
+      ? {
+          ...d,
+          pausa: ligado,
+          pausaInicio: inicio,
+          pausaFim: fim,
+        }
+      : { ...d, pausa: false },
+  );
 }
