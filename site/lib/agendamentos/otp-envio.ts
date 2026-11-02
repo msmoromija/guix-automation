@@ -1,4 +1,5 @@
 import type { CanalVerificacao } from "./cliente";
+import { enviarSmsCodigo, smsConfigurado } from "./sms";
 
 async function enviarEmailCodigo(opts: { para: string; nome: string; codigo: string; negocioNome?: string }) {
   const key = process.env.RESEND_API_KEY || "";
@@ -87,15 +88,29 @@ export async function enviarCodigoVerificacao(opts: {
     });
   }
 
+  // 1) SMS (Twilio ou webhook)
+  const sms = await enviarSmsCodigo({
+    telefoneDigitos: opts.telefoneDigitos,
+    codigo: opts.codigo,
+    nome: opts.nome,
+    negocioNome: opts.negocioNome,
+  });
+  if (sms.ok) {
+    return { ok: true as const, canalEfetivo: "sms" as const };
+  }
+
+  // 2) WhatsApp webhook (se houver)
   const wa = await enviarWhatsappCodigo({
     telefoneDigitos: opts.telefoneDigitos,
     nome: opts.nome,
     codigo: opts.codigo,
     negocioNome: opts.negocioNome,
   });
-  if (wa.ok) return wa;
+  if (wa.ok) {
+    return { ok: true as const, canalEfetivo: "telefone" as const };
+  }
 
-  // Sem provedor de WhatsApp: confirma pelo e-mail do cadastro (ainda exige posse do e-mail).
+  // 3) Sem SMS/WA: e-mail do cadastro (ainda exige posse do e-mail)
   const emailFallback = await enviarEmailCodigo({
     para: opts.email,
     nome: opts.nome,
@@ -103,14 +118,18 @@ export async function enviarCodigoVerificacao(opts: {
     negocioNome: opts.negocioNome,
   });
   if (emailFallback.ok) {
+    const dica = smsConfigurado()
+      ? "Não deu para entregar o SMS agora — enviamos o código no seu e-mail."
+      : "SMS ainda não está ligado neste servidor — enviamos o código no seu e-mail.";
     return {
       ok: true as const,
-      aviso: "WhatsApp automático ainda não está ligado neste servidor — enviamos o código no seu e-mail.",
+      aviso: dica,
       canalEfetivo: "email" as const,
     };
   }
+
   return {
     ok: false as const,
-    motivo: wa.motivo || emailFallback.motivo || "Não foi possível enviar o código.",
+    motivo: sms.motivo || wa.motivo || emailFallback.motivo || "Não foi possível enviar o código.",
   };
 }

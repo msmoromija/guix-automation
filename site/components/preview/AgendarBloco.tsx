@@ -408,7 +408,7 @@ export function AgendarBloco({
                       E-mail
                     </button>
                     <button type="button" className={chipBase} style={estiloBorda(canal === "telefone")} onClick={() => setCanal("telefone")}>
-                      WhatsApp
+                      SMS / telefone
                     </button>
                   </div>
                 </div>

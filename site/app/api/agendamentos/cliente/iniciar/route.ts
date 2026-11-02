@@ -35,14 +35,13 @@ export async function POST(req: NextRequest) {
     }
 
     const avisoExtra = "aviso" in envio ? envio.aviso || "" : "";
+    const caiuNoEmail = "canalEfetivo" in envio && envio.canalEfetivo === "email" && canal === "telefone";
     return NextResponse.json({
       ok: true,
       // Mantém o canal escolhido: o desafio OTP fica indexado nele (mesmo se o envio caiu no e-mail).
       canal: canal === "telefone" ? "telefone" : "email",
-      destinoMascarado:
-        avisoExtra && canal === "telefone"
-          ? inicio.cliente.email
-          : inicio.destinoMascarado,
+      canalEnvio: "canalEfetivo" in envio ? envio.canalEfetivo : canal === "telefone" ? "sms" : "email",
+      destinoMascarado: caiuNoEmail ? inicio.cliente.email : inicio.destinoMascarado,
       aviso: avisoExtra,
     });
   } catch {
