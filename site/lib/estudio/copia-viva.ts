@@ -182,14 +182,39 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
   const valor = corta(valorBruto, 420);
   if (!valor) return site;
   const [a, b, c] = campo.split(".");
-  if (a === "horario") {
+  if (a === "nome") {
     const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
-    empresa.horario_resumo = valor.slice(0, 80);
+    empresa.nome = valor.slice(0, 80);
+    site.empresa = empresa;
+  } else if (a === "horario") {
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    empresa.horario_resumo = valor.slice(0, 160);
     site.empresa = empresa;
   } else if (a === "hero" && (b === "titulo" || b === "subtitulo")) {
     const hero = { ...((site.hero as Record<string, unknown>) || {}) };
     hero[b] = valor;
     site.hero = hero;
+  } else if (a === "hero" && b === "botao") {
+    const hero = { ...((site.hero as Record<string, unknown>) || {}) };
+    hero.botao_principal = valor.slice(0, 48);
+    site.hero = hero;
+  } else if (a === "hero" && b === "botao2") {
+    const hero = { ...((site.hero as Record<string, unknown>) || {}) };
+    hero.botao_secundario = valor.slice(0, 48);
+    site.hero = hero;
+  } else if (a === "header" && b === "botao") {
+    const header = { ...((site.header as Record<string, unknown>) || {}) };
+    header.botao_agendar = valor.slice(0, 40);
+    site.header = header;
+  } else if (a === "menu" && c === "label") {
+    const header = { ...((site.header as Record<string, unknown>) || {}) };
+    const menu = Array.isArray(header.menu) ? [...(header.menu as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (menu[i]) {
+      menu[i] = { ...menu[i], label: valor.slice(0, 48) };
+      header.menu = menu;
+      site.header = header;
+    }
   } else if (a === "sobre" && b === "titulo") {
     const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
     sobre.titulo = valor;
@@ -248,10 +273,152 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
       bloco.itens = itens;
       site.profissionais = bloco;
     }
+  } else if (a === "telefone") {
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const rotulo = valor.slice(0, 24);
+    empresa.telefone_label = rotulo;
+    empresa.whatsapp_label = rotulo;
+    const digitos = valor.replace(/\D/g, "");
+    const wa = digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13) ? digitos : digitos.length === 10 || digitos.length === 11 ? `55${digitos}` : "";
+    if (wa) {
+      empresa.whatsapp = wa;
+      empresa.telefone = wa.replace(/^55/, "");
+    }
+    site.empresa = empresa;
+  } else if (a === "endereco") {
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const end = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+    end.completo = valor.slice(0, 180);
+    empresa.endereco = end;
+    site.empresa = empresa;
+  } else if (a === "dif") {
+    const bloco = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (itens[i] && (c === "titulo" || c === "descricao")) {
+      itens[i] = { ...itens[i], [c]: valor };
+      bloco.itens = itens;
+      site.diferenciais = bloco;
+    }
+  } else if (a === "evt") {
+    const bloco = { ...((site.eventos as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (itens[i] && (c === "titulo" || c === "descricao" || c === "data" || c === "horario")) {
+      const item = { ...itens[i] };
+      if (c === "titulo") item.titulo = valor;
+      if (c === "descricao") item.descricao = valor;
+      if (c === "data") item.data_label = valor;
+      if (c === "horario") item.horario = /^\d{2}:\d{2}$/.test(valor) ? valor : item.horario;
+      itens[i] = item;
+      bloco.itens = itens;
+      site.eventos = bloco;
+    }
+  } else if (a === "evento" && b === "novo") {
+    const bloco = { ...((site.eventos as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    if (itens.length < 4) {
+      const n = itens.length + 1;
+      const hoje = new Date();
+      hoje.setDate(hoje.getDate() + 7);
+      const data = hoje.toISOString().slice(0, 10);
+      itens.push({
+        id: `evt_extra_${n}`,
+        titulo: valor.slice(0, 60),
+        descricao: "Conte o que acontece neste dia.",
+        data,
+        data_label: data,
+        horario: "19:00",
+        imagem: { id: `img_evt_${n}`, src: "", alt: valor.slice(0, 60), categoria: "evento" },
+      });
+      if (!bloco.titulo) bloco.titulo = "Agenda";
+      bloco.itens = itens;
+      site.eventos = bloco;
+    }
   } else if (a === "slogan") {
     const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
     empresa.slogan = valor;
     site.empresa = empresa;
+  } else if (a === "diferenciais" && b === "titulo") {
+    const bloco = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+    bloco.titulo = valor.slice(0, 80);
+    site.diferenciais = bloco;
+  } else if (a === "eventos" && b === "titulo") {
+    const bloco = { ...((site.eventos as Record<string, unknown>) || {}) };
+    bloco.titulo = valor.slice(0, 80);
+    site.eventos = bloco;
+  } else if (a === "galeria" && b === "titulo") {
+    const bloco = { ...((site.galeria as Record<string, unknown>) || {}) };
+    bloco.titulo = valor.slice(0, 80);
+    site.galeria = bloco;
+  } else if (a === "gal" && c === "legenda") {
+    const bloco = { ...((site.galeria as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (itens[i]) {
+      itens[i] = { ...itens[i], legenda: valor.slice(0, 80) };
+      bloco.itens = itens;
+      site.galeria = bloco;
+    }
+  } else if (a === "promo" && b === "titulo") {
+    const bloco = { ...((site.promocoes as Record<string, unknown>) || {}) };
+    bloco.titulo = valor.slice(0, 80);
+    site.promocoes = bloco;
+  } else if (a === "prm") {
+    const bloco = { ...((site.promocoes as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (itens[i] && (c === "titulo" || c === "descricao" || c === "validade")) {
+      const item = { ...itens[i] };
+      if (c === "titulo") item.titulo = valor.slice(0, 80);
+      if (c === "descricao") item.descricao = valor;
+      if (c === "validade") item.validade_label = valor.slice(0, 40);
+      itens[i] = item;
+      bloco.itens = itens;
+      site.promocoes = bloco;
+    }
+  } else if (a === "rodape" && b === "texto") {
+    const rodape = { ...((site.rodape as Record<string, unknown>) || {}) };
+    rodape.texto = valor.slice(0, 160);
+    site.rodape = rodape;
+  } else if (a === "rodape" && c === "label") {
+    const rodape = { ...((site.rodape as Record<string, unknown>) || {}) };
+    const links = Array.isArray(rodape.links) ? [...(rodape.links as Record<string, unknown>[])] : [];
+    const i = Number(b) || 0;
+    if (links[i]) {
+      links[i] = { ...links[i], label: valor.slice(0, 48) };
+      rodape.links = links;
+      site.rodape = rodape;
+    }
+  } else if (a === "cta" && b === "servico") {
+    const bloco = site.agendamento;
+    if (bloco && typeof bloco === "object") {
+      const ag = { ...(bloco as Record<string, unknown>) };
+      ag.botao_confirmar = valor === "Agendar este" ? "Confirmar pelo WhatsApp" : valor.slice(0, 60);
+      site.agendamento = ag;
+    }
+  } else if (a === "cta" && b === "contato") {
+    const contato = { ...((site.contato as Record<string, unknown>) || {}) };
+    const form = { ...((contato.formulario as Record<string, unknown>) || {}) };
+    form.botao = valor === "Chamar no WhatsApp" ? "Enviar pelo WhatsApp" : valor.slice(0, 60);
+    contato.formulario = form;
+    site.contato = contato;
+  } else if (a === "cta" && b === "flutuante") {
+    const bloco = site.obrigado;
+    if (bloco && typeof bloco === "object") {
+      const ok = { ...(bloco as Record<string, unknown>) };
+      ok.botao_whatsapp = valor === "WhatsApp" ? "Abrir WhatsApp" : valor.slice(0, 40);
+      site.obrigado = ok;
+    }
+  } else if (a === "rede" && c === "label") {
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const redes = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
+    const i = redes.findIndex((r) => r.id === b);
+    if (i >= 0) {
+      redes[i] = { ...redes[i], label: valor.slice(0, 32) };
+      empresa.redes = redes;
+      site.empresa = empresa;
+    }
   }
   return site;
 }

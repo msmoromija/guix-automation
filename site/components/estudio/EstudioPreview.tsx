@@ -75,7 +75,7 @@ function Barra({
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-black/10 bg-white px-3 py-2">
       <div className="min-w-0">
         <p className="text-[11px] font-semibold tracking-[0.14em] text-accent">SEU SITE</p>
-        <p className="truncate text-xs text-muted">{dica || "Clique em Editar no bloco para ir ao campo."}</p>
+        <p className="truncate text-xs text-muted">{dica || "Clique em qualquer texto para escrever. O corretor aparece se a palavra sair errada."}</p>
       </div>
       <div className="flex flex-wrap items-center gap-1">
         {onEditar ? (

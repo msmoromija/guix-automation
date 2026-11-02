@@ -179,8 +179,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const valorCampo = String(body.valor || "");
   if (campo && valorCampo && body.nome == null && !body.visual && !body.fotoSrc) {
     const site = aplicarCampoNoSite(structuredClone(pacote.site), campo, valorCampo);
-    await gravarPacote({ ...pacote, site });
-    return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
+    let visual = pacote.visual;
+    const redeCampo = campo.match(/^rede\.([a-z]+)\.label$/);
+    if (redeCampo) {
+      const id = redeCampo[1];
+      visual = {
+        ...(visual || visualPadrao(pacote.nicho)),
+        rotulosRede: { ...(visual?.rotulosRede || {}), [id]: valorCampo.slice(0, 32) },
+      };
+    }
+    await gravarPacote({ ...pacote, site, visual });
+    return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
   }
 
   const fotoSrc = sanitizarFotoSrc(body.fotoSrc);

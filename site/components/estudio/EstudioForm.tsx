@@ -6,7 +6,7 @@ import { EstudioPreview } from "@/components/estudio/EstudioPreview";
 import { SeletorFoto } from "@/components/estudio/SeletorFoto";
 import type { AlvoEdicao, SlotFoto } from "@/components/preview/SiteLivePreview";
 import { construirAoVivo } from "@/lib/estudio/construir-ao-vivo";
-import { definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
+import { aplicarCampoNoSite, definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
 import { aplicarPedido, contextoEditavel, copiaDoSite, patchRapido, servicosDoSite, type PatchPedido, type ResultadoPedido } from "@/lib/estudio/aplicar-pedido";
 import { AVISO_ESTRUTURA, AVISO_LIMITE, LIMITE_PEDIDOS_IA, soEstrutura } from "@/lib/estudio/pedido-fechado";
@@ -89,6 +89,8 @@ export function EstudioForm() {
     whatsapp: string;
     email: string;
     horario: string;
+    enderecoLivre: string;
+    eventos: Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>;
     slogan: string;
     logradouro: string;
     numero: string;
@@ -109,6 +111,7 @@ export function EstudioForm() {
     fotoHero: string;
     fotoSobre: string;
     fotoGaleria: string[];
+    avulsos: Record<string, string>;
   }>>([]);
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [gerandoIa, setGerandoIa] = useState(false);
@@ -126,6 +129,9 @@ export function EstudioForm() {
   const [rodapeLivre, setRodapeLivre] = useState<{ texto?: string; links?: { id: string; label: string; href: string }[] } | null>(null);
   const [difsLivre, setDifsLivre] = useState<{ titulo: string; descricao: string }[] | null>(null);
   const [horario, setHorario] = useState("");
+  const [enderecoLivre, setEnderecoLivre] = useState("");
+  const [eventos, setEventos] = useState<Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>>([]);
+  const [avulsos, setAvulsos] = useState<Record<string, string>>({});
   const [avisoIa, setAvisoIa] = useState("");
   const [escrevendo, setEscrevendo] = useState(false);
   const [ajustando, setAjustando] = useState(false);
@@ -158,7 +164,7 @@ export function EstudioForm() {
 
   const siteVivo = useMemo(() => {
     if (!modelo) return null;
-    return construirAoVivo(modelo, {
+    const site = construirAoVivo(modelo, {
       nicho,
       nome,
       slogan,
@@ -183,12 +189,17 @@ export function EstudioForm() {
       },
       copia,
       horario,
+      enderecoCompleto: enderecoLivre,
+      eventos,
       menu: menuLivre || undefined,
       botaoAgendar: botaoLivre || undefined,
       rodapeTexto: rodapeLivre?.texto,
       rodapeLinks: rodapeLivre?.links,
       diferenciais: difsLivre || undefined,
     });
+    let vivo = site as Record<string, unknown>;
+    for (const [campo, valor] of Object.entries(avulsos)) vivo = aplicarCampoNoSite(vivo, campo, valor);
+    return vivo;
   }, [
     modelo,
     nicho,
@@ -214,15 +225,18 @@ export function EstudioForm() {
     fotoGaleria,
     copia,
     horario,
+    enderecoLivre,
+    eventos,
     menuLivre,
     botaoLivre,
     rodapeLivre,
     difsLivre,
+    avulsos,
   ]);
 
   const dicaSite =
     etapa <= 1
-      ? "Escreva o nome. Peça embaixo para corrigir texto, preço, telefone, endereço ou horário."
+      ? "Clique em qualquer texto para escrever. Se a palavra sair errada, o corretor aparece."
       : etapa === 2
         ? "Cores, letra e fotos. Clique na imagem, ou peça a cor e a fonte na faixa."
         : etapa === 3
@@ -374,8 +388,97 @@ export function EstudioForm() {
 
   function aoEditarTexto(campo: string, valor: string) {
     manuais.current.add(campo);
+    if (campo === "nome") {
+      setNome(valor.slice(0, 80));
+      return;
+    }
+    const itemMenu = campo.match(/^menu\.(\d+)\.label$/);
+    if (itemMenu && siteVivo) {
+      const i = Number(itemMenu[1]);
+      const header = ((siteVivo as { header?: { menu?: { id: string; label: string; href: string }[] } }).header || {}) as {
+        menu?: { id: string; label: string; href: string }[];
+      };
+      const atual = (header.menu || []).map((m) => ({ ...m, label: m.label === "A casa" ? "Sobre" : m.label }));
+      if (atual[i]) {
+        atual[i] = { ...atual[i], label: valor.slice(0, 48) };
+        setMenuLivre(atual);
+      }
+      return;
+    }
+    if (campo === "header.botao") {
+      setBotaoLivre(valor.slice(0, 40));
+      return;
+    }
+    if ((campo === "rodape.texto" || /^rodape\.\d+\.label$/.test(campo)) && siteVivo) {
+      const rodape = (((siteVivo as { rodape?: { texto?: string; links?: { id: string; label: string; href: string }[] } }).rodape) || {}) as {
+        texto?: string;
+        links?: { id: string; label: string; href: string }[];
+      };
+      const base = rodapeLivre || { texto: rodape.texto, links: rodape.links };
+      if (campo === "rodape.texto") {
+        setRodapeLivre({ ...base, texto: valor.slice(0, 160) });
+        return;
+      }
+      const i = Number(campo.split(".")[1]) || 0;
+      const links = (base.links || []).map((l) => ({ ...l }));
+      if (links[i]) links[i] = { ...links[i], label: valor.slice(0, 48) };
+      setRodapeLivre({ ...base, links });
+      return;
+    }
+    const rede = campo.match(/^rede\.([a-z]+)\.label$/);
+    if (rede) {
+      const id = rede[1];
+      const rotulo = valor.slice(0, 32);
+      setAvulsos((atual) => ({ ...atual, [campo]: rotulo }));
+      setVisual((v) => ({ ...v, rotulosRede: { ...(v.rotulosRede || {}), [id]: rotulo } }));
+      return;
+    }
+    if (/^(hero\.botao2?|galeria\.titulo|gal\.\d+\.legenda|diferenciais\.titulo|eventos\.titulo|promo\.titulo|prm\.\d+\.(titulo|descricao|validade)|cta\.(servico|contato|flutuante))$/.test(campo)) {
+      setAvulsos((atual) => ({ ...atual, [campo]: valor }));
+      return;
+    }
     if (campo === "slogan") {
       setSlogan(valor);
+      return;
+    }
+    if (campo === "horario") {
+      setHorario(valor);
+      return;
+    }
+    if (campo === "telefone") {
+      setWhatsapp(valor);
+      return;
+    }
+    if (campo === "endereco") {
+      setEnderecoLivre(valor);
+      return;
+    }
+    const dif = campo.match(/^dif\.(\d+)\.(titulo|descricao)$/);
+    if (dif && siteVivo) {
+      const i = Number(dif[1]);
+      const chave = dif[2] as "titulo" | "descricao";
+      const atuais = (((siteVivo.diferenciais as { itens?: { titulo?: string; descricao?: string }[] }) || {}).itens || []).map((d) => ({
+        titulo: String(d.titulo || ""),
+        descricao: String(d.descricao || ""),
+      }));
+      if (atuais[i]) atuais[i] = { ...atuais[i], [chave]: valor };
+      if (atuais.filter((d) => d.titulo).length >= 3) setDifsLivre(atuais);
+      return;
+    }
+    if (campo === "evento.novo") {
+      setEventos((lista) => (lista.length >= 4 ? lista : [...lista, { titulo: valor, descricao: "Conte o que acontece neste dia.", dataLabel: "", horario: "19:00" }]));
+      return;
+    }
+    const ev = campo.match(/^evt\.(\d+)\.(titulo|descricao|data|horario)$/);
+    if (ev) {
+      const i = Number(ev[1]);
+      const chave = ev[2] === "data" ? "dataLabel" : ev[2] === "horario" ? "horario" : ev[2] === "descricao" ? "descricao" : "titulo";
+      setEventos((lista) => {
+        const next = [...lista];
+        while (next.length <= i) next.push({ titulo: "Evento", descricao: "", dataLabel: "", horario: "19:00" });
+        next[i] = { ...next[i], [chave]: valor };
+        return next;
+      });
       return;
     }
     const srv = campo.match(/^srv\.(\d+)\.(nome|preco|duracao|descricao)$/);
@@ -406,6 +509,8 @@ export function EstudioForm() {
       whatsapp,
       email,
       horario,
+      enderecoLivre,
+      eventos,
       slogan,
       logradouro,
       numero,
@@ -426,6 +531,7 @@ export function EstudioForm() {
       fotoHero,
       fotoSobre,
       fotoGaleria,
+      avulsos,
     };
   }
 
@@ -434,6 +540,8 @@ export function EstudioForm() {
     setWhatsapp(m.whatsapp);
     setEmail(m.email);
     setHorario(m.horario);
+    setEnderecoLivre(m.enderecoLivre);
+    setEventos(m.eventos);
     setSlogan(m.slogan);
     setLogradouro(m.logradouro);
     setNumero(m.numero);
@@ -454,6 +562,7 @@ export function EstudioForm() {
     setFotoHero(m.fotoHero);
     setFotoSobre(m.fotoSobre);
     setFotoGaleria(m.fotoGaleria);
+    setAvulsos(m.avulsos);
     fotosTocadas.current = { hero: Boolean(m.fotoHero), sobre: Boolean(m.fotoSobre), galeria: m.fotoGaleria.length > 0 };
   }
 
@@ -1084,7 +1193,11 @@ export function EstudioForm() {
             <>
               <section id="estudio-contato" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <h2 className="text-base font-semibold">Como o cliente te acha</h2>
-                <p className="mt-1 text-sm text-muted">O modelo já tem contato. Troque o que for seu. Redes entram uma a uma.</p>
+                <p className="mt-1 text-sm text-muted">Clique em qualquer texto do site para escrever. Se a palavra sair errada, o corretor oferece a troca.</p>
+                <label className="mt-4 block text-sm font-medium">
+                  Horário de funcionamento
+                  <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 8h às 18h" />
+                </label>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <CartaoCanal
                     titulo="WhatsApp"
@@ -1191,7 +1304,7 @@ export function EstudioForm() {
                   <div className={`mt-4 grid gap-3 sm:grid-cols-6 ${cepOk || logradouro ? "gx-pulse-cep" : ""}`}>
                     <label className="block text-sm sm:col-span-4">
                       Rua
-                      <input className={campo} value={logradouro} onChange={(e) => setLogradouro(e.target.value)} />
+                      <input className={campo} value={logradouro} onChange={(e) => { setEnderecoLivre(""); setLogradouro(e.target.value); }} />
                     </label>
                     <label className="block text-sm sm:col-span-2">
                       Número
@@ -1209,6 +1322,31 @@ export function EstudioForm() {
                       UF
                       <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} />
                     </label>
+                  </div>
+                </div>
+                <div className="mt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Eventos da casa</p>
+                    <button
+                      type="button"
+                      className="rounded-full border border-line px-3 py-1.5 text-xs"
+                      onClick={() => setEventos((lista) => (lista.length >= 4 ? lista : [...lista, { titulo: "Novo evento", descricao: "", dataLabel: "", horario: "19:00" }]))}
+                    >
+                      Incluir evento
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {eventos.map((ev, i) => (
+                      <div key={`ev-${i}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
+                        <input className={campo} value={ev.titulo} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, titulo: e.target.value } : item)))} placeholder="Nome do evento" />
+                        <input className={campo} value={ev.dataLabel} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, dataLabel: e.target.value } : item)))} placeholder="Sábado, 12 de dezembro" />
+                        <input className={campo} value={ev.horario} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, horario: e.target.value } : item)))} placeholder="19:00" />
+                        <button type="button" className="text-xs text-muted" onClick={() => setEventos((lista) => lista.filter((_, j) => j !== i))}>
+                          Remover
+                        </button>
+                        <textarea className={`${campo} sm:col-span-2`} rows={2} value={ev.descricao} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, descricao: e.target.value } : item)))} placeholder="O que acontece" />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

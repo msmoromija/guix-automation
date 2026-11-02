@@ -76,7 +76,10 @@ export default function VisualizarRascunhoPage() {
       });
       const data = await res.json();
       if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar esse texto.");
-      else if (data.site) setSite(data.site);
+      else {
+        if (data.site) setSite(data.site);
+        if (data.visual) setVisual(data.visual);
+      }
     } catch {
       setAvisoIa("Falha de conexão ao guardar o texto.");
     }

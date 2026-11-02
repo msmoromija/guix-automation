@@ -29,6 +29,7 @@ export interface VisualConfig {
   agendamento: boolean;
   linkedinUrl?: string;
   redesExtra?: { id: string; label: string; url: string }[];
+  rotulosRede?: Record<string, string>;
   presetId?: string;
 }
 

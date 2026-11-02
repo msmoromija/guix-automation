@@ -28,6 +28,8 @@ export function construirAoVivo(
     fotos?: { hero?: string; sobre?: string; galeria?: string[] };
     copia?: CopiaViva | null;
     horario?: string;
+    enderecoCompleto?: string;
+    eventos?: { titulo: string; descricao: string; dataLabel: string; horario: string }[];
     menu?: { id: string; label: string; href: string }[];
     botaoAgendar?: string;
     rodapeTexto?: string;
@@ -94,7 +96,7 @@ export function construirAoVivo(
     empresa.telefone_label = "";
   }
   if (!opts.email.trim()) empresa.email = "";
-  if (opts.horario?.trim()) empresa.horario_resumo = opts.horario.trim().slice(0, 80);
+  if (opts.horario?.trim()) empresa.horario_resumo = opts.horario.trim().slice(0, 160);
   site.empresa = empresa;
 
   // Ofertas e eventos do exemplo não aparecem como se fossem do cliente.
@@ -102,8 +104,28 @@ export function construirAoVivo(
   promocoes.itens = [];
   site.promocoes = promocoes;
   const eventos = { ...((site.eventos as Record<string, unknown>) || {}) };
-  eventos.itens = [];
+  if (opts.eventos) {
+    eventos.titulo = opts.eventos.length ? "Agenda" : String(eventos.titulo || "Agenda");
+    eventos.itens = opts.eventos.slice(0, 4).map((item, i) => ({
+      id: `evt_cliente_${i + 1}`,
+      titulo: item.titulo.trim() || "Evento",
+      descricao: item.descricao.trim(),
+      data: "2026-12-01",
+      data_label: item.dataLabel.trim() || "A definir",
+      horario: /^\d{2}:\d{2}$/.test(item.horario) ? item.horario : "19:00",
+      imagem: { id: `img_evt_cliente_${i + 1}`, src: "", alt: item.titulo || "Evento", categoria: "evento" },
+    }));
+  } else {
+    eventos.itens = [];
+  }
   site.eventos = eventos;
+  if (opts.enderecoCompleto?.trim()) {
+    const empresaEnd = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const end = { ...((empresaEnd.endereco as Record<string, unknown>) || {}) };
+    end.completo = opts.enderecoCompleto.trim().slice(0, 180);
+    empresaEnd.endereco = end;
+    site.empresa = empresaEnd;
+  }
 
   // Sem endereço do cliente: não deixa “Venha à Atalaia” do modelo.
   if (!opts.bairro.trim() && !opts.cidade.trim()) {
@@ -127,10 +149,10 @@ export function construirAoVivo(
     if (opts.rodapeLinks) rodape.links = opts.rodapeLinks;
     site.rodape = rodape;
   }
-  if (opts.menu?.length) {
+  if (opts.menu?.length || opts.botaoAgendar?.trim()) {
     const header = { ...((site.header as Record<string, unknown>) || {}) };
-    header.menu = opts.menu;
-    if (opts.botaoAgendar?.trim()) header.botao_agendar = opts.botaoAgendar.trim().slice(0, 28);
+    if (opts.menu?.length) header.menu = opts.menu;
+    if (opts.botaoAgendar?.trim()) header.botao_agendar = opts.botaoAgendar.trim().slice(0, 40);
     site.header = header;
   }
   if (opts.diferenciais && opts.diferenciais.length >= 3) {

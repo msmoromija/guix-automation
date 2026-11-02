@@ -24,6 +24,8 @@ type Site = {
     nome?: string;
     slogan?: string;
     whatsapp?: string;
+    whatsapp_label?: string;
+    telefone_label?: string;
     whatsapp_mensagem?: string;
     horario_resumo?: string;
     endereco?: { completo?: string };
@@ -54,13 +56,20 @@ type Site = {
   servicos?: { titulo?: string; subtitulo?: string; itens?: ItemServico[] };
   profissionais?: { titulo?: string; subtitulo?: string; itens?: ItemPro[] };
   faq?: { titulo?: string; itens?: ItemFaq[] };
-  contato?: { titulo?: string; subtitulo?: string };
+  contato?: { titulo?: string; subtitulo?: string; formulario?: { botao?: string } };
   galeria?: { titulo?: string; itens?: { id?: string; legenda?: string; imagem?: Img }[] };
   diferenciais?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string }[] };
   promocoes?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; validade_label?: string; imagem?: Img }[] };
   eventos?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; data_label?: string; horario?: string; imagem?: Img }[] };
   rodape?: { texto?: string; links?: { id: string; label: string; href: string }[] };
+  agendamento?: { botao_confirmar?: string };
+  obrigado?: { botao_whatsapp?: string };
 };
+
+function textoOuPadrao(salvo: string | undefined, visivel: string, schema: string) {
+  if (!salvo || salvo === schema) return visivel;
+  return salvo;
+}
 
 const raio: Record<string, string> = { none: "0px", sm: "8px", md: "14px", lg: "22px" };
 
@@ -291,12 +300,23 @@ export function SiteLivePreview({
         />
       ) : null}
       {!e.logo?.src || logoArquivo ? (
-        <strong className="truncate text-base tracking-wide" style={{ fontFamily: heading }}>
-          {e.nome}
-        </strong>
+        <TextoEditavel
+          as="span"
+          valor={e.nome}
+          campo="nome"
+          onTexto={onTexto}
+          className="truncate text-base font-semibold tracking-wide"
+          style={{ fontFamily: heading }}
+        />
       ) : null}
-      {cab === "logo-slogan" && e.slogan ? (
-        <span className="hidden truncate text-xs opacity-70 sm:block">{e.slogan}</span>
+      {cab === "logo-slogan" && (e.slogan || onTexto) ? (
+        <TextoEditavel
+          as="span"
+          valor={e.slogan || "Frase da marca"}
+          campo="slogan"
+          onTexto={onTexto}
+          className="hidden truncate text-xs opacity-70 sm:block"
+        />
       ) : null}
     </span>
   );
@@ -314,6 +334,7 @@ export function SiteLivePreview({
       className="overflow-hidden"
       data-preview="site"
       data-anim={vis.animacao}
+      lang="pt-BR"
       onClick={aoClicarStudio}
     >
       {/* eslint-disable-next-line @next/next/no-css-tags */}
@@ -348,9 +369,9 @@ export function SiteLivePreview({
             marca
           )}
           <nav className={`gap-4 text-xs opacity-80 ${cab === "menu-abaixo" && !estreito ? "flex flex-wrap" : estreito ? "hidden" : "hidden md:flex"}`}>
-            {(site.header?.menu || []).slice(0, 7).map((m) => (
-              <a key={m.id} href={m.href} className="hover:opacity-100">
-                {m.label === "A casa" ? "Sobre" : m.label}
+            {(site.header?.menu || []).slice(0, 7).map((m, i) => (
+              <a key={m.id} href={m.href} className="hover:opacity-100" onClick={(ev) => { if (onTexto) ev.preventDefault(); }}>
+                <TextoEditavel as="span" valor={m.label === "A casa" ? "Sobre" : m.label} campo={`menu.${i}.label`} onTexto={onTexto} />
               </a>
             ))}
           </nav>
@@ -364,8 +385,9 @@ export function SiteLivePreview({
                 borderRadius: "var(--r)",
                 border: vis.botao === "sem-contorno" ? "none" : undefined,
               }}
+              onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
             >
-              {site.header?.botao_agendar || "Agendar"}
+              <TextoEditavel as="span" valor={site.header?.botao_agendar || "Agendar"} campo="header.botao" onTexto={onTexto} />
             </a>
           ) : (
             <span />
@@ -446,17 +468,26 @@ export function SiteLivePreview({
                 href={wa(e.whatsapp, e.whatsapp_mensagem)}
                 className="rounded-full px-5 py-2.5 text-sm font-semibold"
                 style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
+                onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
               >
-                {site.hero?.botao_principal || "Agendar"}
+                <TextoEditavel as="span" valor={site.hero?.botao_principal || "Agendar"} campo="hero.botao" onTexto={onTexto} />
               </a>
               <a
                 href="#contato"
                 className="rounded-full border px-5 py-2.5 text-sm font-semibold"
                 style={{ borderColor: "var(--s)", color: "var(--tx)", borderRadius: "var(--r)" }}
+                onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
               >
-                {site.hero?.botao_secundario && !textosIguais(site.hero.botao_secundario, site.hero.botao_principal)
-                  ? site.hero.botao_secundario
-                  : "Ver contato"}
+                <TextoEditavel
+                  as="span"
+                  valor={
+                    site.hero?.botao_secundario && (!textosIguais(site.hero.botao_secundario, site.hero.botao_principal) || onTexto)
+                      ? site.hero.botao_secundario
+                      : "Ver contato"
+                  }
+                  campo="hero.botao2"
+                  onTexto={onTexto}
+                />
               </a>
             </div>
           </div>
@@ -464,12 +495,8 @@ export function SiteLivePreview({
 
         {rascunho ? (
         <section className="mx-auto max-w-5xl px-4 py-10 md:px-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
-            {e.nome}
-          </p>
-          <h2 className="mt-2 text-2xl font-bold" style={{ fontFamily: heading }}>
-            {site.sobre?.titulo || "Sobre"}
-          </h2>
+          <TextoEditavel as="p" valor={e.nome} campo="nome" onTexto={onTexto} className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }} />
+          <TextoEditavel as="h2" valor={site.sobre?.titulo || "Sobre"} campo="sobre.titulo" onTexto={onTexto} className="mt-2 text-2xl font-bold" style={{ fontFamily: heading }} />
           <p className="mt-3 max-w-xl text-sm leading-6" style={{ color: "var(--mt)" }}>
             {(site.sobre?.paragrafos && site.sobre.paragrafos[0]) ||
               "Textos e fotos entram quando você gerar o site de teste."}
@@ -478,9 +505,7 @@ export function SiteLivePreview({
         ) : (
         <section id="sobre" className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-20 md:grid-cols-2 md:px-8">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
-              {e.nome}
-            </p>
+            <TextoEditavel as="p" valor={e.nome} campo="nome" onTexto={onTexto} className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }} />
             <TextoEditavel
               as="h2"
               valor={site.sobre?.titulo}
@@ -504,8 +529,9 @@ export function SiteLivePreview({
               href={wa(e.whatsapp, e.whatsapp_mensagem)}
               className="mt-6 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold"
               style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
+              onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
             >
-              {site.hero?.botao_principal || "Quero agendar"}
+              <TextoEditavel as="span" valor={site.hero?.botao_principal || "Quero agendar"} campo="hero.botao" onTexto={onTexto} />
             </a>
           </div>
           {site.sobre?.imagem?.src ? (
@@ -573,7 +599,7 @@ export function SiteLivePreview({
                       style={{ color: "var(--mt)" }}
                     />
                     <p className="mt-4 text-xl font-bold" style={{ color: "var(--s)" }}>
-                      <TextoEditavel as="span" valor={s.preco_label} campo={`srv.${i}.preco`} onTexto={onTexto} />
+                      <TextoEditavel as="span" valor={s.preco_label} campo={`srv.${i}.preco`} onTexto={onTexto} corretor={false} />
                       {s.duracao_label ? (
                         <TextoEditavel
                           as="span"
@@ -585,8 +611,8 @@ export function SiteLivePreview({
                       ) : null}
                     </p>
                     {!rascunho ? (
-                      <a href={wa(e.whatsapp, e.whatsapp_mensagem)} className="mt-4 inline-block text-sm font-semibold underline">
-                        Agendar este
+                      <a href={wa(e.whatsapp, e.whatsapp_mensagem)} className="mt-4 inline-block text-sm font-semibold underline" onClick={(ev) => { if (onTexto) ev.preventDefault(); }}>
+                        <TextoEditavel as="span" valor={textoOuPadrao(site.agendamento?.botao_confirmar, "Agendar este", "Confirmar pelo WhatsApp")} campo="cta.servico" onTexto={onTexto} />
                       </a>
                     ) : null}
                   </div>
@@ -658,16 +684,12 @@ export function SiteLivePreview({
 
         {!rascunho && (site.diferenciais?.itens?.length ?? 0) > 0 ? (
           <section className="mx-auto max-w-5xl px-4 py-16 md:px-8">
-            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.diferenciais?.titulo}
-            </h2>
+            <TextoEditavel as="h2" valor={site.diferenciais?.titulo} campo="diferenciais.titulo" onTexto={onTexto} className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }} />
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
-              {(site.diferenciais?.itens || []).slice(0, 6).map((d) => (
+              {(site.diferenciais?.itens || []).slice(0, 6).map((d, i) => (
                 <article key={d.id || d.titulo} className="p-5" style={{ background: "var(--sf)", borderRadius: "var(--r)" }}>
-                  <h3 className="font-semibold">{d.titulo}</h3>
-                  <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
-                    {d.descricao}
-                  </p>
+                  <TextoEditavel as="h3" valor={d.titulo} campo={`dif.${i}.titulo`} onTexto={onTexto} className="font-semibold" />
+                  <TextoEditavel valor={d.descricao} campo={`dif.${i}.descricao`} onTexto={onTexto} multiline className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }} />
                 </article>
               ))}
             </div>
@@ -677,24 +699,18 @@ export function SiteLivePreview({
         {!rascunho && (site.promocoes?.itens?.length ?? 0) > 0 ? (
           <section id="promocoes" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
             <div className="mx-auto max-w-5xl">
-              <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-                {site.promocoes?.titulo || "Promoções"}
-              </h2>
+              <TextoEditavel as="h2" valor={site.promocoes?.titulo || "Promoções"} campo="promo.titulo" onTexto={onTexto} className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }} />
               <div className="mt-10 grid gap-6 md:grid-cols-2">
-                {(site.promocoes?.itens || []).slice(0, 4).map((p) => (
+                {(site.promocoes?.itens || []).slice(0, 4).map((p, i) => (
                   <article key={p.id || p.titulo} className="overflow-hidden" style={{ background: "var(--bg)", borderRadius: "var(--r)" }}>
                     {p.imagem?.src ? (
                       <Foto src={p.imagem.src} alt={p.imagem.alt || ""} className="aspect-[16/9] w-full object-cover" w={1200} h={675} />
                     ) : null}
                     <div className="p-5">
-                      <h3 className="text-lg font-semibold">{p.titulo}</h3>
-                      <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
-                        {p.descricao}
-                      </p>
-                      {p.validade_label ? (
-                        <p className="mt-3 text-xs" style={{ color: "var(--s)" }}>
-                          {p.validade_label}
-                        </p>
+                      <TextoEditavel as="h3" valor={p.titulo} campo={`prm.${i}.titulo`} onTexto={onTexto} className="text-lg font-semibold" />
+                      <TextoEditavel valor={p.descricao} campo={`prm.${i}.descricao`} onTexto={onTexto} multiline className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }} />
+                      {p.validade_label || onTexto ? (
+                        <TextoEditavel valor={p.validade_label || "Validade"} campo={`prm.${i}.validade`} onTexto={onTexto} className="mt-3 text-xs" style={{ color: "var(--s)" }} />
                       ) : null}
                     </div>
                   </article>
@@ -704,37 +720,41 @@ export function SiteLivePreview({
           </section>
         ) : null}
 
-        {!rascunho && (site.eventos?.itens?.length ?? 0) > 0 ? (
+        {!rascunho && ((site.eventos?.itens?.length ?? 0) > 0 || onTexto) ? (
           <section id="eventos" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
-            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.eventos?.titulo || "Eventos"}
-            </h2>
+            <TextoEditavel as="h2" valor={site.eventos?.titulo || "Agenda"} campo="eventos.titulo" onTexto={onTexto} className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }} />
             <div className="mt-10 grid gap-6 md:grid-cols-2">
-              {(site.eventos?.itens || []).slice(0, 4).map((ev) => (
+              {(site.eventos?.itens || []).slice(0, 4).map((ev, i) => (
                 <article key={ev.id || ev.titulo} className="overflow-hidden" style={{ background: "var(--sf)", borderRadius: "var(--r)" }}>
                   {ev.imagem?.src ? (
                     <Foto src={ev.imagem.src} alt={ev.imagem.alt || ""} className="aspect-[16/9] w-full object-cover" w={1200} h={675} />
                   ) : null}
                   <div className="p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-                      {[ev.data_label, ev.horario].filter(Boolean).join(" · ")}
-                    </p>
-                    <h3 className="mt-2 text-lg font-semibold">{ev.titulo}</h3>
-                    <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
-                      {ev.descricao}
-                    </p>
+                    <TextoEditavel as="p" valor={[ev.data_label, ev.horario].filter(Boolean).join(" · ")} campo={`evt.${i}.data`} onTexto={onTexto} className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }} />
+                    <TextoEditavel as="h3" valor={ev.titulo} campo={`evt.${i}.titulo`} onTexto={onTexto} className="mt-2 text-lg font-semibold" />
+                    <TextoEditavel valor={ev.descricao} campo={`evt.${i}.descricao`} onTexto={onTexto} multiline className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }} />
                   </div>
                 </article>
               ))}
             </div>
+            {onTexto && (site.eventos?.itens?.length || 0) < 4 ? (
+              <button type="button" className="mt-6 rounded-full border border-current px-4 py-2 text-sm" onClick={() => onTexto("evento.novo", "Novo evento")}>
+                Incluir evento
+              </button>
+            ) : null}
           </section>
         ) : null}
 
         {!rascunho && (site.galeria?.itens?.length ?? 0) > 0 ? (
           <section id="galeria" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
-            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.galeria?.titulo && site.galeria.titulo !== "A casa" ? site.galeria.titulo : "O espaço"}
-            </h2>
+            <TextoEditavel
+              as="h2"
+              valor={site.galeria?.titulo && site.galeria.titulo !== "A casa" ? site.galeria.titulo : "O espaço"}
+              campo="galeria.titulo"
+              onTexto={onTexto}
+              className="text-3xl font-bold md:text-4xl"
+              style={{ fontFamily: heading }}
+            />
             <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
               {(site.galeria?.itens || []).slice(0, 6).map((g, gi) => (
                 <figure key={g.id || g.legenda} className="gx-card-in">
@@ -752,9 +772,9 @@ export function SiteLivePreview({
                     </div>
                   ) : null}
                   {g.legenda && g.legenda !== "A casa" ? (
-                    <figcaption className="mt-2 text-xs" style={{ color: "var(--mt)" }}>
-                      {g.legenda}
-                    </figcaption>
+                    <TextoEditavel valor={g.legenda} campo={`gal.${gi}.legenda`} onTexto={onTexto} className="mt-2 text-xs" style={{ color: "var(--mt)" }} />
+                  ) : onTexto ? (
+                    <TextoEditavel valor="Legenda da foto" campo={`gal.${gi}.legenda`} onTexto={onTexto} className="mt-2 text-xs" style={{ color: "var(--mt)" }} />
                   ) : null}
                 </figure>
               ))}
@@ -764,7 +784,7 @@ export function SiteLivePreview({
 
         {!rascunho && (site.faq?.itens?.length ?? 0) > 0 ? (
           <section id="faq" className="mx-auto max-w-3xl px-4 py-12 md:px-8">
-            <h2 className="text-3xl font-bold">{site.faq?.titulo}</h2>
+            <TextoEditavel as="h2" valor={site.faq?.titulo} campo="faq.titulo" onTexto={onTexto} className="text-3xl font-bold" />
             <dl className="mt-6 space-y-4">
               {(site.faq?.itens || []).slice(0, 6).map((f, i) => (
                 <div key={f.id || f.pergunta}>
@@ -801,18 +821,22 @@ export function SiteLivePreview({
               className="mt-2 max-w-xl text-sm"
               style={{ color: "var(--mt)" }}
             />
-            {e.endereco?.completo ? <p className="mt-6 text-base">{e.endereco.completo}</p> : null}
-            {e.horario_resumo ? (
-              <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
-                {e.horario_resumo}
-              </p>
+            {onTexto || e.endereco?.completo ? (
+              <TextoEditavel valor={e.endereco?.completo || "Escreva o endereço"} campo="endereco" onTexto={onTexto} className="mt-6 text-base" />
+            ) : null}
+            {onTexto || e.horario_resumo ? (
+              <TextoEditavel valor={e.horario_resumo || "Horário de funcionamento"} campo="horario" onTexto={onTexto} className="mt-1 text-sm" style={{ color: "var(--mt)" }} />
+            ) : null}
+            {onTexto ? (
+              <TextoEditavel as="span" valor={e.whatsapp_label || e.telefone_label || "Telefone com DDD"} campo="telefone" onTexto={onTexto} corretor={false} className="mt-2 block text-sm" />
             ) : null}
             <a
               href={wa(e.whatsapp, e.whatsapp_mensagem)}
               className="mt-8 inline-flex rounded-full px-6 py-3 text-sm font-semibold"
               style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
+              onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
             >
-              Chamar no WhatsApp
+              <TextoEditavel as="span" valor={textoOuPadrao(site.contato?.formulario?.botao, "Chamar no WhatsApp", "Enviar pelo WhatsApp")} campo="cta.contato" onTexto={onTexto} />
             </a>
           </div>
         </section>
@@ -829,12 +853,12 @@ export function SiteLivePreview({
           }
           style={{ color: "var(--mt)", background: (vis.rodapeLayout || "centralizado") === "dividido" ? "var(--sf)" : undefined }}
         >
-          <p>{site.rodape?.texto || e.nome}</p>
+          <TextoEditavel valor={site.rodape?.texto || e.nome} campo="rodape.texto" onTexto={onTexto} />
           {(vis.rodapeLayout || "centralizado") === "minimo" ? null : site.rodape?.links?.length ? (
             <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
-              {site.rodape.links.map((l) => (
-                <a key={l.id} href={l.href} className="underline" target={l.href.startsWith("http") ? "_blank" : undefined} rel={l.href.startsWith("http") ? "noreferrer" : undefined}>
-                  {l.label}
+              {site.rodape.links.map((l, i) => (
+                <a key={l.id} href={l.href} className="underline" target={l.href.startsWith("http") ? "_blank" : undefined} rel={l.href.startsWith("http") ? "noreferrer" : undefined} onClick={(ev) => { if (onTexto) ev.preventDefault(); }}>
+                  <TextoEditavel as="span" valor={l.label} campo={`rodape.${i}.label`} onTexto={onTexto} />
                 </a>
               ))}
             </p>
@@ -842,8 +866,8 @@ export function SiteLivePreview({
           {(vis.rodapeLayout || "centralizado") === "minimo" ? null : redes.length ? (
             <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
               {redes.map((r) => (
-                <a key={r.id} href={r.url} className="underline" target="_blank" rel="noreferrer">
-                  {r.label || r.id}
+                <a key={r.id} href={r.url} className="underline" target="_blank" rel="noreferrer" onClick={(ev) => { if (onTexto) ev.preventDefault(); }}>
+                  <TextoEditavel as="span" valor={vis.rotulosRede?.[r.id || ""] || r.label || r.id} campo={`rede.${r.id}.label`} onTexto={onTexto} />
                 </a>
               ))}
             </p>
@@ -852,13 +876,14 @@ export function SiteLivePreview({
         </footer>
         </Bloco>
 
-        {vis.whatsappFlutuante && wa(e.whatsapp) !== "#contato" && !studio ? (
+        {vis.whatsappFlutuante && wa(e.whatsapp) !== "#contato" ? (
           <a
             href={wa(e.whatsapp, e.whatsapp_mensagem)}
-            className={`${rascunho ? "absolute" : "fixed"} bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg`}
+            className={`${studio || rascunho ? "absolute" : "fixed"} bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg`}
             style={{ background: "#25D366", color: "#052e16", borderRadius: "var(--r)" }}
+            onClick={(ev) => { if (onTexto) ev.preventDefault(); }}
           >
-            WhatsApp
+            <TextoEditavel as="span" valor={textoOuPadrao(site.obrigado?.botao_whatsapp, "WhatsApp", "Abrir WhatsApp")} campo="cta.flutuante" onTexto={onTexto} corretor={false} />
           </a>
         ) : null}
       </div>
