@@ -89,7 +89,16 @@ html {
 
 .gx-photo {
   object-fit: cover;
-  filter: saturate(0.92) contrast(1.06);
+  object-position: center 28%;
+  filter: saturate(0.94) contrast(1.05);
+}
+
+.gx-photo-frame .gx-photo {
+  transform: scale(1.04);
+}
+
+.gx-logo-arquivo {
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.45));
 }
 
 .gx-photo-frame {

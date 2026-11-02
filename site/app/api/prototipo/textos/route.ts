@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
             slogan: String(body.slogan || "").trim(),
             tom: String(body.tom || "").trim(),
             destaque: String(body.destaque || "").trim(),
+            horario: String(body.horario || "").trim(),
             servicos,
             profissionais: Array.isArray(body.profissionais) ? body.profissionais : [],
           });

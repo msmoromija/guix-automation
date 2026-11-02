@@ -32,12 +32,27 @@ const chipOn = "border-ink bg-ink text-white";
 const chipOff = "border-line bg-white text-ink hover:border-ink/30";
 
 const ETAPAS = [
-  { id: 1, titulo: "Negócio" },
-  { id: 2, titulo: "Aparência" },
-  { id: 3, titulo: "Marca" },
-  { id: 4, titulo: "Contato e serviços" },
-  { id: 5, titulo: "Gerar" },
+  { id: 1, titulo: "Negócio", resumo: "Nome, frase e o tom da escrita." },
+  { id: 2, titulo: "Aparência", resumo: "Cores, fonte, fotos e o formato dos botões." },
+  { id: 3, titulo: "Marca", resumo: "Logo, tamanho e posição no topo." },
+  { id: 4, titulo: "Contato e serviços", resumo: "Telefone, endereço, horário, dúvidas, serviços e equipe." },
+  { id: 5, titulo: "Gerar", resumo: "Gera o link de teste, válido por 3 dias." },
 ];
+
+const LIMITE_FAQ_FORM = 10;
+
+type FaqLivre = { titulo: string; itens: { pergunta: string; resposta: string }[] };
+
+function faqsDoSite(site: { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } } | null): FaqLivre {
+  const faq = site?.faq;
+  return {
+    titulo: String(faq?.titulo || "Dúvidas"),
+    itens: (faq?.itens || [])
+      .slice(0, LIMITE_FAQ_FORM)
+      .map((item) => ({ pergunta: String(item.pergunta || ""), resposta: String(item.resposta || "") }))
+      .filter((item) => item.pergunta && item.resposta),
+  };
+}
 
 async function arquivoParaDataUrl(file: File, max = 640) {
   if (file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")) {
@@ -112,6 +127,7 @@ export function EstudioForm() {
     fotoSobre: string;
     fotoGaleria: string[];
     avulsos: Record<string, string>;
+    faqs: FaqLivre | null;
   }>>([]);
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [gerandoIa, setGerandoIa] = useState(false);
@@ -132,6 +148,7 @@ export function EstudioForm() {
   const [enderecoLivre, setEnderecoLivre] = useState("");
   const [eventos, setEventos] = useState<Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>>([]);
   const [avulsos, setAvulsos] = useState<Record<string, string>>({});
+  const [faqs, setFaqs] = useState<FaqLivre | null>(null);
   const [avisoIa, setAvisoIa] = useState("");
   const [escrevendo, setEscrevendo] = useState(false);
   const [ajustando, setAjustando] = useState(false);
@@ -191,6 +208,7 @@ export function EstudioForm() {
       horario,
       enderecoCompleto: enderecoLivre,
       eventos,
+      faqs: faqs || undefined,
       menu: menuLivre || undefined,
       botaoAgendar: botaoLivre || undefined,
       rodapeTexto: rodapeLivre?.texto,
@@ -227,12 +245,25 @@ export function EstudioForm() {
     horario,
     enderecoLivre,
     eventos,
+    faqs,
     menuLivre,
     botaoLivre,
     rodapeLivre,
     difsLivre,
     avulsos,
   ]);
+
+  const faqsForm = faqs ?? faqsDoSite(siteVivo as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } } | null);
+  const marcosProntos = [
+    nome.trim().length >= 2,
+    Boolean(slogan.trim() || destaque.trim()),
+    Boolean(logoIa || logoUpload || logoModo === "texto"),
+    whatsapp.replace(/\D/g, "").length >= 10,
+    cidade.trim().length >= 2,
+    Boolean(horario.trim() || logradouro.trim() || enderecoLivre.trim()),
+    servicos.some((s) => s.nome.trim()),
+  ];
+  const prontos = marcosProntos.filter(Boolean).length;
 
   const dicaSite =
     etapa <= 1
@@ -242,7 +273,7 @@ export function EstudioForm() {
         : etapa === 3
           ? "A marca entra no topo. Clique nela para trocar, ou peça a posição."
           : etapa === 4
-            ? "Agora o contato e os serviços. O que você não mexer, fica do modelo."
+            ? "Telefone, endereço, horário, dúvidas, serviços e equipe. Em branco, não entra como dado seu."
             : "Os textos já estão no quadro. Gere o link quando quiser guardar por 3 dias.";
   const focoPreview: AlvoEdicao[] =
     etapa <= 1 ? ["negocio"] : etapa === 2 ? ["aparencia", "negocio"] : etapa === 3 ? ["marca"] : etapa === 4 ? ["contato", "servicos", "equipe"] : [];
@@ -320,6 +351,7 @@ export function EstudioForm() {
           bairro,
           tom,
           destaque,
+          horario,
           servicos,
           profissionais: pros,
         }),
@@ -453,6 +485,34 @@ export function EstudioForm() {
       setEnderecoLivre(valor);
       return;
     }
+    if (campo === "faq.titulo" || campo === "faq.nova" || campo === "faq.limpar" || /^faq\.\d+\.(pergunta|resposta|remover)$/.test(campo)) {
+      const base = faqs ? { titulo: faqs.titulo, itens: faqs.itens.map((item) => ({ ...item })) } : faqsDoSite(siteVivo as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } } | null);
+      if (campo === "faq.titulo") {
+        setFaqs({ ...base, titulo: valor.slice(0, 80) });
+        return;
+      }
+      if (campo === "faq.limpar") {
+        setFaqs({ ...base, itens: [] });
+        return;
+      }
+      if (campo === "faq.nova") {
+        if (base.itens.length >= LIMITE_FAQ_FORM) return;
+        setFaqs({ ...base, itens: [...base.itens, { pergunta: valor.slice(0, 180) || "Nova pergunta", resposta: "Escreva a resposta." }] });
+        return;
+      }
+      const parte = campo.match(/^faq\.(\d+)\.(pergunta|resposta|remover)$/);
+      if (!parte) return;
+      const i = Number(parte[1]);
+      if (parte[2] === "remover") {
+        setFaqs({ ...base, itens: base.itens.filter((_, j) => j !== i) });
+        return;
+      }
+      if (!base.itens[i]) return;
+      const chave = parte[2] as "pergunta" | "resposta";
+      base.itens[i] = { ...base.itens[i], [chave]: valor };
+      setFaqs(base);
+      return;
+    }
     const dif = campo.match(/^dif\.(\d+)\.(titulo|descricao)$/);
     if (dif && siteVivo) {
       const i = Number(dif[1]);
@@ -532,6 +592,7 @@ export function EstudioForm() {
       fotoSobre,
       fotoGaleria,
       avulsos,
+      faqs,
     };
   }
 
@@ -563,6 +624,7 @@ export function EstudioForm() {
     setFotoSobre(m.fotoSobre);
     setFotoGaleria(m.fotoGaleria);
     setAvulsos(m.avulsos);
+    setFaqs(m.faqs);
     fotosTocadas.current = { hero: Boolean(m.fotoHero), sobre: Boolean(m.fotoSobre), galeria: m.fotoGaleria.length > 0 };
   }
 
@@ -612,6 +674,9 @@ export function EstudioForm() {
         manuais.current.add(`faq.${i}.pergunta`);
         manuais.current.add(`faq.${i}.resposta`);
       });
+    }
+    if (resultado.tocou.faq) {
+      setFaqs(faqsDoSite(resultado.site as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } }));
     }
     if (resultado.tocou.servicos) {
       const linhas = servicosDoSite(resultado.site).filter((s) => s.nome);
@@ -728,21 +793,37 @@ export function EstudioForm() {
     }
   }
 
+  useEffect(() => {
+    const abrir = () => {
+      const h = window.location.hash.replace("#", "");
+      if (h !== "contato" && h !== "estudio-contato") return;
+      setEtapa(4);
+      setErro("");
+      window.setTimeout(() => document.getElementById("estudio-contato")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    };
+    abrir();
+    window.addEventListener("hashchange", abrir);
+    return () => window.removeEventListener("hashchange", abrir);
+  }, []);
+
   function ir(n: number, alvo?: AlvoEdicao) {
-    if (n > etapa && nome.trim().length < 2) {
-      setErro("Escreva o nome do negócio para seguir.");
-      setEtapa(1);
-      return;
-    }
-    setEtapa(n);
+    const destino = Math.min(5, Math.max(1, n));
+    setEtapa(destino);
     setErro("");
-    if (n !== 3) setAviso("");
+    if (destino !== 3) setAviso("");
     window.setTimeout(() => {
-      const id = alvo ? `estudio-${alvo}` : "";
+      const id = alvo === "contato" ? "estudio-contato" : alvo ? `estudio-${alvo}` : destino === 4 ? "estudio-contato" : "";
       const el = id ? document.getElementById(id) : null;
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       else formColRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     }, 50);
+  }
+
+  function aoAncora(id: string) {
+    if (id === "contato") ir(4, "contato");
+    else if (id === "servicos" || id === "faq") ir(4, id === "faq" ? "contato" : "servicos");
+    else if (id === "profissionais") ir(4, "equipe");
+    else if (id === "inicio" || id === "sobre") ir(1, "negocio");
   }
 
   function irEditar(alvo: AlvoEdicao) {
@@ -820,11 +901,12 @@ export function EstudioForm() {
     e.preventDefault();
     if (loading) return;
     if (etapa < 5) {
-      if (etapa === 1 && nome.trim().length < 2) {
-        setErro("Escreva o nome do negócio para seguir.");
-        return;
-      }
       ir(etapa + 1);
+      return;
+    }
+    if (nome.trim().length < 2) {
+      setEtapa(1);
+      setErro("Escreva o nome do negócio para gerar o link.");
       return;
     }
     const digitosWa = whatsapp.replace(/\D/g, "");
@@ -857,6 +939,8 @@ export function EstudioForm() {
           whatsapp,
           email,
           slogan,
+          horario,
+          faqs,
           redes,
           visual,
           tom,
@@ -938,6 +1022,23 @@ export function EstudioForm() {
           </li>
         ))}
       </ol>
+      <div className="mt-3 space-y-1">
+        {ETAPAS.map((et) => (
+          <button key={`resumo-${et.id}`} type="button" onClick={() => ir(et.id)} className={`block w-full rounded-lg px-2 py-1 text-left text-xs ${etapa === et.id ? "bg-white font-medium text-ink" : "text-muted"}`}>
+            <span className="mr-2 text-[10px] opacity-60">{et.id}</span>
+            {et.resumo}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3">
+        <div className="mb-1 flex justify-between text-[11px] text-muted">
+          <span>Pronto para gerar</span>
+          <span>{prontos} de {marcosProntos.length}</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
+          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((prontos / marcosProntos.length) * 100)}%` }} />
+        </div>
+      </div>
 
       <form onSubmit={enviar} className="mt-6">
         <div className="space-y-5">
@@ -1351,6 +1452,68 @@ export function EstudioForm() {
                 </div>
               </section>
 
+              <section id="estudio-faq" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold">Dúvidas frequentes</h2>
+                    <p className="mt-1 text-sm text-muted">Até 10 perguntas. Dá para reescrever, incluir ou apagar todas.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {faqsForm.itens.length > 0 ? (
+                      <button type="button" className="rounded-full border border-line px-3 py-1.5 text-xs" onClick={() => setFaqs({ ...faqsForm, itens: [] })}>
+                        Remover todas
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="rounded-full border border-line px-3 py-1.5 text-xs"
+                      onClick={() => {
+                        if (faqsForm.itens.length >= LIMITE_FAQ_FORM) return;
+                        setFaqs({ ...faqsForm, itens: [...faqsForm.itens, { pergunta: "Nova pergunta", resposta: "Escreva a resposta." }] });
+                      }}
+                    >
+                      Incluir pergunta
+                    </button>
+                  </div>
+                </div>
+                <label className="mt-4 block text-sm font-medium">
+                  Título da seção
+                  <input className={campo} value={faqsForm.titulo} onChange={(e) => setFaqs({ ...faqsForm, titulo: e.target.value.slice(0, 80) })} />
+                </label>
+                <div className="mt-3 space-y-3">
+                  {faqsForm.itens.map((item, i) => (
+                    <div key={`faq-form-${i}`} className="grid gap-2 rounded-xl border border-line p-3">
+                      <input
+                        className={campo}
+                        value={item.pergunta}
+                        onChange={(e) =>
+                          setFaqs({
+                            ...faqsForm,
+                            itens: faqsForm.itens.map((atual, j) => (j === i ? { ...atual, pergunta: e.target.value.slice(0, 180) } : atual)),
+                          })
+                        }
+                        placeholder="Pergunta"
+                      />
+                      <textarea
+                        className={campo}
+                        rows={3}
+                        value={item.resposta}
+                        onChange={(e) =>
+                          setFaqs({
+                            ...faqsForm,
+                            itens: faqsForm.itens.map((atual, j) => (j === i ? { ...atual, resposta: e.target.value.slice(0, 400) } : atual)),
+                          })
+                        }
+                        placeholder="Resposta"
+                      />
+                      <button type="button" className="text-xs text-muted" onClick={() => setFaqs({ ...faqsForm, itens: faqsForm.itens.filter((_, j) => j !== i) })}>
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               <section id="estudio-servicos" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
@@ -1568,7 +1731,7 @@ export function EstudioForm() {
             ) : null}
             <button
               type="submit"
-              disabled={loading || (etapa === 1 && !nome.trim()) || (etapa === 5 && !nome.trim())}
+              disabled={loading || (etapa === 5 && nome.trim().length < 2)}
               className="rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
             >
               {loading
@@ -1583,7 +1746,7 @@ export function EstudioForm() {
       </form>
         </div>
         <div className="hidden h-full min-h-0 lg:block">
-          <EstudioPreview site={siteVivo} visual={visualPreview} dica={dicaSite} variante="painel" onEditar={irEditar} onTrocarFoto={setSlotFoto} onTrocarLogo={() => setStudioAberto(true)} onTexto={aoEditarTexto} pedido={pedidoPainel} foco={focoPreview} revelado={reveladoPreview} />
+          <EstudioPreview site={siteVivo} visual={visualPreview} dica={dicaSite} variante="painel" onEditar={irEditar} onTrocarFoto={setSlotFoto} onTrocarLogo={() => setStudioAberto(true)} onTexto={aoEditarTexto} onAncora={aoAncora} pedido={pedidoPainel} foco={focoPreview} revelado={reveladoPreview} />
         </div>
       </div>
 
@@ -1598,6 +1761,7 @@ export function EstudioForm() {
         onTrocarFoto={setSlotFoto}
         onTrocarLogo={() => setStudioAberto(true)}
         onTexto={aoEditarTexto}
+        onAncora={aoAncora}
         pedido={pedidoPainel}
         foco={focoPreview}
         revelado={reveladoPreview}

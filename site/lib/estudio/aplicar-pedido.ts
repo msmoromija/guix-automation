@@ -75,7 +75,13 @@ export type PatchPedido = {
   hero?: { titulo?: string; subtitulo?: string };
   sobre?: { titulo?: string; paragrafos?: string[] };
   contato?: { titulo?: string; subtitulo?: string };
-  faq?: { titulo?: string; itens?: { de?: string; pergunta?: string; resposta?: string }[] };
+  faq?: {
+    titulo?: string;
+    limpar?: boolean;
+    remover?: string[];
+    acrescentar?: { pergunta?: string; resposta?: string }[];
+    itens?: { de?: string; pergunta?: string; resposta?: string }[];
+  };
   diferenciais?: {
     titulo?: string;
     atualizar?: { de?: string; titulo?: string; descricao?: string }[];
@@ -134,6 +140,8 @@ export type PatchPedido = {
   };
 };
 
+export const LIMITE_FAQ = 10;
+
 export type TocouPedido = {
   contato: boolean;
   textos: boolean;
@@ -143,6 +151,7 @@ export type TocouPedido = {
   rodape: boolean;
   diferenciais: boolean;
   midia: boolean;
+  faq: boolean;
 };
 
 export type ResultadoPedido = {
@@ -264,6 +273,13 @@ function completoDe(e: Record<string, unknown>) {
   return [rua, lugar].filter(Boolean).join(" — ") || "Endereço a confirmar";
 }
 
+function idFaq(itens: Record<string, unknown>[]) {
+  const ids = new Set(itens.map((item) => String(item.id || "")));
+  let n = itens.length + 1;
+  while (ids.has(`faq_extra_${n}`)) n += 1;
+  return `faq_extra_${n}`;
+}
+
 function acharNome(itens: Record<string, unknown>[], nome: string) {
   const n = semAcento(nome);
   if (!n) return -1;
@@ -310,7 +326,7 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       preco: corta(s.preco_label, 24),
       duracao: corta(s.duracao_label, 24),
     })),
-    faq: (Array.isArray(faq.itens) ? (faq.itens as Record<string, unknown>[]) : []).slice(0, 6).map((f) => ({
+    faq: (Array.isArray(faq.itens) ? (faq.itens as Record<string, unknown>[]) : []).slice(0, LIMITE_FAQ).map((f) => ({
       pergunta: corta(f.pergunta, 100),
       resposta: corta(f.resposta, 140),
     })),
@@ -538,6 +554,7 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     rodape: false,
     diferenciais: false,
     midia: false,
+    faq: false,
   };
   const empresa = { ...obj(site.empresa) };
 
@@ -616,18 +633,44 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     site.contato = contato;
     tocou.textos = true;
   }
-  if (patch.faq && (patch.faq.titulo || textoPreenchido(patch.faq.itens))) {
+  if (
+    patch.faq &&
+    (patch.faq.limpar === true ||
+      textoPreenchido(patch.faq.titulo) ||
+      textoPreenchido(patch.faq.remover) ||
+      textoPreenchido(patch.faq.acrescentar) ||
+      textoPreenchido(patch.faq.itens))
+  ) {
     const faq = { ...obj(site.faq) };
-    if (patch.faq.titulo) faq.titulo = corta(patch.faq.titulo, 60);
-    const itens = Array.isArray(faq.itens) ? (faq.itens as Record<string, unknown>[]).map((f) => ({ ...f })) : [];
-    for (const item of patch.faq.itens || []) {
-      const i = item.de ? itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(semAcento(item.de || ""))) : -1;
-      if (i < 0 || !itens[i]) continue;
-      if (item.pergunta) itens[i].pergunta = corta(item.pergunta, 140);
-      if (item.resposta) itens[i].resposta = corta(item.resposta, 320);
+    if (patch.faq.titulo) faq.titulo = corta(patch.faq.titulo, 80);
+    let itens = patch.faq.limpar === true ? [] : Array.isArray(faq.itens) ? (faq.itens as Record<string, unknown>[]).map((f) => ({ ...f })) : [];
+    for (const nome of patch.faq.remover || []) {
+      const n = semAcento(corta(nome, 140));
+      if (!n) continue;
+      const i = itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(n));
+      if (i >= 0) itens.splice(i, 1);
     }
-    faq.itens = itens;
+    for (const item of patch.faq.itens || []) {
+      if (!item.pergunta && !item.resposta) continue;
+      const alvo = semAcento(item.de || "");
+      const i = alvo ? itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(alvo)) : -1;
+      if (i < 0 || !itens[i]) continue;
+      if (item.pergunta) itens[i].pergunta = corta(item.pergunta, 180);
+      if (item.resposta) itens[i].resposta = corta(item.resposta, 400);
+    }
+    for (const item of patch.faq.acrescentar || []) {
+      if (itens.length >= LIMITE_FAQ) {
+        avisos.push("A FAQ fica com no máximo 10 perguntas.");
+        break;
+      }
+      const pergunta = corta(item.pergunta, 180);
+      const resposta = corta(item.resposta, 400);
+      if (!pergunta || !resposta) continue;
+      itens.push({ id: idFaq(itens), pergunta, resposta });
+    }
+    faq.itens = itens.slice(0, LIMITE_FAQ);
     site.faq = faq;
+    tocou.faq = true;
     tocou.textos = true;
   }
 

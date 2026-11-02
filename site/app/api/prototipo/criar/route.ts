@@ -190,6 +190,33 @@ export async function POST(req: NextRequest) {
       bairroModelo: gerado.modelo?.bairro,
       cidadeModelo: gerado.modelo?.cidade,
     });
+    const horarioCliente = String(body.horario || "").replace(/\s+/g, " ").trim().slice(0, 160);
+    const empresaHorario = { ...((gerado.site.empresa as Record<string, unknown>) || {}) };
+    empresaHorario.horario_resumo = horarioCliente || "Horário a combinar";
+    if (!logradouro && !numero && !bairro && !cidade && !cep) {
+      const end = { ...((empresaHorario.endereco as Record<string, unknown>) || {}) };
+      end.logradouro = "";
+      end.numero = "";
+      end.bairro = "";
+      end.cidade = "";
+      end.completo = "";
+      empresaHorario.endereco = end;
+    }
+    gerado.site.empresa = empresaHorario;
+
+    const faqsBody = body.faqs as { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } | null;
+    if (faqsBody && typeof faqsBody === "object") {
+      const faq = { ...((gerado.site.faq as Record<string, unknown>) || {}) };
+      faq.titulo = String(faqsBody.titulo || faq.titulo || "Dúvidas").slice(0, 80);
+      const itens = (faqsBody.itens || []).filter((item) => item?.pergunta?.trim() && item?.resposta?.trim()).slice(0, 10);
+      faq.itens = itens.map((item, i) => ({
+        id: `faq_${String(i + 1).padStart(2, "0")}`,
+        pergunta: String(item.pergunta).trim().slice(0, 180),
+        resposta: String(item.resposta).trim().slice(0, 400),
+      }));
+      gerado.site.faq = faq;
+    }
+
     repararParaSchema(gerado.site, {
       clienteId: `t${token}`,
       nicho,

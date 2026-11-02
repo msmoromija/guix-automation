@@ -28,6 +28,7 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   empresa.whatsapp_label = "";
   empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
   empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
+  empresa.horario_resumo = "Horário a combinar";
   empresa.endereco = {
     logradouro: entrada.logradouro || "",
     numero: entrada.numero || "",

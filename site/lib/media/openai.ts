@@ -100,10 +100,11 @@ export async function escreverCopiaSimulacao(entrada: {
   slogan?: string;
   tom?: string;
   destaque?: string;
+  horario?: string;
   servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string }>;
   profissionais?: Array<{ nome: string; cargo?: string; descricao?: string }>;
 }) {
-  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} Responda só JSON. Hero com promessa do ofício, não só o nome. Sobre com 2 parágrafos. Uma descrição por serviço, na mesma ordem e quantidade. FAQ com 4 perguntas deste negócio. contato.titulo: Venha ao/à + bairro, ou Venha a + cidade se não houver bairro.`;
+  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} Responda só JSON. Escreva como quem atende no balcão: frase curta, concreta, sem "excelência", "compromisso" ou "qualidade" de enfeite. Nenhuma frase pode se repetir em outro bloco. Cada serviço descreve o que entra nele, com palavras diferentes dos outros. Se não houver horário ou endereço nos dados, não invente. Hero com promessa do ofício, não só o nome. Sobre com 2 parágrafos que não repetem a capa. FAQ com 4 perguntas deste negócio, cada resposta com um fato diferente. contato.titulo: Venha ao/à + bairro, ou Venha a + cidade se não houver bairro.`;
   const json = await completarJson(sistema, {
     nicho: entrada.nicho,
     nome: entrada.nome,
@@ -112,6 +113,7 @@ export async function escreverCopiaSimulacao(entrada: {
     bairro: entrada.bairro || "",
     tom: entrada.tom || "",
     destaque: entrada.destaque || "",
+    horario: entrada.horario || "",
     servicos: entrada.servicos,
     equipe: (entrada.profissionais || []).filter((p) => p.nome.trim()),
     schema: {
@@ -172,6 +174,7 @@ export async function executarPedido(entrada: { nicho: Nicho; pedido: string; co
   const sistema = [
     "Você edita o conteúdo e a aparência de um site local já montado. Responda só JSON.",
     "Pode alterar telefone, WhatsApp, e-mail, endereço, horário, textos, serviços (acrescentar, remover, reescrever, mudar preço, tirar todos os preços, sugerir preço), diferenciais, FAQ, tema, fonte, cores, menu e rodapé.",
+    "FAQ: no máximo 10. faq.limpar true apaga todas. faq.remover traz um trecho da pergunta a apagar. faq.acrescentar cria pergunta e resposta juntas. faq.itens edita uma existente, e de é um trecho da pergunta atual. Não invente pergunta sem resposta.",
     "Visual completo: paletaId, tipografiaId, aparencia, estilo, cabecalho, rodapeLayout, logoTamanho, banner, botao, animacao, agendamento, whatsappFlutuante e redes.",
     "Cabeçalho: logo-esquerda, centralizado, logo-slogan, logo-direita, menu-abaixo, compacto.",
     "Rodapé: centralizado, dividido, empilhado, minimo.",
@@ -205,7 +208,7 @@ export async function executarPedido(entrada: { nicho: Nicho; pedido: string; co
           hero: { titulo: "", subtitulo: "" },
           sobre: { titulo: "", paragrafos: [] },
           contato: { titulo: "", subtitulo: "" },
-          faq: { itens: [{ de: "", pergunta: "", resposta: "" }] },
+          faq: { titulo: "", limpar: false, remover: [], acrescentar: [{ pergunta: "", resposta: "" }], itens: [{ de: "", pergunta: "", resposta: "" }] },
           diferenciais: { atualizar: [{ de: "", titulo: "", descricao: "" }], remover: [], acrescentar: [] },
           servicos: { sem_preco: false, remover: [], atualizar: [{ nome: "", novo_nome: "", descricao: "", preco_label: "", duracao_label: "" }], acrescentar: [] },
           visual: { paletaId: "", tipografiaId: "", cabecalho: "", rodapeLayout: "", logoTamanho: "", banner: "", botao: "", animacao: "", aparencia: "", estilo: "", agendamento: false, cor_accent: "", cor_fundo: "" },

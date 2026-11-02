@@ -30,6 +30,7 @@ export function construirAoVivo(
     horario?: string;
     enderecoCompleto?: string;
     eventos?: { titulo: string; descricao: string; dataLabel: string; horario: string }[];
+    faqs?: { titulo: string; itens: { pergunta: string; resposta: string }[] };
     menu?: { id: string; label: string; href: string }[];
     botaoAgendar?: string;
     rodapeTexto?: string;
@@ -96,7 +97,30 @@ export function construirAoVivo(
     empresa.telefone_label = "";
   }
   if (!opts.email.trim()) empresa.email = "";
-  if (opts.horario?.trim()) empresa.horario_resumo = opts.horario.trim().slice(0, 160);
+  empresa.horario_resumo = opts.horario?.trim().slice(0, 160) || "";
+  const digitouLugar = Boolean(
+    opts.logradouro.trim() || opts.numero.trim() || opts.bairro.trim() || opts.cidade.trim() || opts.cep.trim() || opts.enderecoCompleto?.trim(),
+  );
+  const endAtual = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+  if (!digitouLugar) {
+    endAtual.logradouro = "";
+    endAtual.numero = "";
+    endAtual.bairro = "";
+    endAtual.cidade = "";
+    endAtual.completo = "";
+  } else if (!opts.enderecoCompleto?.trim()) {
+    const rua = [opts.logradouro.trim(), opts.numero.trim()].filter(Boolean).join(", ");
+    const cidadeUf = [opts.cidade.trim(), opts.estado.trim()].filter(Boolean).join(" - ");
+    const resto = [opts.bairro.trim(), cidadeUf].filter(Boolean).join(", ");
+    endAtual.logradouro = opts.logradouro.trim();
+    endAtual.numero = opts.numero.trim();
+    endAtual.bairro = opts.bairro.trim();
+    endAtual.cidade = opts.cidade.trim();
+    if (/^[A-Za-z]{2}$/.test(opts.estado.trim())) endAtual.estado = opts.estado.trim().toUpperCase();
+    endAtual.cep = opts.cep.trim();
+    endAtual.completo = [rua, resto].filter(Boolean).join(" — ");
+  }
+  empresa.endereco = endAtual;
   site.empresa = empresa;
 
   // Ofertas e eventos do exemplo não aparecem como se fossem do cliente.
@@ -137,6 +161,20 @@ export function construirAoVivo(
   }
 
   aplicarCopiaNoSite(site, opts.copia);
+
+  if (opts.faqs) {
+    const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+    faq.titulo = opts.faqs.titulo.trim().slice(0, 80) || "Dúvidas";
+    faq.itens = opts.faqs.itens
+      .filter((item) => item.pergunta.trim() && item.resposta.trim())
+      .slice(0, 10)
+      .map((item, i) => ({
+        id: `faq_${String(i + 1).padStart(2, "0")}`,
+        pergunta: item.pergunta.trim().slice(0, 180),
+        resposta: item.resposta.trim().slice(0, 400),
+      }));
+    site.faq = faq;
+  }
 
   if (opts.nome.trim()) {
     const rodape = { ...((site.rodape as Record<string, unknown>) || {}) };

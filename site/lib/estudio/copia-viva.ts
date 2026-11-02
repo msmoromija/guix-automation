@@ -30,20 +30,54 @@ export function normalizarCopia(raw: unknown): CopiaViva {
     : [];
   const itensFaq = Array.isArray(faq.itens)
     ? faq.itens
-        .slice(0, 6)
+        .slice(0, 10)
         .map((item) => {
           const f = item as { pergunta?: string; resposta?: string };
           return { pergunta: corta(f.pergunta, 140), resposta: corta(f.resposta, 320) };
         })
         .filter((f) => f.pergunta && f.resposta)
     : [];
-  return {
+  return soltarRepeticao({
     hero: { titulo: corta(hero.titulo, 90), subtitulo: corta(hero.subtitulo, 220) },
     sobre: { titulo: corta(sobre.titulo, 80), paragrafos },
     servicos: { titulo: corta(servicos.titulo, 60), subtitulo: corta(servicos.subtitulo, 180), itens: itensSrv },
     contato: { titulo: corta(contato.titulo, 80), subtitulo: corta(contato.subtitulo, 220) },
     faq: { titulo: corta(faq.titulo, 60), itens: itensFaq },
     profissionais: { titulo: corta(pro.titulo, 60), subtitulo: corta(pro.subtitulo, 180) },
+  });
+}
+
+function chaveTexto(v?: string) {
+  return String(v || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Tira frase repetida entre capa, sobre e serviços. A primeira ocorrência fica. */
+export function soltarRepeticao(copia: CopiaViva): CopiaViva {
+  const vistos = new Set<string>();
+  const guardar = (v?: string) => {
+    const k = chaveTexto(v);
+    if (!k) return "";
+    if (vistos.has(k)) return "";
+    vistos.add(k);
+    return String(v || "").trim();
+  };
+  const titulo = guardar(copia.hero?.titulo);
+  const subtitulo = guardar(copia.hero?.subtitulo);
+  const sobreTitulo = guardar(copia.sobre?.titulo);
+  const paragrafos = (copia.sobre?.paragrafos || []).map((p) => guardar(p)).filter(Boolean);
+  const srvTitulo = guardar(copia.servicos?.titulo) || copia.servicos?.titulo || "";
+  const srvSub = guardar(copia.servicos?.subtitulo);
+  const itens = (copia.servicos?.itens || []).map((item) => ({ descricao: guardar(item.descricao) }));
+  return {
+    ...copia,
+    hero: { titulo, subtitulo },
+    sobre: { titulo: sobreTitulo || copia.sobre?.titulo, paragrafos: paragrafos.length ? paragrafos : copia.sobre?.paragrafos },
+    servicos: { ...copia.servicos, titulo: srvTitulo, subtitulo: srvSub, itens },
   };
 }
 
@@ -249,13 +283,38 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
     site.contato = contato;
   } else if (a === "faq" && b === "titulo") {
     const faq = { ...((site.faq as Record<string, unknown>) || {}) };
-    faq.titulo = valor;
+    faq.titulo = valor.slice(0, 80);
     site.faq = faq;
+  } else if (a === "faq" && b === "limpar") {
+    const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+    faq.itens = [];
+    if (!faq.titulo) faq.titulo = "Dúvidas";
+    site.faq = faq;
+  } else if (a === "faq" && b === "nova") {
+    const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(faq.itens) ? [...(faq.itens as Record<string, unknown>[])] : [];
+    if (itens.length < 10) {
+      const ids = new Set(itens.map((item) => String(item.id || "")));
+      let n = itens.length + 1;
+      while (ids.has(`faq_extra_${n}`)) n += 1;
+      itens.push({
+        id: `faq_extra_${n}`,
+        pergunta: valor.slice(0, 180) || "Nova pergunta",
+        resposta: "Escreva a resposta.",
+      });
+      if (!faq.titulo) faq.titulo = "Dúvidas";
+      faq.itens = itens;
+      site.faq = faq;
+    }
   } else if (a === "faq") {
     const faq = { ...((site.faq as Record<string, unknown>) || {}) };
     const itens = Array.isArray(faq.itens) ? [...(faq.itens as Record<string, unknown>[])] : [];
     const i = Number(b) || 0;
-    if (itens[i] && (c === "pergunta" || c === "resposta")) {
+    if (c === "remover" && itens[i]) {
+      itens.splice(i, 1);
+      faq.itens = itens;
+      site.faq = faq;
+    } else if (itens[i] && (c === "pergunta" || c === "resposta")) {
       itens[i] = { ...itens[i], [c]: valor };
       faq.itens = itens;
       site.faq = faq;

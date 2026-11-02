@@ -172,9 +172,18 @@ export function TextoEditavel({
           inserir("\n");
         }}
       />
-      <span className="pointer-events-none absolute -top-2 right-0 hidden rounded-full bg-black/80 px-1.5 py-0.5 text-[10px] font-medium text-white group-hover/ed:inline">
+      <button
+        type="button"
+        data-editar=""
+        className="absolute -top-2 right-0 hidden rounded-full bg-black/80 px-1.5 py-0.5 text-[10px] font-medium text-white group-hover/ed:inline"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          ref.current?.focus();
+        }}
+      >
         editar
-      </span>
+      </button>
       {dica && typeof document !== "undefined"
         ? createPortal(
             <div

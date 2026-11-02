@@ -277,11 +277,27 @@ export default function VisualizarRascunhoPage() {
     return <main className="px-5 py-16 text-sm text-muted">Abrindo o seu site de teste…</main>;
   }
 
-  const horas = meta?.horasRestantes ?? 72;
-  const dias = Math.max(1, Math.round(horas / 24));
-
   return (
-    <div className="min-h-screen bg-black pb-52">
+    <div className="min-h-screen bg-black pb-40">
+      <div className="fixed right-4 top-4 z-40 flex gap-2">
+        <button
+          type="button"
+          className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-950 shadow"
+          onClick={() => {
+            void navigator.clipboard.writeText(window.location.href);
+            setCopiado(true);
+            window.setTimeout(() => setCopiado(false), 1600);
+          }}
+        >
+          {copiado ? "Link copiado" : "Copiar link"}
+        </button>
+        <Link
+          href={meta?.contratarUrl || `/contratar?nicho=${meta?.nicho || ""}&preview=${token}&t=${token}`}
+          className="rounded-full bg-orange-400 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow"
+        >
+          Publicar
+        </Link>
+      </div>
       <input
         ref={logoRef}
         type="file"
@@ -326,40 +342,7 @@ export default function VisualizarRascunhoPage() {
           onAnexarLogo={() => logoRef.current?.click()}
           linkSuporte={suporte}
         />
-        <div className="border-t border-white/10 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <p className="text-sm text-white/80">
-            Site de teste · some em{" "}
-            <strong className="text-white">
-              {dias} {dias === 1 ? "dia" : "dias"}
-            </strong>
-            {meta?.nome ? ` · ${meta.nome}` : ""}
-            <span className="ml-2 text-white/55">
-              {fechado ? "Edição encerrada. Novo ajuste é com o suporte." : "Clique num texto, numa foto ou na logo. Ou peça na faixa."}
-            </span>
-            {avisoFoto ? <span className="ml-2 text-amber-300">{avisoFoto}</span> : null}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-white/25 px-4 py-2 text-sm text-white"
-              onClick={() => {
-                void navigator.clipboard.writeText(window.location.href);
-                setCopiado(true);
-                window.setTimeout(() => setCopiado(false), 1600);
-              }}
-            >
-              {copiado ? "Link copiado" : "Copiar link"}
-            </button>
-            <Link
-              href={meta?.contratarUrl || `/contratar?nicho=${meta?.nicho || ""}&preview=${token}&t=${token}`}
-              className="rounded-full bg-orange-400 px-4 py-2 text-sm font-semibold text-slate-950"
-            >
-              Quero publicar este site
-            </Link>
-          </div>
-        </div>
-        </div>
+        {avisoFoto ? <p className="bg-slate-950 px-4 py-1 text-center text-xs text-amber-300">{avisoFoto}</p> : null}
       </div>
     </div>
   );
