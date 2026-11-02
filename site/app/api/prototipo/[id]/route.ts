@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
 import { aplicarEstudio, aplicarSrcNoSlot, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
-import { aplicarCampoNoSite, aplicarCopiaNoSite, normalizarCopia } from "@/lib/estudio/copia-viva";
-import { avisoFora, limparHorario } from "@/lib/estudio/pedido-fechado";
-import { ajustarBloco } from "@/lib/media/openai";
+import { aplicarPedido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
+import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
+import { AVISO_FECHADO, AVISO_LIMITE, LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
 import type { Nicho } from "@/lib/media/tipos";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
@@ -43,6 +43,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     demoUrl: `/casas/${pacote.nicho}/`,
     contratarUrl: `/contratar?plano=simples&nicho=${pacote.nicho}&preview=${token}&t=${token}`,
     visual: pacote.visual,
+    edicaoFechada: Boolean(pacote.edicaoFechada),
+    pedidosIa: pacote.pedidosIa || 0,
+    limitePedidos: LIMITE_PEDIDOS_IA,
+    desfazer: (pacote.historico || []).length,
     resumo: {
       empresa: empresa?.nome || pacote.nome,
       slogan: empresa?.slogan,
@@ -68,52 +72,107 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const pedido = String(body.pedido || "").trim().slice(0, 80);
-  const alvo = String(body.alvo || "");
-  if (alvo && body.nome == null && !body.visual) {
-    const fora = avisoFora(pedido);
-    if (fora) return NextResponse.json({ aviso: fora, site: pacote.site });
-    if (alvo === "horario") {
-      const horario = limparHorario(pedido);
-      if (!horario) return NextResponse.json({ aviso: "Escreva os dias e as horas." });
-      const site = aplicarCampoNoSite(structuredClone(pacote.site), "horario", horario);
-      await gravarPacote({ ...pacote, site });
-      return NextResponse.json({ ok: true, token, site, aviso: "", expiraEm: pacote.expiraEm });
-    }
-    if (alvo !== "capa" && alvo !== "sobre" && alvo !== "servicos") {
-      return NextResponse.json({ aviso: "Escolha horário, capa, sobre ou serviços." });
-    }
-    try {
-      const empresa = (pacote.site.empresa || {}) as { nome?: string; endereco?: { cidade?: string; bairro?: string } };
-      const itens = ((pacote.site.servicos as { itens?: { nome?: string; descricao?: string }[] })?.itens || []).map((s) => ({
-        nome: String(s.nome || ""),
-        descricao: String(s.descricao || ""),
-      }));
-      const atual =
-        alvo === "capa" ? pacote.site.hero : alvo === "sobre" ? pacote.site.sobre : { itens: itens.map((s) => ({ descricao: s.descricao })) };
-      const gerado = await ajustarBloco({
-        alvo,
-        instrucao: pedido,
-        nome: empresa.nome || pacote.nome,
-        nicho: pacote.nicho as Nicho,
-        cidade: empresa.endereco?.cidade || pacote.cidade,
-        bairro: empresa.endereco?.bairro,
-        servicos: itens,
-        atual,
-      });
-      const copia = normalizarCopia(gerado.copia);
-      const site = aplicarCopiaNoSite(structuredClone(pacote.site), copia);
-      await gravarPacote({ ...pacote, site });
+  const mexe = Boolean(body.patch || body.campo || body.fotoSrc || body.logoSrc || body.visual || body.nome != null);
+  if (pacote.edicaoFechada && body.fechar !== true && mexe) {
+    return NextResponse.json({
+      aviso: AVISO_FECHADO,
+      edicaoFechada: true,
+      site: pacote.site,
+      visual: pacote.visual,
+    });
+  }
+
+  if (body.fechar === true) {
+    const atualizado = {
+      ...pacote,
+      edicaoFechada: true,
+      fechadoEm: pacote.fechadoEm || new Date().toISOString(),
+    };
+    await gravarPacote(atualizado);
+    return NextResponse.json({
+      ok: true,
+      edicaoFechada: true,
+      site: pacote.site,
+      visual: pacote.visual,
+      aviso: AVISO_FECHADO,
+    });
+  }
+
+  if (body.desfazer === true) {
+    const historico = pacote.historico || [];
+    const anterior = historico[historico.length - 1];
+    if (!anterior) return NextResponse.json({ aviso: "Nada para desfazer.", desfazer: 0 });
+    const atualizado = {
+      ...pacote,
+      site: anterior.site,
+      visual: anterior.visual || pacote.visual,
+      historico: historico.slice(0, -1),
+    };
+    await gravarPacote(atualizado);
+    return NextResponse.json({
+      ok: true,
+      site: atualizado.site,
+      visual: atualizado.visual,
+      desfazer: atualizado.historico.length,
+      pedidosIa: pacote.pedidosIa || 0,
+      limitePedidos: LIMITE_PEDIDOS_IA,
+    });
+  }
+
+  if (body.patch && typeof body.patch === "object") {
+    const usados = pacote.pedidosIa || 0;
+    if (usados >= LIMITE_PEDIDOS_IA) {
       return NextResponse.json({
-        ok: true,
-        token,
-        site,
-        aviso: String(gerado.aviso || "").slice(0, 280),
-        expiraEm: pacote.expiraEm,
+        aviso: AVISO_LIMITE,
+        limite: true,
+        pedidosIa: usados,
+        limitePedidos: LIMITE_PEDIDOS_IA,
+        site: pacote.site,
+        visual: pacote.visual,
       });
-    } catch {
-      return NextResponse.json({ aviso: "Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.", site: pacote.site });
     }
+    const visual = { ...visualPadrao(pacote.nicho), ...(pacote.visual || {}) };
+    const resultado = aplicarPedido(structuredClone(pacote.site), visual, body.patch as PatchPedido);
+    const empresa = resultado.site.empresa as { whatsapp?: string; endereco?: { cidade?: string } } | undefined;
+    const historico = [...(pacote.historico || []), { site: pacote.site, visual: pacote.visual }].slice(-3);
+    const pedidosIa = usados + 1;
+    await gravarPacote({
+      ...pacote,
+      site: resultado.site,
+      visual: resultado.visual,
+      whatsapp: empresa?.whatsapp || pacote.whatsapp,
+      cidade: empresa?.endereco?.cidade || pacote.cidade,
+      historico,
+      pedidosIa,
+    });
+    return NextResponse.json({
+      ok: true,
+      token,
+      site: resultado.site,
+      visual: resultado.visual,
+      aviso: [resultado.aviso, pedidosIa >= LIMITE_PEDIDOS_IA ? AVISO_LIMITE : ""].filter(Boolean).join(" "),
+      resumo: resultado.resumo,
+      abrir: resultado.abrir,
+      pedidosIa,
+      limitePedidos: LIMITE_PEDIDOS_IA,
+      desfazer: historico.length,
+      expiraEm: pacote.expiraEm,
+    });
+  }
+
+  if (body.somenteLogo === true) {
+    const logoSrc = sanitizarLogoSrc(body.logoSrc);
+    if (!logoSrc) return NextResponse.json({ erro: "Envie uma imagem de logo." }, { status: 400 });
+    const site = structuredClone(pacote.site);
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const logo = { ...((empresa.logo as Record<string, unknown>) || {}) };
+    logo.src = logoSrc;
+    logo.alt = String(empresa.nome || "Logo");
+    delete logo.credito;
+    empresa.logo = logo;
+    site.empresa = empresa;
+    await gravarPacote({ ...pacote, site });
+    return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
   }
 
   const campo = String(body.campo || "");

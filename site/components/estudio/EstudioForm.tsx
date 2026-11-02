@@ -8,7 +8,9 @@ import type { AlvoEdicao, SlotFoto } from "@/components/preview/SiteLivePreview"
 import { construirAoVivo } from "@/lib/estudio/construir-ao-vivo";
 import { definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
-import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
+import { aplicarPedido, contextoEditavel, copiaDoSite, patchRapido, servicosDoSite, type PatchPedido, type ResultadoPedido } from "@/lib/estudio/aplicar-pedido";
+import { AVISO_ESTRUTURA, AVISO_LIMITE, LIMITE_PEDIDOS_IA, soEstrutura } from "@/lib/estudio/pedido-fechado";
+import { linkWhatsapp } from "@/lib/contato";
 import { MarcaStudio } from "@/components/estudio/MarcaStudio";
 import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
@@ -80,6 +82,35 @@ export function EstudioForm() {
   const [specLogo, setSpecLogo] = useState<SpecLogo | null>(() => propostasBiblioteca(nichoInicial)[0] || null);
   const [studioAberto, setStudioAberto] = useState(false);
   const [logoUpload, setLogoUpload] = useState("");
+  const [logoIa, setLogoIa] = useState("");
+  const [usosIa, setUsosIa] = useState(0);
+  const marcos = useRef<Array<{
+    visual: VisualConfig;
+    whatsapp: string;
+    email: string;
+    horario: string;
+    slogan: string;
+    logradouro: string;
+    numero: string;
+    bairro: string;
+    cidade: string;
+    estado: string;
+    cep: string;
+    servicos: Array<{ nome: string; preco: string; duracao: string; descricao: string; imagemSrc: string }>;
+    pros: Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string }>;
+    copia: CopiaViva | null;
+    menuLivre: { id: string; label: string; href: string }[] | null;
+    botaoLivre: string;
+    rodapeLivre: { texto?: string; links?: { id: string; label: string; href: string }[] } | null;
+    difsLivre: { titulo: string; descricao: string }[] | null;
+    logoIa: string;
+    logoModo: "gerar" | "enviar" | "texto";
+    logoUpload: string;
+    fotoHero: string;
+    fotoSobre: string;
+    fotoGaleria: string[];
+  }>>([]);
+  const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
   const [pros, setPros] = useState<Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string }>>([]);
@@ -90,7 +121,10 @@ export function EstudioForm() {
   const [iaEscreve, setIaEscreve] = useState(true);
   const [copia, setCopia] = useState<CopiaViva | null>(null);
   const [pedidoIa, setPedidoIa] = useState("");
-  const [alvoPedido, setAlvoPedido] = useState<AlvoPedido | "">("");
+  const [menuLivre, setMenuLivre] = useState<{ id: string; label: string; href: string }[] | null>(null);
+  const [botaoLivre, setBotaoLivre] = useState("");
+  const [rodapeLivre, setRodapeLivre] = useState<{ texto?: string; links?: { id: string; label: string; href: string }[] } | null>(null);
+  const [difsLivre, setDifsLivre] = useState<{ titulo: string; descricao: string }[] | null>(null);
   const [horario, setHorario] = useState("");
   const [avisoIa, setAvisoIa] = useState("");
   const [escrevendo, setEscrevendo] = useState(false);
@@ -112,8 +146,9 @@ export function EstudioForm() {
   const dicas = dicasDoNicho(nicho);
   const paleta = paletaPorId(visual.paletaId);
   const nomeMarca = nome.trim() || nichoAtual.negocio;
-  const logoSrc =
-    logoModo === "enviar"
+  const logoSrc = logoIa
+    ? logoIa
+    : logoModo === "enviar"
       ? logoUpload
       : logoModo === "texto" || !specLogo
         ? ""
@@ -137,7 +172,7 @@ export function EstudioForm() {
       email,
       redes,
       visual,
-      logoSrc: etapa >= 3 ? logoSrc : undefined,
+      logoSrc: logoIa || etapa >= 3 ? logoSrc : undefined,
       servicos,
       profissionais: pros,
       etapa,
@@ -148,6 +183,11 @@ export function EstudioForm() {
       },
       copia,
       horario,
+      menu: menuLivre || undefined,
+      botaoAgendar: botaoLivre || undefined,
+      rodapeTexto: rodapeLivre?.texto,
+      rodapeLinks: rodapeLivre?.links,
+      diferenciais: difsLivre || undefined,
     });
   }, [
     modelo,
@@ -165,6 +205,7 @@ export function EstudioForm() {
     redes,
     visual,
     logoSrc,
+    logoIa,
     servicos,
     pros,
     etapa,
@@ -173,15 +214,19 @@ export function EstudioForm() {
     fotoGaleria,
     copia,
     horario,
+    menuLivre,
+    botaoLivre,
+    rodapeLivre,
+    difsLivre,
   ]);
 
   const dicaSite =
     etapa <= 1
-      ? "Escreva o nome. A IA troca a capa e o sobre pelo seu ofício. Clique num texto para editar."
+      ? "Escreva o nome. Peça embaixo para corrigir texto, preço, telefone, endereço ou horário."
       : etapa === 2
-        ? "Cores, letra e fotos. Clique na imagem à direita para trocar."
+        ? "Cores, letra e fotos. Clique na imagem, ou peça a cor e a fonte na faixa."
         : etapa === 3
-          ? "A marca entra no topo. O restante do site segue o modelo."
+          ? "A marca entra no topo. Clique nela para trocar, ou peça a posição."
           : etapa === 4
             ? "Agora o contato e os serviços. O que você não mexer, fica do modelo."
             : "Os textos já estão no quadro. Gere o link quando quiser guardar por 3 dias.";
@@ -355,74 +400,219 @@ export function EstudioForm() {
     setCopia((atual) => definirCampoCopia(atual, campo, valor));
   }
 
+  function capturarMarco() {
+    return {
+      visual,
+      whatsapp,
+      email,
+      horario,
+      slogan,
+      logradouro,
+      numero,
+      bairro,
+      cidade,
+      estado,
+      cep,
+      servicos,
+      pros,
+      copia,
+      menuLivre,
+      botaoLivre,
+      rodapeLivre,
+      difsLivre,
+      logoIa,
+      logoModo,
+      logoUpload,
+      fotoHero,
+      fotoSobre,
+      fotoGaleria,
+    };
+  }
+
+  function restaurarMarco(m: (typeof marcos.current)[number]) {
+    setVisual(m.visual);
+    setWhatsapp(m.whatsapp);
+    setEmail(m.email);
+    setHorario(m.horario);
+    setSlogan(m.slogan);
+    setLogradouro(m.logradouro);
+    setNumero(m.numero);
+    setBairro(m.bairro);
+    setCidade(m.cidade);
+    setEstado(m.estado);
+    setCep(m.cep);
+    setServicos(m.servicos);
+    setPros(m.pros);
+    setCopia(m.copia);
+    setMenuLivre(m.menuLivre);
+    setBotaoLivre(m.botaoLivre);
+    setRodapeLivre(m.rodapeLivre);
+    setDifsLivre(m.difsLivre);
+    setLogoIa(m.logoIa);
+    setLogoModo(m.logoModo);
+    setLogoUpload(m.logoUpload);
+    setFotoHero(m.fotoHero);
+    setFotoSobre(m.fotoSobre);
+    setFotoGaleria(m.fotoGaleria);
+    fotosTocadas.current = { hero: Boolean(m.fotoHero), sobre: Boolean(m.fotoSobre), galeria: m.fotoGaleria.length > 0 };
+  }
+
+  function guardarMarco() {
+    marcos.current = [...marcos.current, capturarMarco()].slice(-3);
+    setPassosDesfazer(marcos.current.length);
+  }
+
+  function desfazerMarco() {
+    const ultimo = marcos.current[marcos.current.length - 1];
+    if (!ultimo) return;
+    marcos.current = marcos.current.slice(0, -1);
+    setPassosDesfazer(marcos.current.length);
+    restaurarMarco(ultimo);
+    setAvisoIa("Alteração desfeita.");
+  }
+
+  function aplicarResultado(resultado: ResultadoPedido) {
+    const empresa = (resultado.site.empresa || {}) as {
+      telefone_label?: string;
+      email?: string;
+      slogan?: string;
+      horario_resumo?: string;
+      endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string; cep?: string };
+    };
+    if (resultado.tocou.contato) {
+      if (empresa.telefone_label) setWhatsapp(empresa.telefone_label);
+      if (empresa.email && !empresa.email.endsWith("@guix.invalid")) setEmail(empresa.email);
+      if (empresa.slogan) {
+        setSlogan(empresa.slogan);
+        manuais.current.add("slogan");
+      }
+      if (empresa.horario_resumo) setHorario(empresa.horario_resumo);
+      const end = empresa.endereco;
+      if (end?.logradouro) setLogradouro(end.logradouro);
+      if (end?.numero) setNumero(end.numero);
+      if (end?.bairro) setBairro(end.bairro);
+      if (end?.cidade) setCidade(end.cidade);
+      if (end?.estado && end.estado !== "NA") setEstado(end.estado);
+      if (end?.cep) setCep(end.cep);
+    }
+    if (resultado.tocou.textos || resultado.tocou.servicos) {
+      const nova = copiaDoSite(resultado.site);
+      setCopia((atual) => ({ ...(atual || {}), ...nova }));
+      ["hero.titulo", "hero.subtitulo", "sobre.titulo", "sobre.p.0", "sobre.p.1", "contato.titulo", "slogan"].forEach((c) => manuais.current.add(c));
+      (nova.faq?.itens || []).forEach((_, i) => {
+        manuais.current.add(`faq.${i}.pergunta`);
+        manuais.current.add(`faq.${i}.resposta`);
+      });
+    }
+    if (resultado.tocou.servicos) {
+      const linhas = servicosDoSite(resultado.site).filter((s) => s.nome);
+      if (linhas.length) {
+        setServicos(linhas.map((s) => ({ nome: s.nome, preco: s.preco || "", duracao: s.duracao || "", descricao: s.descricao || "", imagemSrc: s.imagemSrc || "" })));
+        linhas.forEach((_, i) => manuais.current.add(`srv.${i}.descricao`));
+      }
+    }
+    if (resultado.tocou.visual) setVisual(resultado.visual);
+    if (resultado.tocou.menu) {
+      const header = (resultado.site.header || {}) as { menu?: { id: string; label: string; href: string }[]; botao_agendar?: string };
+      if (header.menu?.length) setMenuLivre(header.menu);
+      if (header.botao_agendar) setBotaoLivre(header.botao_agendar);
+    }
+    if (resultado.tocou.rodape) {
+      const rodape = (resultado.site.rodape || {}) as { texto?: string; links?: { id: string; label: string; href: string }[] };
+      setRodapeLivre({ texto: rodape.texto, links: rodape.links });
+    }
+    if (resultado.tocou.diferenciais) {
+      const bloco = (resultado.site.diferenciais || {}) as { itens?: { titulo?: string; descricao?: string }[] };
+      const itens = (bloco.itens || []).map((d) => ({ titulo: String(d.titulo || ""), descricao: String(d.descricao || "") })).filter((d) => d.titulo);
+      if (itens.length >= 3) setDifsLivre(itens);
+    }
+    const equipe = ((resultado.site.profissionais || {}) as { itens?: { nome?: string }[] }).itens || [];
+    if (equipe.length && equipe.every((p) => p.nome === "Sem preferência")) {
+      setPros([{ nome: "", cargo: "", descricao: "", fotoSrc: "" }]);
+    }
+    if (resultado.tocou.midia && siteVivo) {
+      const logoAgora = String((((resultado.site.empresa || {}) as { logo?: { src?: string } }).logo || {}).src || "");
+      const logoAntes = String((((siteVivo.empresa || {}) as { logo?: { src?: string } }).logo || {}).src || "");
+      if (logoAgora && logoAgora !== logoAntes) {
+        setLogoIa(logoAgora);
+        setLogoModo("enviar");
+        setLogoUpload(logoAgora);
+      }
+      const srcDe = (bloco?: { imagem?: { src?: string } }) => String(bloco?.imagem?.src || "");
+      const heroAgora = srcDe(resultado.site.hero as { imagem?: { src?: string } });
+      const heroAntes = srcDe(siteVivo.hero as { imagem?: { src?: string } });
+      if (heroAgora && heroAgora !== heroAntes) {
+        fotosTocadas.current.hero = true;
+        setFotoHero(heroAgora);
+      }
+      const sobreAgora = srcDe(resultado.site.sobre as { imagem?: { src?: string } });
+      const sobreAntes = srcDe(siteVivo.sobre as { imagem?: { src?: string } });
+      if (sobreAgora && sobreAgora !== sobreAntes) {
+        fotosTocadas.current.sobre = true;
+        setFotoSobre(sobreAgora);
+      }
+    }
+    if (resultado.abrir === "logo" && !resultado.tocou.midia) setStudioAberto(true);
+    if (resultado.abrir === "hero" || resultado.abrir === "sobre" || resultado.abrir === "galeria") setSlotFoto({ tipo: resultado.abrir });
+    setAvisoIa([resultado.resumo, resultado.aviso].filter(Boolean).join(" "));
+  }
+
   async function pedirTexto() {
     const pedido = pedidoIa.trim();
-    if (!alvoPedido) {
-      setAvisoIa("Escolha horário, capa, sobre ou serviços.");
+    if (!siteVivo) {
+      setAvisoIa("O quadro ainda está carregando.");
+      return;
+    }
+    if (usosIa >= LIMITE_PEDIDOS_IA) {
+      setAvisoIa(AVISO_LIMITE);
       return;
     }
     if (pedido.length < 3) {
-      setAvisoIa("Escreva uma frase curta para esse bloco.");
+      setAvisoIa("Escreva o que quer mudar.");
       return;
     }
-    const fora = avisoFora(pedido);
-    if (fora) {
-      setAvisoIa(fora);
+    if (soEstrutura(pedido)) {
+      setAvisoIa(AVISO_ESTRUTURA);
       return;
     }
-    if (alvoPedido === "horario") {
-      const h = limparHorario(pedido);
-      if (!h) {
-        setAvisoIa("Escreva os dias e as horas. Ex.: Segunda a sexta, 8h às 17h.");
-        return;
-      }
-      setHorario(h);
+    const rapido = patchRapido(pedido);
+    if (rapido) {
+      guardarMarco();
+      aplicarResultado(aplicarPedido(structuredClone(siteVivo), visual, rapido));
+      setUsosIa((n) => n + 1);
       setPedidoIa("");
-      setAvisoIa("Horário atualizado.");
       return;
     }
     setAjustando(true);
     setAvisoIa("");
     const ctrl = new AbortController();
-    const prazo = window.setTimeout(() => ctrl.abort(), 12000);
+    const prazo = window.setTimeout(() => ctrl.abort(), 20000);
     try {
       const res = await fetch("/api/prototipo/textos", {
         method: "POST",
         signal: ctrl.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          modo: "ajustar",
-          alvo: alvoPedido,
+          modo: "executar",
           pedido,
-          copia,
           nicho,
           nome,
           cidade,
           bairro,
-          servicos,
+          contexto: contextoEditavel(siteVivo, visual),
         }),
       });
-      const data = (await res.json()) as { copia?: CopiaViva; aviso?: string; erro?: string };
-      if (data.copia && alvoPedido === "capa") {
-        setCopia((atual) => ({ ...(atual || {}), hero: data.copia?.hero || atual?.hero }));
-        ["hero.titulo", "hero.subtitulo"].forEach((c) => porPedido.current.add(c));
-      } else if (data.copia && alvoPedido === "sobre") {
-        setCopia((atual) => ({ ...(atual || {}), sobre: data.copia?.sobre || atual?.sobre }));
-        ["sobre.titulo", "sobre.p.0", "sobre.p.1"].forEach((c) => porPedido.current.add(c));
-      } else if (data.copia && alvoPedido === "servicos") {
-        setCopia((atual) => ({ ...(atual || {}), servicos: { ...(atual?.servicos || {}), ...(data.copia?.servicos || {}) } }));
-        setServicos((rows) =>
-          rows.map((r, i) => {
-            const desc = data.copia?.servicos?.itens?.[i]?.descricao;
-            return desc ? { ...r, descricao: desc } : r;
-          }),
-        );
-        servicos.forEach((_, i) => porPedido.current.add(`srv.${i}.descricao`));
+      const data = (await res.json()) as { patch?: PatchPedido; aviso?: string; erro?: string };
+      if (!data.patch) {
+        setAvisoIa(data.aviso || data.erro || "Não consegui aplicar agora.");
+        return;
       }
-      if (data.copia) setPedidoIa("");
-      setAvisoIa(data.aviso || data.erro || "");
+      guardarMarco();
+      aplicarResultado(aplicarPedido(structuredClone(siteVivo), visual, data.patch));
+      setUsosIa((n) => n + 1);
+      setPedidoIa("");
     } catch {
-      setAvisoIa("Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.");
+      setAvisoIa("Demorou demais. Nada mudou. Tente uma frase mais curta.");
     } finally {
       window.clearTimeout(prazo);
       setAjustando(false);
@@ -564,7 +754,8 @@ export function EstudioForm() {
           destaque,
           iaEscreve,
           copia,
-          logoSrc: logoModo === "texto" ? undefined : logoSrc,
+          pedidosIa: usosIa,
+          logoSrc: logoModo === "texto" && !logoIa ? undefined : logoSrc,
           servicos: servicos.filter((s) => s.nome.trim()),
           profissionais: pros.filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome"),
           fotos: {
@@ -589,13 +780,17 @@ export function EstudioForm() {
 
   const pedidoPainel = (
     <PedidoIa
-      alvo={alvoPedido}
-      onAlvo={setAlvoPedido}
       texto={pedidoIa}
       onTexto={setPedidoIa}
       onEnviar={() => void pedirTexto()}
       aviso={avisoIa}
       ocupado={ajustando}
+      onDesfazer={desfazerMarco}
+      passosDesfazer={passosDesfazer}
+      usos={usosIa}
+      onAnexarFoto={() => setSlotFoto({ tipo: "hero" })}
+      onAnexarLogo={() => setStudioAberto(true)}
+      linkSuporte={linkWhatsapp("Olá, quero uma tela nova ou uma função que o site de teste não faz.")}
     />
   );
 
@@ -1099,7 +1294,7 @@ export function EstudioForm() {
                           }}
                         />
                       </label>
-                      {servicos.length > 3 ? (
+                      {servicos.length > 1 ? (
                         <button
                           type="button"
                           className="rounded-full px-3 py-1.5 text-xs text-muted"
@@ -1250,7 +1445,7 @@ export function EstudioForm() {
       </form>
         </div>
         <div className="hidden h-full min-h-0 lg:block">
-          <EstudioPreview site={siteVivo} visual={visualPreview} dica={dicaSite} variante="painel" onEditar={irEditar} onTrocarFoto={setSlotFoto} onTexto={aoEditarTexto} pedido={pedidoPainel} foco={focoPreview} revelado={reveladoPreview} />
+          <EstudioPreview site={siteVivo} visual={visualPreview} dica={dicaSite} variante="painel" onEditar={irEditar} onTrocarFoto={setSlotFoto} onTrocarLogo={() => setStudioAberto(true)} onTexto={aoEditarTexto} pedido={pedidoPainel} foco={focoPreview} revelado={reveladoPreview} />
         </div>
       </div>
 
@@ -1263,6 +1458,7 @@ export function EstudioForm() {
         variante="folha"
         onEditar={irEditar}
         onTrocarFoto={setSlotFoto}
+        onTrocarLogo={() => setStudioAberto(true)}
         onTexto={aoEditarTexto}
         pedido={pedidoPainel}
         foco={focoPreview}

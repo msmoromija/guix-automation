@@ -28,6 +28,11 @@ export function construirAoVivo(
     fotos?: { hero?: string; sobre?: string; galeria?: string[] };
     copia?: CopiaViva | null;
     horario?: string;
+    menu?: { id: string; label: string; href: string }[];
+    botaoAgendar?: string;
+    rodapeTexto?: string;
+    rodapeLinks?: { id: string; label: string; href: string }[];
+    diferenciais?: { titulo: string; descricao: string }[];
   },
 ) {
   const site = JSON.parse(JSON.stringify(modelo)) as Record<string, unknown>;
@@ -114,8 +119,31 @@ export function construirAoVivo(
   if (opts.nome.trim()) {
     const rodape = { ...((site.rodape as Record<string, unknown>) || {}) };
     const cidade = opts.cidade.trim();
-    rodape.texto = cidade ? `${opts.nome.trim()} · ${cidade}` : opts.nome.trim();
+    rodape.texto = opts.rodapeTexto?.trim()
+      ? opts.rodapeTexto.trim().slice(0, 160)
+      : cidade
+        ? `${opts.nome.trim()} · ${cidade}`
+        : opts.nome.trim();
+    if (opts.rodapeLinks) rodape.links = opts.rodapeLinks;
     site.rodape = rodape;
+  }
+  if (opts.menu?.length) {
+    const header = { ...((site.header as Record<string, unknown>) || {}) };
+    header.menu = opts.menu;
+    if (opts.botaoAgendar?.trim()) header.botao_agendar = opts.botaoAgendar.trim().slice(0, 28);
+    site.header = header;
+  }
+  if (opts.diferenciais && opts.diferenciais.length >= 3) {
+    const bloco = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+    const atuais = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
+    bloco.itens = opts.diferenciais.slice(0, 6).map((item, i) => ({
+      ...(atuais[i] || atuais[0] || {}),
+      id: String((atuais[i] || {}).id || `dif_extra_${i + 1}`),
+      titulo: item.titulo,
+      descricao: item.descricao,
+      icone: (atuais[i] || atuais[0] || {}).icone || "check",
+    }));
+    site.diferenciais = bloco;
   }
 
   return site;

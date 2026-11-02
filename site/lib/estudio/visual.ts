@@ -2,7 +2,9 @@
 
 export type ModoAparencia = "claro" | "escuro" | "automatico";
 export type EstiloVisual = "moderno" | "luxo" | "urbano" | "classico" | "suave";
-export type CabecalhoLayout = "logo-esquerda" | "centralizado" | "logo-slogan";
+export type CabecalhoLayout = "logo-esquerda" | "centralizado" | "logo-slogan" | "logo-direita" | "menu-abaixo" | "compacto";
+export type RodapeLayout = "centralizado" | "dividido" | "empilhado" | "minimo";
+export type LogoTamanho = "pequeno" | "medio" | "grande";
 export type BannerLayout = "automatico" | "solido" | "degrade";
 export type Animacao = "suave" | "media" | "intensa";
 export type BotaoEstilo = "arredondado" | "quadrado" | "pílula" | "sem-contorno";
@@ -13,6 +15,8 @@ export interface VisualConfig {
   tipografiaId: string;
   estilo: EstiloVisual;
   cabecalho: CabecalhoLayout;
+  rodapeLayout: RodapeLayout;
+  logoTamanho: LogoTamanho;
   banner: BannerLayout;
   botao: BotaoEstilo;
   animacao: Animacao;
@@ -233,6 +237,8 @@ export function visualPadrao(nicho?: string): VisualConfig {
     tipografiaId: "editorial",
     estilo: "moderno",
     cabecalho: "logo-esquerda",
+    rodapeLayout: "centralizado",
+    logoTamanho: "medio",
     banner: "automatico",
     botao: "arredondado",
     animacao: "suave",

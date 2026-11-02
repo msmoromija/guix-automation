@@ -11,6 +11,7 @@ function Corpo({
   visual,
   onEditar,
   onTrocarFoto,
+  onTrocarLogo,
   onTexto,
   estreito,
   foco,
@@ -20,6 +21,7 @@ function Corpo({
   visual: VisualConfig;
   onEditar?: (alvo: AlvoEdicao) => void;
   onTrocarFoto?: (slot: SlotFoto) => void;
+  onTrocarLogo?: () => void;
   onTexto?: (campo: string, valor: string) => void;
   estreito?: boolean;
   foco?: AlvoEdicao[];
@@ -41,6 +43,7 @@ function Corpo({
       estreito={estreito}
       onEditar={onEditar}
       onTrocarFoto={onTrocarFoto}
+      onTrocarLogo={onTrocarLogo}
       onTexto={onTexto}
       foco={foco}
       revelado={revelado}
@@ -139,6 +142,7 @@ export function EstudioPreview({
   variante = "painel",
   onEditar,
   onTrocarFoto,
+  onTrocarLogo,
   onTexto,
   pedido,
   foco,
@@ -152,6 +156,7 @@ export function EstudioPreview({
   variante?: "painel" | "folha";
   onEditar?: (alvo: AlvoEdicao) => void;
   onTrocarFoto?: (slot: SlotFoto) => void;
+  onTrocarLogo?: () => void;
   onTexto?: (campo: string, valor: string) => void;
   pedido?: React.ReactNode;
   foco?: AlvoEdicao[];
@@ -213,7 +218,7 @@ export function EstudioPreview({
         />
         <div ref={paneRef} className="relative min-h-0 flex-1 overflow-auto bg-zinc-300">
           <div style={moldura}>
-            <Corpo site={site} visual={visual} onEditar={onEditar} onTrocarFoto={onTrocarFoto} onTexto={onTexto} estreito={vista === "celular"} foco={foco} revelado={revelado} />
+            <Corpo site={site} visual={visual} onEditar={onEditar} onTrocarFoto={onTrocarFoto} onTrocarLogo={onTrocarLogo} onTexto={onTexto} estreito={vista === "celular"} foco={foco} revelado={revelado} />
           </div>
           {pedido}
           {visual.whatsappFlutuante && waHref ? (

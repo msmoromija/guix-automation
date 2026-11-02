@@ -3,6 +3,7 @@ import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
 import { aplicarEstudio, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { copiaParaGeracao, normalizarCopia } from "@/lib/estudio/copia-viva";
 import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
+import { LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
 import type { Nicho } from "@/lib/media/tipos";
@@ -217,6 +218,7 @@ export async function POST(req: NextRequest) {
       site: gerado.site,
       visual,
       slogan,
+      pedidosIa: Math.max(0, Math.min(LIMITE_PEDIDOS_IA, Number(body.pedidosIa) || 0)),
     });
 
     return NextResponse.json({

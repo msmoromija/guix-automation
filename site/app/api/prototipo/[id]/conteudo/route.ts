@@ -18,5 +18,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     expiraEm: pacote.expiraEm,
     site: pacote.site,
     visual: pacote.visual,
+    edicaoFechada: Boolean(pacote.edicaoFechada),
+    pedidosIa: pacote.pedidosIa || 0,
+    desfazer: (pacote.historico || []).length,
   });
 }

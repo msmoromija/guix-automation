@@ -59,7 +59,7 @@ type Site = {
   diferenciais?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string }[] };
   promocoes?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; validade_label?: string; imagem?: Img }[] };
   eventos?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; data_label?: string; horario?: string; imagem?: Img }[] };
-  rodape?: { texto?: string };
+  rodape?: { texto?: string; links?: { id: string; label: string; href: string }[] };
 };
 
 const raio: Record<string, string> = { none: "0px", sm: "8px", md: "14px", lg: "22px" };
@@ -214,6 +214,7 @@ export function SiteLivePreview({
   estreito = false,
   onEditar,
   onTrocarFoto,
+  onTrocarLogo,
   onTexto,
   foco,
   revelado,
@@ -225,6 +226,7 @@ export function SiteLivePreview({
   estreito?: boolean;
   onEditar?: (alvo: AlvoEdicao) => void;
   onTrocarFoto?: (slot: SlotFoto) => void;
+  onTrocarLogo?: () => void;
   onTexto?: (campo: string, valor: string) => void;
   foco?: AlvoEdicao[];
   revelado?: AlvoEdicao[];
@@ -265,13 +267,26 @@ export function SiteLivePreview({
   );
 
   const logoArquivo = Boolean(e.logo?.src?.startsWith("/marcas/"));
+  const tamLogo = vis.logoTamanho || "medio";
+  const classeLogo = logoArquivo
+    ? tamLogo === "pequeno"
+      ? "h-8 w-auto max-w-[64px] object-contain"
+      : tamLogo === "grande"
+        ? "h-20 w-auto max-w-[140px] object-contain"
+        : "h-12 w-auto max-w-[88px] object-contain"
+    : tamLogo === "pequeno"
+      ? "h-9 w-auto max-w-[180px] object-contain"
+      : tamLogo === "grande"
+        ? "h-24 w-auto max-w-[460px] object-contain"
+        : "h-14 w-auto max-w-[300px] object-contain";
+  const cab = vis.cabecalho || "logo-esquerda";
   const marca = (
-    <span className={`flex min-w-0 items-center gap-3 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
+    <span className={`flex min-w-0 items-center gap-3 ${cab === "centralizado" || cab === "menu-abaixo" ? "flex-col text-center" : ""}`}>
       {e.logo?.src ? (
         <LogoMarca
           src={e.logo.src}
           alt={e.logo.alt || e.nome || ""}
-          className={logoArquivo ? "h-12 w-auto max-w-[88px] object-contain" : "h-14 w-auto max-w-[300px]"}
+          className={classeLogo}
           inverter={logoArquivo && tintaClara(t.color_text)}
         />
       ) : null}
@@ -280,7 +295,7 @@ export function SiteLivePreview({
           {e.nome}
         </strong>
       ) : null}
-      {vis.cabecalho === "logo-slogan" && e.slogan ? (
+      {cab === "logo-slogan" && e.slogan ? (
         <span className="hidden truncate text-xs opacity-70 sm:block">{e.slogan}</span>
       ) : null}
     </span>
@@ -313,13 +328,27 @@ export function SiteLivePreview({
       >
         <Bloco alvo="marca" label="marca" onEditar={onEditar} foco={foco} revelado={revelado}>
         <header
-          className={`flex items-center gap-3 px-4 py-3 md:px-8 ${
-            vis.cabecalho === "centralizado" ? "flex-col justify-center text-center" : "justify-between"
-          }`}
+          className={
+            cab === "centralizado"
+              ? "flex flex-col items-center gap-3 px-4 py-3 text-center md:px-8"
+              : cab === "menu-abaixo"
+                ? "flex flex-col gap-3 px-4 py-3 md:px-8"
+                : cab === "logo-direita"
+                  ? "flex flex-row-reverse items-center justify-between gap-3 px-4 py-3 md:px-8"
+                  : cab === "compacto"
+                    ? "flex items-center justify-between gap-2 px-3 py-1.5 md:px-6"
+                    : "flex items-center justify-between gap-3 px-4 py-3 md:px-8"
+          }
         >
-          {marca}
-          <nav className={`gap-4 text-xs opacity-80 ${estreito ? "hidden" : "hidden md:flex"}`}>
-            {(site.header?.menu || []).slice(0, 6).map((m) => (
+          {onTrocarLogo ? (
+            <button type="button" className="min-w-0 bg-transparent p-0 text-inherit" onClick={(ev) => { ev.stopPropagation(); onTrocarLogo(); }} aria-label="Trocar logo">
+              {marca}
+            </button>
+          ) : (
+            marca
+          )}
+          <nav className={`gap-4 text-xs opacity-80 ${cab === "menu-abaixo" && !estreito ? "flex flex-wrap" : estreito ? "hidden" : "hidden md:flex"}`}>
+            {(site.header?.menu || []).slice(0, 7).map((m) => (
               <a key={m.id} href={m.href} className="hover:opacity-100">
                 {m.label === "A casa" ? "Sobre" : m.label}
               </a>
@@ -788,9 +817,29 @@ export function SiteLivePreview({
           </div>
         </section>
 
-        <footer className="px-4 py-8 text-center text-xs md:px-8" style={{ color: "var(--mt)" }}>
+        <footer
+          className={
+            (vis.rodapeLayout || "centralizado") === "dividido"
+              ? "flex flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs md:px-8"
+              : (vis.rodapeLayout || "centralizado") === "empilhado"
+                ? "flex flex-col items-start gap-3 px-4 py-10 text-left text-xs md:px-8"
+                : (vis.rodapeLayout || "centralizado") === "minimo"
+                  ? "px-4 py-4 text-center text-xs md:px-8"
+                  : "px-4 py-8 text-center text-xs md:px-8"
+          }
+          style={{ color: "var(--mt)", background: (vis.rodapeLayout || "centralizado") === "dividido" ? "var(--sf)" : undefined }}
+        >
           <p>{site.rodape?.texto || e.nome}</p>
-          {redes.length ? (
+          {(vis.rodapeLayout || "centralizado") === "minimo" ? null : site.rodape?.links?.length ? (
+            <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
+              {site.rodape.links.map((l) => (
+                <a key={l.id} href={l.href} className="underline" target={l.href.startsWith("http") ? "_blank" : undefined} rel={l.href.startsWith("http") ? "noreferrer" : undefined}>
+                  {l.label}
+                </a>
+              ))}
+            </p>
+          ) : null}
+          {(vis.rodapeLayout || "centralizado") === "minimo" ? null : redes.length ? (
             <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
               {redes.map((r) => (
                 <a key={r.id} href={r.url} className="underline" target="_blank" rel="noreferrer">

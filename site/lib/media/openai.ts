@@ -168,6 +168,60 @@ export async function ajustarBloco(entrada: {
   }
 }
 
+export async function executarPedido(entrada: { nicho: Nicho; pedido: string; contexto: unknown }) {
+  const sistema = [
+    "Você edita o conteúdo e a aparência de um site local já montado. Responda só JSON.",
+    "Pode alterar telefone, WhatsApp, e-mail, endereço, horário, textos, serviços (acrescentar, remover, reescrever, mudar preço, tirar todos os preços, sugerir preço), diferenciais, FAQ, tema, fonte, cores, menu e rodapé.",
+    "Visual completo: paletaId, tipografiaId, aparencia, estilo, cabecalho, rodapeLayout, logoTamanho, banner, botao, animacao, agendamento, whatsappFlutuante e redes.",
+    "Cabeçalho: logo-esquerda, centralizado, logo-slogan, logo-direita, menu-abaixo, compacto.",
+    "Rodapé: centralizado, dividido, empilhado, minimo.",
+    "Logo: pequeno, medio, grande.",
+    "Banner: automatico, solido, degrade. Botão: arredondado, quadrado, pílula, sem-contorno. Animação: suave, media, intensa.",
+    "Use só o que o cliente pediu. Não invente telefone, CNPJ nem endereço que ele não escreveu.",
+    "Preço sugerido entra como preco_label, por exemplo R$ 45, e o resumo diz que é sugestão.",
+    "Não crie página, loja, blog, login, carrinho nem função nova. Se pedirem isso, preencha aviso_estrutura e aplique o resto.",
+    "Foto: não invente URL. Preencha midia.foto com slot hero, sobre, galeria ou servico, indice se precisar, e busca em inglês curto. O sistema busca no Unsplash.",
+    "Logo da biblioteca: midia.logo com arquivo em dois dígitos, como 03, ou buscar true. Não invente URL.",
+    "Paletas: latao-escuro, papel-quente, spa, limão-escuro, marinho, bordô.",
+    "Fontes: editorial, luxo, limpo, urbano, suave.",
+    "Menu id: inicio, sobre, servicos, profissionais, promocoes, faq, contato. Mínimo 5, máximo 7.",
+    "Omita chaves que não mudam. resumo em uma frase, português do Brasil.",
+    REGRA_NICHO[entrada.nicho] || "",
+  ].join(" ");
+  const ctrl = new AbortController();
+  const prazo = setTimeout(() => ctrl.abort(), 16000);
+  try {
+    return await completarJson(
+      sistema,
+      {
+        pedido: entrada.pedido.slice(0, 400),
+        nicho: entrada.nicho,
+        atual: entrada.contexto,
+        formato: {
+          resumo: "",
+          aviso_estrutura: "",
+          abrir: "",
+          empresa: { whatsapp: "", email: "", slogan: "", horario_resumo: "", endereco: { logradouro: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" } },
+          hero: { titulo: "", subtitulo: "" },
+          sobre: { titulo: "", paragrafos: [] },
+          contato: { titulo: "", subtitulo: "" },
+          faq: { itens: [{ de: "", pergunta: "", resposta: "" }] },
+          diferenciais: { atualizar: [{ de: "", titulo: "", descricao: "" }], remover: [], acrescentar: [] },
+          servicos: { sem_preco: false, remover: [], atualizar: [{ nome: "", novo_nome: "", descricao: "", preco_label: "", duracao_label: "" }], acrescentar: [] },
+          visual: { paletaId: "", tipografiaId: "", cabecalho: "", rodapeLayout: "", logoTamanho: "", banner: "", botao: "", animacao: "", aparencia: "", estilo: "", agendamento: false, cor_accent: "", cor_fundo: "" },
+          header: { botao_agendar: "", ocultar: [], mostrar: [], renomear: [{ id: "", label: "" }] },
+          rodape: { texto: "", remover: [], acrescentar: [{ label: "", href: "" }] },
+          midia: { foto: { slot: "", indice: 0, busca: "" }, logo: { arquivo: "", buscar: false } },
+        },
+      },
+      0.3,
+      ctrl.signal,
+    );
+  } finally {
+    clearTimeout(prazo);
+  }
+}
+
 export async function ajustarCopiaSimulacao(entrada: {
   nicho: Nicho;
   nome: string;

@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
-import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
+import { AVISO_ESTRUTURA, AVISO_LIMITE, LIMITE_PEDIDOS_IA, soEstrutura } from "@/lib/estudio/pedido-fechado";
 import { SeletorFoto } from "@/components/estudio/SeletorFoto";
 import { SiteLivePreview, type SlotFoto } from "@/components/preview/SiteLivePreview";
 import { aplicarSrcNoSlot } from "@/lib/estudio/aplicar";
+import { aplicarPedido, contextoEditavel, patchRapido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
-import type { VisualConfig } from "@/lib/estudio/visual";
+import { linkWhatsapp } from "@/lib/contato";
+import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
 export default function VisualizarRascunhoPage() {
   const params = useParams<{ token: string }>();
@@ -27,10 +29,14 @@ export default function VisualizarRascunhoPage() {
   const [erro, setErro] = useState("");
   const [avisoFoto, setAvisoFoto] = useState("");
   const [pedido, setPedido] = useState("");
-  const [alvoPedido, setAlvoPedido] = useState<AlvoPedido | "">("");
   const [avisoIa, setAvisoIa] = useState("");
   const [ajustando, setAjustando] = useState(false);
+  const [fechado, setFechado] = useState(false);
+  const [usos, setUsos] = useState(0);
+  const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [copiado, setCopiado] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const suporte = linkWhatsapp("Olá, preciso de uma alteração no site ou de uma tela nova.");
 
   useEffect(() => {
     if (!token) return;
@@ -51,6 +57,9 @@ export default function VisualizarRascunhoPage() {
       }
       setMeta(ja);
       if (ja.nicho) setNicho(String(ja.nicho));
+      if (ja.edicaoFechada || jb.edicaoFechada) setFechado(true);
+      setUsos(Number(ja.pedidosIa || jb.pedidosIa || 0));
+      setPassosDesfazer(Number(ja.desfazer || jb.desfazer || 0));
       setSite(jb.site);
       if (jb.visual) setVisual(jb.visual);
     })();
@@ -73,54 +82,154 @@ export default function VisualizarRascunhoPage() {
     }
   }
 
+  function abrirDoPedido(abrir: string) {
+    if (abrir === "logo") logoRef.current?.click();
+    else if (abrir === "hero" || abrir === "sobre" || abrir === "galeria") setSlotFoto({ tipo: abrir });
+  }
+
+  async function guardarPatch(patch: PatchPedido) {
+    const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patch }),
+    });
+    const data = await res.json();
+    if (data.site) setSite(data.site);
+    if (data.visual) setVisual(data.visual);
+    if (data.edicaoFechada) setFechado(true);
+    if (typeof data.pedidosIa === "number") setUsos(data.pedidosIa);
+    if (typeof data.desfazer === "number") setPassosDesfazer(data.desfazer);
+    const texto = [data.resumo, data.aviso].filter(Boolean).join(" ");
+    if (texto) setAvisoIa(texto);
+    return data as { aviso?: string; abrir?: string };
+  }
+
+  async function aplicarNaHora(patch: PatchPedido) {
+    if (!site) return;
+    const local = aplicarPedido(structuredClone(site), visual || visualPadrao(nicho), patch);
+    setSite(local.site);
+    setVisual(local.visual);
+    setAvisoIa([local.resumo, local.aviso].filter(Boolean).join(" "));
+    abrirDoPedido(local.abrir);
+    await guardarPatch(patch);
+  }
+
   async function pedirTexto() {
+    if (fechado || !site) return;
+    if (usos >= LIMITE_PEDIDOS_IA) {
+      setAvisoIa(AVISO_LIMITE);
+      return;
+    }
     const texto = pedido.trim();
-    if (!alvoPedido) {
-      setAvisoIa("Escolha horário, capa, sobre ou serviços.");
-      return;
-    }
     if (texto.length < 3) {
-      setAvisoIa("Escreva uma frase curta para esse bloco.");
+      setAvisoIa("Escreva o que quer mudar.");
       return;
     }
-    const fora = avisoFora(texto);
-    if (fora) {
-      setAvisoIa(fora);
+    if (soEstrutura(texto)) {
+      setAvisoIa(AVISO_ESTRUTURA);
       return;
     }
-    if (alvoPedido === "horario") {
-      const h = limparHorario(texto);
-      if (!h) {
-        setAvisoIa("Escreva os dias e as horas. Ex.: Segunda a sexta, 8h às 17h.");
-        return;
-      }
-      setAvisoIa("");
-      setSite((atual) => (atual ? aplicarCampoNoSite({ ...atual }, "horario", h) : atual));
+    const rapido = patchRapido(texto);
+    if (rapido) {
       setPedido("");
-      void gravarTexto("horario", h);
+      try {
+        await aplicarNaHora(rapido);
+      } catch {
+        setAvisoIa("O quadro mudou, mas a gravação falhou. Tente de novo.");
+      }
       return;
     }
     setAjustando(true);
     setAvisoIa("");
     const ctrl = new AbortController();
-    const prazo = window.setTimeout(() => ctrl.abort(), 12000);
+    const prazo = window.setTimeout(() => ctrl.abort(), 20000);
     try {
-      const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
-        method: "PATCH",
+      const empresa = site.empresa as { nome?: string } | undefined;
+      const res = await fetch("/api/prototipo/textos", {
+        method: "POST",
         signal: ctrl.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alvo: alvoPedido, pedido: texto }),
+        body: JSON.stringify({
+          modo: "executar",
+          pedido: texto,
+          nicho,
+          nome: empresa?.nome || meta?.nome || "Negócio",
+          contexto: contextoEditavel(site, visual),
+        }),
       });
-      const data = await res.json();
-      if (data.site) setSite(data.site);
-      setAvisoIa(data.aviso || "");
-      if (data.site && !data.aviso) setPedido("");
+      const data = (await res.json()) as { patch?: PatchPedido; aviso?: string; erro?: string; resumo?: string };
+      if (!data.patch) {
+        setAvisoIa(data.aviso || data.erro || "Não consegui aplicar agora.");
+        return;
+      }
+      setPedido("");
+      await aplicarNaHora(data.patch);
     } catch {
-      setAvisoIa("Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.");
+      setAvisoIa("Demorou demais. Nada mudou. Tente uma frase mais curta.");
     } finally {
       window.clearTimeout(prazo);
       setAjustando(false);
     }
+  }
+
+  async function desfazer() {
+    if (passosDesfazer < 1) return;
+    setAjustando(true);
+    try {
+      const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ desfazer: true }),
+      });
+      const data = await res.json();
+      if (data.site) setSite(data.site);
+      if (data.visual) setVisual(data.visual);
+      if (typeof data.desfazer === "number") setPassosDesfazer(data.desfazer);
+      setAvisoIa(data.aviso || "Alteração desfeita.");
+    } catch {
+      setAvisoIa("Não deu para desfazer agora.");
+    } finally {
+      setAjustando(false);
+    }
+  }
+
+  async function fecharAlteracao() {
+    setFechado(true);
+    try {
+      await fetch(`/api/prototipo/${token}?t=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fechar: true }),
+      });
+    } catch {
+      setAvisoIa("Não deu para registrar o encerramento. Tente de novo.");
+      setFechado(false);
+    }
+  }
+
+  async function enviarLogo(file: File) {
+    const src = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("arquivo"));
+      reader.readAsDataURL(file);
+    });
+    setSite((atual) => {
+      if (!atual) return atual;
+      const empresa = { ...((atual.empresa as Record<string, unknown>) || {}) };
+      const logo = { ...((empresa.logo as Record<string, unknown>) || {}) };
+      logo.src = src;
+      empresa.logo = logo;
+      return { ...atual, empresa };
+    });
+    const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ somenteLogo: true, logoSrc: src }),
+    });
+    const data = await res.json();
+    if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar a logo.");
+    else if (data.site) setSite(data.site);
   }
 
   async function gravarFoto(src: string, slot: SlotFoto) {
@@ -169,12 +278,24 @@ export default function VisualizarRascunhoPage() {
   const dias = Math.max(1, Math.round(horas / 24));
 
   return (
-    <div className="min-h-screen bg-black pb-40">
+    <div className="min-h-screen bg-black pb-52">
+      <input
+        ref={logoRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void enviarLogo(file);
+        }}
+      />
       <SiteLivePreview
         site={site as Parameters<typeof SiteLivePreview>[0]["site"]}
         visual={visual}
-        onTrocarFoto={setSlotFoto}
-        onTexto={(campo, valor) => void gravarTexto(campo, valor)}
+        onTrocarFoto={fechado ? undefined : setSlotFoto}
+        onTrocarLogo={fechado ? undefined : () => logoRef.current?.click()}
+        onTexto={fechado ? undefined : (campo, valor) => void gravarTexto(campo, valor)}
       />
       <SeletorFoto
         aberto={Boolean(slotFoto)}
@@ -187,7 +308,21 @@ export default function VisualizarRascunhoPage() {
       />
 
       <div className="fixed inset-x-0 bottom-0 z-50">
-        <PedidoIa alvo={alvoPedido} onAlvo={setAlvoPedido} texto={pedido} onTexto={setPedido} onEnviar={() => void pedirTexto()} aviso={avisoIa} ocupado={ajustando} />
+        <PedidoIa
+          texto={pedido}
+          onTexto={setPedido}
+          onEnviar={() => void pedirTexto()}
+          aviso={avisoIa}
+          ocupado={ajustando}
+          fechado={fechado}
+          onConfirmarFechar={() => void fecharAlteracao()}
+          onDesfazer={() => void desfazer()}
+          passosDesfazer={passosDesfazer}
+          usos={usos}
+          onAnexarFoto={() => setSlotFoto({ tipo: "hero" })}
+          onAnexarLogo={() => logoRef.current?.click()}
+          linkSuporte={suporte}
+        />
         <div className="border-t border-white/10 bg-slate-950/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="text-sm text-white/80">
@@ -196,7 +331,9 @@ export default function VisualizarRascunhoPage() {
               {dias} {dias === 1 ? "dia" : "dias"}
             </strong>
             {meta?.nome ? ` · ${meta.nome}` : ""}
-            <span className="ml-2 text-white/55">Clique num texto ou numa foto para alterar.</span>
+            <span className="ml-2 text-white/55">
+              {fechado ? "Edição encerrada. Novo ajuste é com o suporte." : "Clique num texto, numa foto ou na logo. Ou peça na faixa."}
+            </span>
             {avisoFoto ? <span className="ml-2 text-amber-300">{avisoFoto}</span> : null}
           </p>
           <div className="flex flex-wrap gap-2">

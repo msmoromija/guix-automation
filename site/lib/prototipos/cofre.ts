@@ -18,6 +18,10 @@ export interface PacotePrototipo {
   site: Record<string, unknown>;
   visual?: VisualConfig;
   slogan?: string;
+  edicaoFechada?: boolean;
+  fechadoEm?: string;
+  pedidosIa?: number;
+  historico?: { site: Record<string, unknown>; visual?: VisualConfig }[];
 }
 
 function chave(token: string) {

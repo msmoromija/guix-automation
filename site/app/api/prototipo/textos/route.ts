@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizarCopia } from "@/lib/estudio/copia-viva";
 import { tituloVenha } from "@/lib/estudio/aplicar";
-import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
-import { ajustarBloco, escreverCopiaSimulacao } from "@/lib/media/openai";
+import { patchRapido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
+import { AVISO_ESTRUTURA, soEstrutura } from "@/lib/estudio/pedido-fechado";
+import { resolverMidia } from "@/lib/estudio/resolver-midia";
+import { escreverCopiaSimulacao, executarPedido } from "@/lib/media/openai";
 import type { Nicho } from "@/lib/media/tipos";
 
 export const runtime = "nodejs";
@@ -55,36 +57,23 @@ export async function POST(req: NextRequest) {
     const cidade = String(body.cidade || "").trim();
     const bairro = String(body.bairro || "").trim();
     const servicos = listaServicos(body.servicos);
-    const modo = body.modo === "ajustar" ? "ajustar" : "escrever";
-    const pedido = String(body.pedido || "").trim().slice(0, 80);
-    const alvo = String(body.alvo || "") as AlvoPedido;
-
-    if (modo === "ajustar") {
-      const fora = avisoFora(pedido);
-      if (fora) return NextResponse.json({ aviso: fora, copia: null });
-      if (alvo === "horario") {
-        const horario = limparHorario(pedido);
-        if (!horario) return NextResponse.json({ aviso: "Escreva os dias e as horas.", copia: null });
-        return NextResponse.json({ horario, aviso: "" });
+    if (body.modo === "executar") {
+      const pedido = String(body.pedido || "").trim().slice(0, 400);
+      if (pedido.length < 3) return NextResponse.json({ aviso: "Escreva o que quer mudar.", patch: null });
+      if (soEstrutura(pedido)) return NextResponse.json({ aviso: AVISO_ESTRUTURA, patch: null });
+      const rapido = patchRapido(pedido);
+      if (rapido) return NextResponse.json({ patch: rapido, aviso: "", resumo: rapido.resumo || "" });
+      try {
+        const bruto = (await executarPedido({ nicho, pedido, contexto: body.contexto })) as PatchPedido;
+        const patch = await resolverMidia(bruto, nicho);
+        return NextResponse.json({
+          patch,
+          resumo: String(patch.resumo || "").slice(0, 220),
+          aviso: String(patch.aviso_estrutura || "").replace(/\s+/g, " ").trim().slice(0, 280),
+        });
+      } catch {
+        return NextResponse.json({ patch: null, aviso: "Não consegui aplicar agora. Tente de novo em uma frase." });
       }
-      if (alvo !== "capa" && alvo !== "sobre" && alvo !== "servicos") {
-        return NextResponse.json({ aviso: "Escolha horário, capa, sobre ou serviços.", copia: null });
-      }
-      const geradoBloco = await ajustarBloco({
-        alvo,
-        instrucao: pedido,
-        nome,
-        nicho,
-        cidade,
-        bairro,
-        servicos,
-        atual: body.copia,
-      });
-      const copia = normalizarCopia(geradoBloco.copia);
-      return NextResponse.json({
-        copia,
-        aviso: String(geradoBloco.aviso || "").replace(/\s+/g, " ").trim().slice(0, 280),
-      });
     }
 
     const gerado = await escreverCopiaSimulacao({
