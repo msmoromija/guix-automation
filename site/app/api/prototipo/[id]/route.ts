@@ -5,7 +5,7 @@ import { aplicarPedido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { AVISO_FECHADO, AVISO_LIMITE, LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
 import type { Nicho } from "@/lib/media/tipos";
-import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { sanitizarVisual, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
 export const runtime = "nodejs";
 
@@ -72,19 +72,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const mexe = Boolean(
-    body.patch ||
-      body.campo ||
-      body.fotoSrc ||
-      body.logoSrc ||
-      body.visual ||
-      body.nome != null ||
-      body.whatsapp != null ||
-      body.cidade != null ||
-      body.slogan != null ||
-      body.desfazer === true,
-  );
-  if (pacote.edicaoFechada && body.fechar !== true && mexe) {
+  if (pacote.edicaoFechada && body.fechar !== true) {
     return NextResponse.json({
       aviso: AVISO_FECHADO,
       edicaoFechada: true,
@@ -207,10 +195,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const fotoSrc = sanitizarFotoSrc(body.fotoSrc);
   const slot = body.slot as { tipo?: "hero" | "sobre" | "galeria" | "servico"; indice?: number } | undefined;
+  const creditoFoto =
+    body.credito && typeof body.credito === "object" ? (body.credito as Record<string, unknown>) : undefined;
   const soFoto = Boolean(fotoSrc && slot?.tipo && body.nome == null && body.cidade == null && body.whatsapp == null && body.slogan == null && !body.visual && !body.logoSrc);
 
   if (soFoto && fotoSrc && slot?.tipo) {
-    const site = aplicarSrcNoSlot({ ...pacote.site }, { tipo: slot.tipo, indice: slot.indice }, fotoSrc);
+    const site = aplicarSrcNoSlot({ ...pacote.site }, { tipo: slot.tipo, indice: slot.indice }, fotoSrc, creditoFoto);
     const atualizado = { ...pacote, site };
     await gravarPacote(atualizado);
     return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
@@ -239,7 +229,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const visual: VisualConfig = {
     ...visualPadrao(pacote.nicho),
     ...(pacote.visual || {}),
-    ...(body.visual && typeof body.visual === "object" ? (body.visual as VisualConfig) : {}),
+    ...sanitizarVisual(body.visual && typeof body.visual === "object" ? (body.visual as VisualConfig) : {}),
   };
   const end = empresaAtual.endereco || {};
 
@@ -265,7 +255,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     preservarModeloQuandoVazio: true,
   });
   if (fotoSrc && slot?.tipo) {
-    aplicarSrcNoSlot(site, { tipo: slot.tipo, indice: slot.indice }, fotoSrc);
+    aplicarSrcNoSlot(site, { tipo: slot.tipo, indice: slot.indice }, fotoSrc, creditoFoto);
   }
 
   const atualizado = {

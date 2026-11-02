@@ -5,6 +5,7 @@ import type { GeracaoSiteJson } from "@/lib/media/tipos";
 import { escolherImagensDoNicho } from "@/lib/media/escolher-imagens";
 import type { CategoriaImagem } from "@/lib/media/tipos";
 import { sanitizarClienteId } from "@/lib/media/isolamento";
+import { personalizarCopia } from "@/lib/estudio/aplicar";
 import { aplicarDadosCliente } from "./aplicar-cliente";
 import { aplicarConteudoGerado } from "./aplicar-conteudo";
 import { carregarExemplo } from "./carregar-exemplo";
@@ -93,6 +94,14 @@ export async function gerarSiteCliente(
 
   const aplicado = aplicarConteudoGerado(site, textos, resolvidas, { ...entrada, clienteId });
   site = polirTextosSite(aplicado.site);
+  personalizarCopia(site, {
+    nicho: entrada.nicho,
+    nome: entrada.nome,
+    bairro: entrada.bairro,
+    cidade: entrada.cidade,
+    bairroModelo,
+    cidadeModelo,
+  });
   site = repararParaSchema(site, { ...entrada, clienteId });
   const avisos = [...aplicado.avisos];
   if (entrada.textosProntos?.hero?.titulo) avisos.push("textos da simulação");

@@ -6,7 +6,8 @@ import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
 import { validarSiteJson } from "@/lib/automacao/validar-site";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
-import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { urlSegura } from "@/lib/estudio/canais";
+import { sanitizarVisual, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
 import type { Nicho } from "@/lib/media/tipos";
 import {
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
     const bairro = String(body.bairro || body.endereco?.bairro || "").trim() || undefined;
     const estado = String(body.estado || body.endereco?.estado || "").trim() || undefined;
     const cep = String(body.cep || body.endereco?.cep || "").trim() || undefined;
-    const visual: VisualConfig = { ...visualPadrao(nicho), ...(body.visual || {}) };
+    const visual: VisualConfig = { ...visualPadrao(nicho), ...sanitizarVisual(body.visual || {}) };
     const logoSrc = sanitizarLogoSrc(body.logoSrc);
     const fotosIn = body.fotos && typeof body.fotos === "object" ? body.fotos : {};
     const fotos = {
@@ -251,7 +252,7 @@ export async function POST(req: NextRequest) {
         header.menu = menuBody.slice(0, 7).map((m: { id?: string; label?: string; href?: string }) => ({
           id: String(m.id || "inicio"),
           label: String(m.label || "").slice(0, 48),
-          href: String(m.href || "#inicio"),
+          href: urlSegura(String(m.href || "")) || "#inicio",
         }));
       }
       if (botaoAgendar) header.botao_agendar = botaoAgendar;
@@ -263,7 +264,15 @@ export async function POST(req: NextRequest) {
     if (rodapeTexto || rodapeLinks) {
       const rodape = { ...((gerado.site.rodape as Record<string, unknown>) || {}) };
       if (rodapeTexto) rodape.texto = rodapeTexto;
-      if (rodapeLinks) rodape.links = rodapeLinks;
+      if (rodapeLinks) {
+        rodape.links = rodapeLinks
+          .map((l: { id?: string; label?: string; href?: string }) => ({
+            id: String(l.id || "link"),
+            label: String(l.label || "").slice(0, 48),
+            href: urlSegura(String(l.href || "")) || "#inicio",
+          }))
+          .filter((l: { href: string }) => l.href);
+      }
       gerado.site.rodape = rodape;
     }
 

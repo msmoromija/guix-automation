@@ -311,10 +311,12 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
   return {
     nome: corta(empresa.nome, 80),
     slogan: corta(empresa.slogan, 80),
-    whatsapp: corta(empresa.whatsapp_label || empresa.whatsapp, 20),
-    email: corta(empresa.email, 80),
-    horario: corta(empresa.horario_resumo, 160),
-    endereco: corta(end.completo, 160),
+    whatsapp: /79999990000|99999-0000/.test(String(empresa.whatsapp_label || empresa.whatsapp || ""))
+      ? ""
+      : corta(empresa.whatsapp_label || empresa.whatsapp, 20),
+    email: /nao-informado@guix\.invalid/i.test(String(empresa.email || "")) ? "" : corta(empresa.email, 80),
+    horario: /horário a combinar/i.test(String(empresa.horario_resumo || "")) ? "" : corta(empresa.horario_resumo, 160),
+    endereco: /endereço a confirmar/i.test(String(end.completo || "")) ? "" : corta(end.completo, 160),
     hero: { titulo: corta(hero.titulo, 90), subtitulo: corta(hero.subtitulo, 160) },
     sobre: {
       titulo: corta(sobre.titulo, 80),

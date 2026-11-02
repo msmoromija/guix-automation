@@ -3,6 +3,20 @@ import type { EntradaAutomacao } from "./tipos";
 const FICTICIO =
   /spring field|rua onde fica|animador de porta|lorem|placeholder|exemplo\.com|0000-0000|00\.000\.000\/0000-00|barbeariavilanorte|vila norte|vila flor|salaovilaflor|serra clara|pet shop bento|academia farol|lima contabilidade|vale luz/i;
 
+const EXPEDIENTE_NEUTRO = [
+  { dia: "seg", label: "Segunda", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  { dia: "ter", label: "Terça", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  { dia: "qua", label: "Quarta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  { dia: "qui", label: "Quinta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  { dia: "sex", label: "Sexta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+];
+
+const DIFERENCIAIS_NEUTROS = [
+  { id: "dif_01", titulo: "Horário combinado", descricao: "Você marca o horário e é atendido sem fila na porta.", icone: "check" },
+  { id: "dif_02", titulo: "WhatsApp direto", descricao: "Dúvidas, reagendamento e confirmação pelo mesmo número do site.", icone: "check" },
+  { id: "dif_03", titulo: "Atendimento claro", descricao: "Combinamos o serviço e o valor antes de começar.", icone: "check" },
+];
+
 export function ehFicticio(v?: string) {
   const s = String(v || "").trim();
   if (!s) return true;
@@ -29,6 +43,7 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
   empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
   empresa.horario_resumo = "Horário a combinar";
+  empresa.expediente = EXPEDIENTE_NEUTRO;
   empresa.endereco = {
     logradouro: entrada.logradouro || "",
     numero: entrada.numero || "",
@@ -43,6 +58,45 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   const redes = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
   empresa.redes = redes.map((r) => ({ ...r, url: "" }));
   site.empresa = empresa;
+
+  const agendamento = { ...((site.agendamento as Record<string, unknown>) || {}) };
+  agendamento.fechado = "Fechado neste dia. Combine o horário no WhatsApp.";
+  if (/barbeiro|barbearia/i.test(String(agendamento.passo_profissional || ""))) agendamento.passo_profissional = "Profissional";
+  if (/barbeiro|barbearia/i.test(String(agendamento.subtitulo || ""))) {
+    agendamento.subtitulo = "Escolha o serviço, o profissional e um horário. A confirmação é pelo WhatsApp.";
+  }
+  site.agendamento = agendamento;
+
+  const diferenciais = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+  diferenciais.titulo = String(diferenciais.titulo || "Por que escolher").trim() || "Por que escolher";
+  diferenciais.itens = DIFERENCIAIS_NEUTROS;
+  site.diferenciais = diferenciais;
+
+  const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+  faq.titulo = String(faq.titulo || "Dúvidas").trim() || "Dúvidas";
+  faq.itens = [];
+  site.faq = faq;
+
+  const obrigado = { ...((site.obrigado as Record<string, unknown>) || {}) };
+  const agObrigado = { ...((obrigado.agendamento as Record<string, unknown>) || {}) };
+  agObrigado.titulo = String(agObrigado.titulo || "Falta só confirmar");
+  agObrigado.texto = `Seu horário está separado nesta tela. Chame no WhatsApp para ${entrada.nome} confirmar.`;
+  obrigado.agendamento = agObrigado;
+  const ctObrigado = { ...((obrigado.contato as Record<string, unknown>) || {}) };
+  ctObrigado.titulo = String(ctObrigado.titulo || "Mensagem pronta");
+  ctObrigado.texto = `Sua mensagem já está escrita. Abra o WhatsApp para enviar a ${entrada.nome}.`;
+  obrigado.contato = ctObrigado;
+  site.obrigado = obrigado;
+
+  const privacidade = { ...((site.privacidade as Record<string, unknown>) || {}) };
+  privacidade.titulo = String(privacidade.titulo || "Privacidade");
+  privacidade.paragrafos = [
+    `${entrada.nome} usa os dados que você informa no site para responder seu contato e confirmar horário.`,
+    "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+    "Esses dados não são vendidos. Servem para o negócio falar com você pelo WhatsApp ou pelo telefone informado.",
+    `Para pedir a exclusão do que foi enviado, chame no WhatsApp de ${entrada.nome} e peça a remoção do contato.`,
+  ];
+  site.privacidade = privacidade;
 
   const galeria = { ...((site.galeria as Record<string, unknown>) || {}) };
   if (!galeria.titulo || String(galeria.titulo) === "A casa") galeria.titulo = "O espaço";

@@ -277,8 +277,10 @@ export function minutosDeRotulo(raw?: string) {
 export function precoDeRotulo(raw?: string) {
   const s = String(raw || "").trim();
   if (!s || /sob consulta|combinar|a combinar/i.test(s)) return null;
-  const n = Number(s.replace(/[^\d,]/g, "").replace(",", "."));
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  const m = s.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/);
+  if (!m) return null;
+  const n = Number(m[1].replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 && n < 100000 ? n : null;
 }
 
 export function tituloVenha(bairro?: string, cidade?: string) {
@@ -391,7 +393,7 @@ function mapearCopia(valor: unknown, fn: (s: string) => string): unknown {
   return valor;
 }
 
-function personalizarCopia(
+export function personalizarCopia(
   site: Record<string, unknown>,
   opts: {
     nicho: string;
@@ -456,33 +458,40 @@ function origemFoto(src: string) {
   return "unsplash";
 }
 
+type CreditoFoto = Record<string, unknown> | undefined;
+
+function aplicarFotoSrc(
+  imagemIn: Record<string, unknown> | undefined,
+  src: string,
+  alt: string,
+  id: string,
+  categoria: string,
+  credito?: CreditoFoto,
+) {
+  const imagem = { ...(imagemIn || {}) };
+  imagem.src = src;
+  imagem.origem = origemFoto(src);
+  imagem.alt = String(imagem.alt || alt);
+  if (!imagem.id) imagem.id = id;
+  if (!imagem.categoria) imagem.categoria = categoria;
+  if (credito && imagem.origem === "unsplash") imagem.credito = credito;
+  else delete imagem.credito;
+  return imagem;
+}
+
 export function aplicarFotosSite(
   site: Record<string, unknown>,
-  fotos?: { hero?: string; sobre?: string; galeria?: string[] },
+  fotos?: { hero?: string; sobre?: string; galeria?: string[]; credito?: CreditoFoto },
 ) {
   if (!fotos) return site;
   if (fotos.hero) {
     const hero = { ...((site.hero as Record<string, unknown>) || {}) };
-    const imagem = { ...((hero.imagem as Record<string, unknown>) || {}) };
-    imagem.src = fotos.hero;
-    imagem.origem = origemFoto(fotos.hero);
-    imagem.alt = String(imagem.alt || "Capa");
-    delete imagem.credito;
-    if (!imagem.id) imagem.id = "img_hero";
-    if (!imagem.categoria) imagem.categoria = "hero";
-    hero.imagem = imagem;
+    hero.imagem = aplicarFotoSrc(hero.imagem as Record<string, unknown>, fotos.hero, "Capa", "img_hero", "hero", fotos.credito);
     site.hero = hero;
   }
   if (fotos.sobre) {
     const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
-    const imagem = { ...((sobre.imagem as Record<string, unknown>) || {}) };
-    imagem.src = fotos.sobre;
-    imagem.origem = origemFoto(fotos.sobre);
-    imagem.alt = String(imagem.alt || "Sobre");
-    delete imagem.credito;
-    if (!imagem.id) imagem.id = "img_sobre";
-    if (!imagem.categoria) imagem.categoria = "sobre";
-    sobre.imagem = imagem;
+    sobre.imagem = aplicarFotoSrc(sobre.imagem as Record<string, unknown>, fotos.sobre, "Sobre", "img_sobre", "sobre", fotos.credito);
     site.sobre = sobre;
   }
   if (fotos.galeria?.length) {
@@ -491,15 +500,14 @@ export function aplicarFotosSite(
     fotos.galeria.forEach((src, i) => {
       if (!src) return;
       const base = { ...(itens[i] || {}) };
-      const imagem = { ...((base.imagem as Record<string, unknown>) || {}) };
-      imagem.src = src;
-      imagem.origem = origemFoto(src);
-      delete imagem.credito;
-      if (!imagem.id) imagem.id = `img_gal_${i + 1}`;
-      if (!imagem.categoria) imagem.categoria = "galeria";
-      itens[i] = { ...base, id: String(base.id || `gal_${i + 1}`), imagem };
+      itens[i] = {
+        ...base,
+        id: String(base.id || `gal_${i + 1}`),
+        legenda: String(base.legenda || ""),
+        imagem: aplicarFotoSrc(base.imagem as Record<string, unknown>, src, `Galeria ${i + 1}`, `img_gal_${i + 1}`, "galeria", fotos.credito),
+      };
     });
-    galeria.itens = itens;
+    galeria.itens = itens.slice(0, 12);
     site.galeria = galeria;
   }
   return site;
@@ -509,29 +517,33 @@ export function aplicarSrcNoSlot(
   site: Record<string, unknown>,
   slot: { tipo: "hero" | "sobre" | "galeria" | "servico"; indice?: number },
   src: string,
+  credito?: CreditoFoto,
 ) {
-  if (slot.tipo === "hero") return aplicarFotosSite(site, { hero: src });
-  if (slot.tipo === "sobre") return aplicarFotosSite(site, { sobre: src });
+  if (slot.tipo === "hero") return aplicarFotosSite(site, { hero: src, credito });
+  if (slot.tipo === "sobre") return aplicarFotosSite(site, { sobre: src, credito });
   if (slot.tipo === "galeria") {
     const galeria = { ...((site.galeria as Record<string, unknown>) || {}) };
     const itens = Array.isArray(galeria.itens) ? [...(galeria.itens as Record<string, unknown>[])] : [];
-    const i = slot.indice ?? 0;
-    const lista = itens.map((item, idx) => String(((item.imagem as Record<string, unknown>) || {}).src || ""));
+    const i = Math.max(0, Math.min(11, slot.indice ?? 0));
+    const lista = itens.map((item) => String(((item.imagem as Record<string, unknown>) || {}).src || ""));
     while (lista.length <= i) lista.push("");
     lista[i] = src;
-    return aplicarFotosSite(site, { galeria: lista });
+    return aplicarFotosSite(site, { galeria: lista, credito });
   }
   const servicos = { ...((site.servicos as Record<string, unknown>) || {}) };
   const itens = Array.isArray(servicos.itens) ? [...(servicos.itens as Record<string, unknown>[])] : [];
   const i = slot.indice ?? 0;
   if (itens[i]) {
     const base = { ...itens[i] };
-    const imagem = { ...((base.imagem as Record<string, unknown>) || {}) };
-    imagem.src = src;
-    imagem.origem = origemFoto(src);
-    imagem.alt = String(base.nome || imagem.alt || "Serviço");
-    delete imagem.credito;
-    itens[i] = { ...base, imagem };
+    base.imagem = aplicarFotoSrc(
+      base.imagem as Record<string, unknown>,
+      src,
+      String(base.nome || "Serviço"),
+      String(((base.imagem as Record<string, unknown>) || {}).id || `img_srv_${i + 1}`),
+      "servico",
+      credito,
+    );
+    itens[i] = base;
     servicos.itens = itens;
     site.servicos = servicos;
   }

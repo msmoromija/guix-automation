@@ -769,7 +769,15 @@ export function SiteLivePreview({
                     <Foto src={ev.imagem.src} alt={ev.imagem.alt || ""} className="aspect-[16/9] w-full object-cover" w={1200} h={675} />
                   ) : null}
                   <div className="p-5">
-                    <TextoEditavel as="p" valor={[ev.data_label, ev.horario].filter(Boolean).join(" · ")} campo={`evt.${i}.data`} onTexto={onTexto} className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }} />
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                      <TextoEditavel as="span" valor={ev.data_label || "Data"} campo={`evt.${i}.data`} onTexto={onTexto} />
+                      {ev.horario || onTexto ? (
+                        <>
+                          <span className="mx-1 opacity-60">·</span>
+                          <TextoEditavel as="span" valor={ev.horario || "19:00"} campo={`evt.${i}.horario`} onTexto={onTexto} corretor={false} />
+                        </>
+                      ) : null}
+                    </p>
                     <TextoEditavel as="h3" valor={ev.titulo} campo={`evt.${i}.titulo`} onTexto={onTexto} className="mt-2 text-lg font-semibold" />
                     <TextoEditavel valor={ev.descricao} campo={`evt.${i}.descricao`} onTexto={onTexto} multiline className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }} />
                   </div>

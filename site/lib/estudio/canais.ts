@@ -30,23 +30,42 @@ export const CANAIS: CanalDef[] = [
 
 export const CANAIS_SCHEMA = ["instagram", "facebook", "tiktok", "youtube"] as const;
 
+function soHandle(raw: string, dominio: string) {
+  return raw
+    .trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(new RegExp(`^(?:${dominio})\\/`, "i"), "")
+    .replace(/^\/+/, "");
+}
+
+export function urlSegura(raw: string) {
+  const s = raw.trim();
+  if (!s) return "";
+  if (/^#[a-z0-9_-]+$/i.test(s)) return s;
+  if (!/^https:\/\/[^\s<>"']+$/i.test(s)) return "";
+  if (/^https:\/\/(javascript|data|vbscript):/i.test(s)) return "";
+  return s.slice(0, 240);
+}
+
 export function urlCanal(id: string, raw: string) {
   const s = raw.trim();
   if (!s) return "";
-  if (/^https?:\/\//i.test(s)) return s;
-  const handle = s.replace(/^@/, "").replace(/^\/+/, "");
-  if (id === "instagram") return `https://instagram.com/${handle}`;
-  if (id === "facebook") return `https://facebook.com/${handle}`;
-  if (id === "tiktok") return `https://tiktok.com/@${handle}`;
-  if (id === "youtube") return `https://youtube.com/@${handle}`;
+  if (/^https?:\/\//i.test(s)) return urlSegura(s.startsWith("https://") ? s : s.replace(/^http:/i, "https:"));
+  if (id === "instagram") return urlSegura(`https://instagram.com/${soHandle(s, "instagram\\.com")}`);
+  if (id === "facebook") return urlSegura(`https://facebook.com/${soHandle(s, "facebook\\.com|fb\\.com")}`);
+  if (id === "tiktok") return urlSegura(`https://tiktok.com/@${soHandle(s, "tiktok\\.com").replace(/^@/, "")}`);
+  if (id === "youtube") return urlSegura(`https://youtube.com/@${soHandle(s, "youtube\\.com").replace(/^@/, "")}`);
   if (id === "linkedin") {
-    return handle.includes("linkedin.com") ? `https://${handle.replace(/^https?:\/\//, "")}` : `https://linkedin.com/company/${handle}`;
+    const h = soHandle(s, "linkedin\\.com");
+    return urlSegura(h.includes("/") ? `https://linkedin.com/${h}` : `https://linkedin.com/company/${h}`);
   }
-  if (id === "x") return `https://x.com/${handle}`;
-  if (id === "threads") return `https://threads.net/@${handle}`;
-  if (id === "pinterest") return `https://pinterest.com/${handle}`;
-  if (id === "kwai") return `https://www.kwai.com/@${handle}`;
-  return s;
+  if (id === "x") return urlSegura(`https://x.com/${soHandle(s, "x\\.com|twitter\\.com")}`);
+  if (id === "threads") return urlSegura(`https://threads.net/@${soHandle(s, "threads\\.net").replace(/^@/, "")}`);
+  if (id === "pinterest") return urlSegura(`https://pinterest.com/${soHandle(s, "pinterest\\.com")}`);
+  if (id === "kwai") return urlSegura(`https://www.kwai.com/@${soHandle(s, "(?:www\\.)?kwai\\.com").replace(/^@/, "")}`);
+  return urlSegura(s);
 }
 
 export function extrasDeRedes(redes: Record<string, string>) {

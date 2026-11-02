@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<EntradaAutomacao> & { gravarPacote?: boolean };
     const entrada: EntradaAutomacao = {
-      clienteId: clienteIdHeader, // header vence body
+      clienteId: clienteIdHeader,
       nicho: (body.nicho || "generico") as Nicho,
       nome: String(body.nome || "").trim(),
       slogan: body.slogan,
@@ -34,8 +34,20 @@ export async function POST(req: NextRequest) {
       whatsapp: body.whatsapp,
       email: body.email,
       cnpj: body.cnpj,
+      instagram: body.instagram,
+      facebook: body.facebook,
+      tiktok: body.tiktok,
+      youtube: body.youtube,
+      linkedin: body.linkedin,
+      horario: body.horario,
       servicos: body.servicos,
+      servicosDetalhe: body.servicosDetalhe,
+      profissionaisDetalhe: body.profissionaisDetalhe,
       tom: body.tom,
+      estilo: body.estilo,
+      destaque: body.destaque,
+      iaEscreve: body.iaEscreve,
+      textosProntos: body.textosProntos,
       imagensCliente: body.imagensCliente,
     };
 

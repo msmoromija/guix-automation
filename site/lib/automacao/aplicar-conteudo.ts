@@ -1,3 +1,4 @@
+import { precoDeRotulo } from "@/lib/estudio/aplicar";
 import type { GeracaoSiteJson } from "@/lib/media/tipos";
 import type { ImagemResolvida } from "@/lib/media/resolver-imagens";
 import type { EntradaAutomacao } from "./tipos";
@@ -115,13 +116,13 @@ export function aplicarConteudoGerado(
       const foto = fotos[i] || fotos[0];
       const imgAtual = base.imagem as Record<string, unknown> | undefined;
       const precoLabel = doCliente?.preco?.trim() || "Sob consulta";
-      const duracaoLabel = doCliente?.duracao?.trim() || String(base.duracao_label || "30 min");
+      const duracaoLabel = doCliente?.duracao?.trim() || "30 min";
       novos.push({
         ...base,
         id: String(base.id || `srv_${i + 1}`),
         nome: lista[i] || base.nome,
         descricao: doCliente?.descricao || extra?.descricao || "",
-        preco: doCliente?.preco?.trim() ? Number(String(doCliente.preco).replace(/\D/g, "")) || 0 : 0,
+        preco: doCliente?.preco?.trim() ? precoDeRotulo(doCliente.preco) ?? 0 : 0,
         preco_label: precoLabel,
         duracao_label: duracaoLabel,
         imagem:

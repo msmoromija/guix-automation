@@ -68,15 +68,15 @@ export function soltarRepeticao(copia: CopiaViva): CopiaViva {
   };
   const titulo = guardar(copia.hero?.titulo);
   const subtitulo = guardar(copia.hero?.subtitulo);
-  const sobreTitulo = guardar(copia.sobre?.titulo);
+  const sobreTitulo = guardar(copia.sobre?.titulo) || "Sobre";
   const paragrafos = (copia.sobre?.paragrafos || []).map((p) => guardar(p)).filter(Boolean);
-  const srvTitulo = guardar(copia.servicos?.titulo) || copia.servicos?.titulo || "";
+  const srvTitulo = guardar(copia.servicos?.titulo) || "Serviços";
   const srvSub = guardar(copia.servicos?.subtitulo);
   const itens = (copia.servicos?.itens || []).map((item) => ({ descricao: guardar(item.descricao) }));
   return {
     ...copia,
     hero: { titulo, subtitulo },
-    sobre: { titulo: sobreTitulo || copia.sobre?.titulo, paragrafos },
+    sobre: { titulo: sobreTitulo, paragrafos },
     servicos: { ...copia.servicos, titulo: srvTitulo, subtitulo: srvSub, itens },
   };
 }
@@ -135,10 +135,11 @@ export function definirCampoCopia(copia: CopiaViva | null, campo: string, valor:
   else if (campo === "hero.subtitulo") c.hero!.subtitulo = valor;
   else if (campo === "sobre.titulo") c.sobre!.titulo = valor;
   else if (campo.startsWith("sobre.p.")) {
-    const i = Number(campo.split(".")[2]) || 0;
+    const i = Math.max(0, Math.min(2, Number(campo.split(".")[2]) || 0));
     const pars = [...(c.sobre!.paragrafos || [])];
+    if (i > pars.length) return c;
     pars[i] = valor;
-    c.sobre!.paragrafos = pars;
+    c.sobre!.paragrafos = pars.slice(0, 3);
   } else if (campo === "servicos.titulo") c.servicos!.titulo = valor;
   else if (campo === "servicos.subtitulo") c.servicos!.subtitulo = valor;
   else if (campo === "contato.titulo") c.contato!.titulo = valor;
@@ -159,26 +160,26 @@ export function definirCampoCopia(copia: CopiaViva | null, campo: string, valor:
 
 export function aplicarCopiaNoSite(site: Record<string, unknown>, copia?: CopiaViva | null) {
   if (!copia) return site;
-  if (copia.hero?.titulo || copia.hero?.subtitulo) {
+  if (copia.hero) {
     const hero = { ...((site.hero as Record<string, unknown>) || {}) };
     if (copia.hero.titulo) hero.titulo = copia.hero.titulo;
-    if (copia.hero.subtitulo) hero.subtitulo = copia.hero.subtitulo;
+    if (typeof copia.hero.subtitulo === "string") hero.subtitulo = copia.hero.subtitulo;
     site.hero = hero;
   }
-  if (copia.sobre?.titulo || copia.sobre?.paragrafos?.length) {
+  if (copia.sobre) {
     const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
     if (copia.sobre.titulo) sobre.titulo = copia.sobre.titulo;
-    if (copia.sobre.paragrafos?.length) sobre.paragrafos = copia.sobre.paragrafos;
+    if (Array.isArray(copia.sobre.paragrafos)) sobre.paragrafos = copia.sobre.paragrafos.filter(Boolean).slice(0, 3);
     site.sobre = sobre;
   }
   if (copia.servicos) {
     const bloco = { ...((site.servicos as Record<string, unknown>) || {}) };
     if (copia.servicos.titulo) bloco.titulo = copia.servicos.titulo;
-    if (copia.servicos.subtitulo) bloco.subtitulo = copia.servicos.subtitulo;
+    if (typeof copia.servicos.subtitulo === "string") bloco.subtitulo = copia.servicos.subtitulo;
     if (copia.servicos.itens?.length && Array.isArray(bloco.itens)) {
       bloco.itens = (bloco.itens as Record<string, unknown>[]).map((item, i) => {
         const desc = copia.servicos?.itens?.[i]?.descricao;
-        return desc ? { ...item, descricao: desc } : item;
+        return typeof desc === "string" ? { ...item, descricao: desc } : item;
       });
     }
     site.servicos = bloco;
@@ -256,8 +257,10 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
   } else if (a === "sobre" && b === "p") {
     const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
     const pars = Array.isArray(sobre.paragrafos) ? [...(sobre.paragrafos as string[])] : [];
-    pars[Number(c) || 0] = valor;
-    sobre.paragrafos = pars;
+    const i = Math.max(0, Math.min(2, Number(c) || 0));
+    if (i > pars.length) return site;
+    pars[i] = valor;
+    sobre.paragrafos = pars.slice(0, 3);
     site.sobre = sobre;
   } else if (a === "servicos" && (b === "titulo" || b === "subtitulo")) {
     const bloco = { ...((site.servicos as Record<string, unknown>) || {}) };
@@ -367,7 +370,15 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
       const item = { ...itens[i] };
       if (c === "titulo") item.titulo = valor;
       if (c === "descricao") item.descricao = valor;
-      if (c === "data") item.data_label = valor;
+      if (c === "data") {
+        const partes = valor.split(/\s*[·|]\s*/).map((p) => p.trim()).filter(Boolean);
+        if (partes.length >= 2 && /^\d{2}:\d{2}$/.test(partes[partes.length - 1])) {
+          item.horario = partes.pop();
+          item.data_label = partes.join(" · ").slice(0, 40);
+        } else {
+          item.data_label = valor.replace(/\s*[·|]\s*\d{2}:\d{2}\s*$/, "").trim().slice(0, 40) || valor.slice(0, 40);
+        }
+      }
       if (c === "horario") item.horario = /^\d{2}:\d{2}$/.test(valor) ? valor : item.horario;
       itens[i] = item;
       bloco.itens = itens;

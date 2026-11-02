@@ -27,10 +27,10 @@ export function SeletorFoto({
   aberto: boolean;
   nicho: string;
   slot: SlotFoto | null;
-  onEscolher: (src: string) => void;
+  onEscolher: (src: string, credito?: Record<string, unknown>) => void;
   onFechar: () => void;
 }) {
-  const [fotos, setFotos] = useState<{ src: string; thumb: string }[]>([]);
+  const [fotos, setFotos] = useState<{ src: string; thumb: string; credito?: Record<string, unknown> }[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const q = slot?.tipo === "hero" ? "hero" : slot?.tipo === "sobre" ? "sobre" : slot?.tipo === "galeria" ? "galeria" : "servico";
@@ -112,7 +112,7 @@ export function SeletorFoto({
                 type="button"
                 className="overflow-hidden rounded-lg border border-line"
                 onClick={() => {
-                  onEscolher(f.src);
+                  onEscolher(f.src, f.credito);
                   onFechar();
                 }}
               >

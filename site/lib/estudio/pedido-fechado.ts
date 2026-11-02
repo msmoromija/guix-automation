@@ -37,10 +37,10 @@ const OUTRO =
 export function horarioDireto(raw: string) {
   const t = raw.trim();
   if (t.length < 4 || t.length > 180) return "";
-  const falaHorario = /\bhor[aá]rio\b/i.test(t);
+  const falaHorario = /\bhor[aá]rio(?:\s+de\s+funcionamento)?\b/i.test(t);
   const soGrade = /^(segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|[\d\s:hãàs\-–,./]+)+$/i.test(t);
   if (!falaHorario && !soGrade) return "";
-  if (OUTRO.test(t) && !falaHorario) return "";
+  if (OUTRO.test(t)) return "";
   if (!/\b(hor[aá]rio|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|\d{1,2}\s*h|\d{1,2}\s*:\s*\d{2})\b/i.test(t)) return "";
   let s = t.replace(/^.*?\bhor[aá]rio\b\s*(de funcionamento)?\s*[,:]?\s*/i, "");
   s = s.replace(/^(para|pra)\s+/i, "");

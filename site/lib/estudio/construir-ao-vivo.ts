@@ -106,8 +106,39 @@ export function construirAoVivo(
     empresa.whatsapp_mensagem = `Olá, vim pelo site de ${opts.nome.trim() || "vocês"} e quero agendar.`;
     empresa.whatsapp_aria = `Chamar ${opts.nome.trim() || "no WhatsApp"}`;
   }
-  const temRede = Object.values(opts.redes || {}).some((u) => String(u || "").trim());
-  if (!temRede) empresa.redes = [];
+  const redesUser = opts.redes || {};
+  const redesAtuais = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
+  empresa.redes = redesAtuais
+    .map((r) => {
+      const id = String(r.id || "");
+      const veio = String(redesUser[id] || "").trim();
+      return { ...r, url: veio ? String(r.url || "") : "" };
+    })
+    .filter((r) => String(r.url || "").trim());
+  empresa.expediente = [
+    { dia: "seg", label: "Segunda", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+    { dia: "ter", label: "Terça", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+    { dia: "qua", label: "Quarta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+    { dia: "qui", label: "Quinta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+    { dia: "sex", label: "Sexta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  ];
+  const agendamento = { ...((site.agendamento as Record<string, unknown>) || {}) };
+  agendamento.fechado = "Fechado neste dia. Combine o horário no WhatsApp.";
+  site.agendamento = agendamento;
+  if (!opts.diferenciais || opts.diferenciais.length < 3) {
+    const bloco = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+    bloco.itens = [
+      { id: "dif_01", titulo: "Horário combinado", descricao: "Você marca o horário e é atendido sem fila na porta.", icone: "check" },
+      { id: "dif_02", titulo: "WhatsApp direto", descricao: "Dúvidas e confirmação pelo mesmo número do site.", icone: "check" },
+      { id: "dif_03", titulo: "Atendimento claro", descricao: "Combinamos o serviço e o valor antes de começar.", icone: "check" },
+    ];
+    site.diferenciais = bloco;
+  }
+  if (!opts.faqs) {
+    const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+    faq.itens = [];
+    site.faq = faq;
+  }
   const digitouLugar = Boolean(
     opts.logradouro.trim() || opts.numero.trim() || opts.bairro.trim() || opts.cidade.trim() || opts.cep.trim() || opts.enderecoCompleto?.trim(),
   );

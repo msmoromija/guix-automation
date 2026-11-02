@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BUSCA_FOTO } from "@/lib/media/catalogo";
 import type { Nicho } from "@/lib/media/tipos";
-import { buscarUnsplash } from "@/lib/media/unsplash";
+import { buscarUnsplash, montarCredito } from "@/lib/media/unsplash";
 import { enquadrarFoto } from "@/lib/media/tratar-url";
 
 export const runtime = "nodejs";
@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
         src: enquadrarFoto(f.url_regular, 900, 560) || f.url_regular,
         thumb: f.url_thumb,
         alt: f.descricao,
+        credito: montarCredito(f),
       })),
     });
   } catch (e) {

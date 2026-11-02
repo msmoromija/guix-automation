@@ -99,17 +99,30 @@ export default function VisualizarRascunhoPage() {
   }
 
   async function guardarPatch(patch: PatchPedido) {
-    const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patch }),
+    const geracao = ++geracaoRef.current;
+    let data: { aviso?: string; abrir?: string; resumo?: string; site?: Record<string, unknown>; visual?: VisualConfig; edicaoFechada?: boolean; pedidosIa?: number; desfazer?: number } = {};
+    await new Promise<void>((resolve, reject) => {
+      filaRef.current = filaRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ patch }),
+          });
+          data = await res.json();
+          if (!res.ok) throw new Error(data.aviso || "Falha ao guardar");
+          if (geracao === geracaoRef.current) {
+            if (data.site) setSite(data.site);
+            if (data.visual) setVisual(data.visual);
+            if (data.edicaoFechada) setFechado(true);
+            if (typeof data.pedidosIa === "number") setUsos(data.pedidosIa);
+            if (typeof data.desfazer === "number") setPassosDesfazer(data.desfazer);
+          }
+          resolve();
+        })
+        .catch(reject);
     });
-    const data = await res.json();
-    if (data.site) setSite(data.site);
-    if (data.visual) setVisual(data.visual);
-    if (data.edicaoFechada) setFechado(true);
-    if (typeof data.pedidosIa === "number") setUsos(data.pedidosIa);
-    if (typeof data.desfazer === "number") setPassosDesfazer(data.desfazer);
     const texto = [data.resumo, data.aviso].filter(Boolean).join(" ");
     if (texto) setAvisoIa(texto);
     return data as { aviso?: string; abrir?: string };
@@ -225,6 +238,7 @@ export default function VisualizarRascunhoPage() {
       reader.onerror = () => reject(new Error("arquivo"));
       reader.readAsDataURL(file);
     });
+    const geracao = ++geracaoRef.current;
     setSite((atual) => {
       if (!atual) return atual;
       const empresa = { ...((atual.empresa as Record<string, unknown>) || {}) };
@@ -233,34 +247,39 @@ export default function VisualizarRascunhoPage() {
       empresa.logo = logo;
       return { ...atual, empresa };
     });
-    const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ somenteLogo: true, logoSrc: src }),
-    });
-    const data = await res.json();
-    if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar a logo.");
-    else if (data.site) setSite(data.site);
-  }
-
-  async function gravarFoto(src: string, slot: SlotFoto) {
-    setAvisoFoto("");
-    setSite((atual) => (atual ? aplicarSrcNoSlot({ ...atual }, slot, src) : atual));
-    try {
+    filaRef.current = filaRef.current.catch(() => undefined).then(async () => {
       const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fotoSrc: src, slot }),
+        body: JSON.stringify({ somenteLogo: true, logoSrc: src }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setAvisoFoto(data.erro || "Não deu para salvar a foto neste rascunho.");
-        return;
+      if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar a logo.");
+      else if (geracao === geracaoRef.current && data.site) setSite(data.site);
+    });
+  }
+
+  function gravarFoto(src: string, slot: SlotFoto, credito?: Record<string, unknown>) {
+    setAvisoFoto("");
+    const geracao = ++geracaoRef.current;
+    setSite((atual) => (atual ? aplicarSrcNoSlot({ ...atual }, slot, src, credito) : atual));
+    filaRef.current = filaRef.current.catch(() => undefined).then(async () => {
+      try {
+        const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fotoSrc: src, slot, credito }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setAvisoFoto(data.erro || "Não deu para salvar a foto neste rascunho.");
+          return;
+        }
+        if (geracao === geracaoRef.current && data.site) setSite(data.site);
+      } catch {
+        setAvisoFoto("Falha de conexão ao salvar a foto.");
       }
-      if (data.site) setSite(data.site);
-    } catch {
-      setAvisoFoto("Falha de conexão ao salvar a foto.");
-    }
+    });
   }
 
   if (erro) {
@@ -309,8 +328,8 @@ export default function VisualizarRascunhoPage() {
         aberto={Boolean(slotFoto)}
         nicho={nicho}
         slot={slotFoto}
-        onEscolher={(src) => {
-          if (slotFoto) void gravarFoto(src, slotFoto);
+        onEscolher={(src, credito) => {
+          if (slotFoto) gravarFoto(src, slotFoto, credito);
         }}
         onFechar={() => setSlotFoto(null)}
       />

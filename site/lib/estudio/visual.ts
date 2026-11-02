@@ -1,5 +1,7 @@
 /** Visual do rascunho — fora do schema 1.0.0 congelado. Mapeia o que der para `tema`. */
 
+import { urlCanal, urlSegura } from "./canais";
+
 export type ModoAparencia = "claro" | "escuro" | "automatico";
 export type EstiloVisual = "moderno" | "luxo" | "urbano" | "classico" | "suave";
 export type CabecalhoLayout = "logo-esquerda" | "centralizado" | "logo-slogan" | "logo-direita" | "menu-abaixo" | "compacto";
@@ -220,6 +222,24 @@ export const PRESETS: Array<{
     },
   },
 ];
+
+export function sanitizarVisual(raw: Partial<VisualConfig> | null | undefined): Partial<VisualConfig> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Partial<VisualConfig> = { ...raw };
+  if (typeof out.linkedinUrl === "string") {
+    out.linkedinUrl = urlCanal("linkedin", out.linkedinUrl) || undefined;
+  }
+  if (Array.isArray(out.redesExtra)) {
+    out.redesExtra = out.redesExtra
+      .map((r) => ({
+        id: String(r.id || "").slice(0, 24),
+        label: String(r.label || "").slice(0, 32),
+        url: urlSegura(String(r.url || "")) || urlCanal(String(r.id || ""), String(r.url || "")),
+      }))
+      .filter((r) => r.id && r.url);
+  }
+  return out;
+}
 
 export function visualPadrao(nicho?: string): VisualConfig {
   const map: Record<string, string> = {
