@@ -49,6 +49,7 @@ export async function POST(requisicao: Request) {
   const planoNome = planoPorId(plano)?.nome ?? "GuiX.net";
   const centavos = calcularTotal(plano, configuracao);
   const descricao = `GuiX.net ${planoNome} — ${nichoNome}. ${configuracao === "equipe" ? "Configuração pela equipe." : "Configuração com IA."}`;
+  const previewId = texto(corpo.previewId, 32);
 
   try {
     const cobranca = await criarCobranca({
@@ -60,9 +61,20 @@ export async function POST(requisicao: Request) {
       parcelas: forma === "CREDIT_CARD" ? parcelas : 1,
       centavos,
       descricao: descricao.slice(0, 500),
-      referencia: `guix-${plano}-${nichoId}-${Date.now().toString(36)}`.slice(0, 50),
+      referencia: (previewId
+        ? `pv:${previewId}:${plano}:${nichoId}`
+        : `guix-${plano}-${nichoId}-${Date.now().toString(36)}`
+      ).slice(0, 50),
     });
-    return Response.json({ cobranca });
+    if (previewId) {
+      try {
+        const { vincularCobranca } = await import("@/lib/previews/store");
+        await vincularCobranca(previewId, cobranca.id);
+      } catch {
+        /* preview opcional */
+      }
+    }
+    return Response.json({ cobranca, previewId: previewId || null });
   } catch (erro) {
     if (erro instanceof AsaasIndisponivel) {
       return Response.json(

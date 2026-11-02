@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { navegacao } from "@/lib/navegacao";
 import { LogoMarca } from "./LogoMarca";
@@ -8,6 +9,8 @@ import { LogoMarca } from "./LogoMarca";
 const botao = "rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-dark";
 
 export function Header() {
+  const path = usePathname() || "";
+  const ocultar = path.startsWith("/p/") || path.startsWith("/exemplos/");
   const [aberto, setAberto] = useState(false);
   const [sombra, setSombra] = useState(false);
 
@@ -17,6 +20,8 @@ export function Header() {
     window.addEventListener("scroll", aoRolar, { passive: true });
     return () => window.removeEventListener("scroll", aoRolar);
   }, []);
+
+  if (ocultar) return null;
 
   return (
     <header

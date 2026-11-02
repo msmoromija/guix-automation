@@ -15,6 +15,7 @@ export interface PreviewMeta {
   criadoEm: string;
   expiraEm: string;
   status: "prototipo" | "pago" | "publicado";
+  cobrancaId?: string;
 }
 
 export interface PreviewSlotRegistro {

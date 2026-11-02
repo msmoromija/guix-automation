@@ -135,8 +135,33 @@ export async function obterPreview(id: string): Promise<PreviewMeta | null> {
 export async function autenticarPreview(id: string, token: string) {
   const meta = await obterPreview(id);
   if (!meta || meta.token !== token) return null;
-  if (new Date(meta.expiraEm).getTime() < Date.now()) return null;
+  if (new Date(meta.expiraEm).getTime() < Date.now() && meta.status === "prototipo") return null;
   return meta;
+}
+
+export async function marcarPreviewPago(id: string, cobrancaId: string) {
+  const reg = await carregarRegistry();
+  const item = reg.itens.find((i) => i.id === id);
+  if (!item) return null;
+  item.status = "pago";
+  item.cobrancaId = cobrancaId;
+  item.expiraEm = expiraEmIso(90);
+  await salvarRegistry(reg);
+  return item;
+}
+
+export async function obterPreviewPorCobranca(cobrancaId: string) {
+  const reg = await carregarRegistry();
+  return reg.itens.find((i) => i.cobrancaId === cobrancaId) || null;
+}
+
+export async function vincularCobranca(id: string, cobrancaId: string) {
+  const reg = await carregarRegistry();
+  const item = reg.itens.find((i) => i.id === id);
+  if (!item) return null;
+  item.cobrancaId = cobrancaId;
+  await salvarRegistry(reg);
+  return item;
 }
 
 export async function salvarSitePreview(clienteId: string, site: unknown) {

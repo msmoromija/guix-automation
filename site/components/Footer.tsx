@@ -1,10 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { contato, linkWhatsapp } from "@/lib/contato";
 import { marca } from "@/lib/marca";
 import { navegacao } from "@/lib/navegacao";
 import { JogoDaVelha } from "@/components/JogoDaVelha";
 
 export function Footer() {
+  const path = usePathname() || "";
+  if (path.startsWith("/p/") || path.startsWith("/exemplos/")) return null;
+
   return (
     <footer className="chrome-fade border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 sm:grid-cols-[1.3fr_1fr_1fr]">

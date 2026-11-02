@@ -18,6 +18,22 @@ function imagemPix(valor: string) {
 export function PainelCobranca({ cobranca }: { cobranca: Cobranca }) {
   const [copiado, setCopiado] = useState<"pix" | "boleto" | null>(null);
   const pago = pagamentoConfirmado(cobranca.status);
+  let previewHref = "";
+  let downloadHref = "";
+  if (typeof window !== "undefined") {
+    try {
+      const raw = sessionStorage.getItem("guix.preview");
+      if (raw) {
+        const p = JSON.parse(raw) as { id?: string; token?: string };
+        if (p.id && p.token) {
+          previewHref = `/p/${p.id}?t=${p.token}`;
+          downloadHref = `/api/prototipo/${p.id}/site.json?t=${p.token}`;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function copiar(texto: string, tipo: "pix" | "boleto") {
     await navigator.clipboard.writeText(texto);
@@ -33,13 +49,36 @@ export function PainelCobranca({ cobranca }: { cobranca: Cobranca }) {
       <p className="mt-1 text-sm text-muted">Vencimento {formatarData(cobranca.vencimento)}</p>
 
       {pago ? (
-        <p className="mt-5 text-sm leading-6">
-          Recebemos a confirmação. O próximo passo é publicar a presença do seu negócio. Se quiser adiantar os dados,{" "}
-          <a href={linkWhatsapp("Olá, acabei de pagar o GuiX.net e quero enviar os dados do negócio.")} className="font-semibold text-accent">
-            fale no WhatsApp
-          </a>
-          .
-        </p>
+        <div className="mt-5 space-y-3 text-sm leading-6">
+          <p>
+            Pagamento confirmado. Seu protótipo segue no ar enquanto publicamos domínio e e-mail em até 24 horas.
+          </p>
+          {previewHref ? (
+            <p>
+              <a href={previewHref} className="font-semibold text-accent underline">
+                Abrir o site gerado
+              </a>
+              {downloadHref ? (
+                <>
+                  {" · "}
+                  <a href={downloadHref} className="font-semibold text-accent underline">
+                    Baixar site.json
+                  </a>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          <p>
+            Se quiser adiantar dados extras,{" "}
+            <a
+              href={linkWhatsapp("Olá, acabei de pagar o GuiX.net e quero enviar os dados do negócio.")}
+              className="font-semibold text-accent"
+            >
+              fale no WhatsApp
+            </a>
+            .
+          </p>
+        </div>
       ) : null}
 
       {cobranca.pix ? (

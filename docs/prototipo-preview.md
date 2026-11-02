@@ -9,7 +9,7 @@ Fluxo de venda: o cliente **vê o modelo → escolhe → prototipa grátis → b
 | `/exemplos/{nicho}` | Modelo com barra GuiX (Usar / Contratar) + iframe da casa |
 | `/casas/{nicho}/` | Demo estática + barra flutuante `_guix-barra.js` |
 | `/prototipar?nicho=` | Formulário grátis (nome, cidade, WhatsApp) |
-| `/p/{id}?t=` | Hub do protótipo + download JSON + contratar |
+| `/p/{id}?t=` | Vitrine ao vivo do `site.json` + download + contratar |
 | `/conta/{id}?t=` | Área do cliente (preview, JSON, mídia, contratar) |
 | `GET /api/prototipo/{id}/site.json?t=` | Download do `site.json` |
 

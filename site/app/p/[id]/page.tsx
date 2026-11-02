@@ -3,24 +3,17 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { SiteLivePreview } from "@/components/preview/SiteLivePreview";
 
 type Dados = {
   id: string;
   nicho: string;
   nome: string;
-  cidade?: string;
   status: string;
   expiraEm: string;
   downloadUrl: string;
   demoUrl: string;
   contratarUrl: string;
-  contaUrl: string;
-  resumo: {
-    empresa?: string;
-    slogan?: string;
-    heroTitulo?: string;
-    heroSubtitulo?: string;
-  };
 };
 
 function Hub() {
@@ -28,6 +21,7 @@ function Hub() {
   const sp = useSearchParams();
   const token = sp.get("t") || "";
   const [dados, setDados] = useState<Dados | null>(null);
+  const [site, setSite] = useState<Record<string, unknown> | null>(null);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
@@ -36,13 +30,18 @@ function Hub() {
       return;
     }
     void (async () => {
-      const res = await fetch(`/api/prototipo/${params.id}?t=${encodeURIComponent(token)}`);
-      const json = await res.json();
-      if (!res.ok) {
-        setErro(json.erro || "Protótipo indisponível");
+      const [metaRes, siteRes] = await Promise.all([
+        fetch(`/api/prototipo/${params.id}?t=${encodeURIComponent(token)}`),
+        fetch(`/api/prototipo/${params.id}/conteudo?t=${encodeURIComponent(token)}`),
+      ]);
+      const meta = await metaRes.json();
+      const corpo = await siteRes.json();
+      if (!metaRes.ok) {
+        setErro(meta.erro || "Protótipo indisponível");
         return;
       }
-      setDados(json);
+      setDados(meta);
+      if (siteRes.ok && corpo.site) setSite(corpo.site);
     })();
   }, [params.id, token]);
 
@@ -59,35 +58,35 @@ function Hub() {
   }
 
   if (!dados) {
-    return <main className="px-5 py-16 text-sm text-muted">Carregando seu protótipo…</main>;
+    return <main className="px-5 py-16 text-sm text-muted">Carregando o site do seu negócio…</main>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+    <div className="min-h-screen bg-slate-950">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-              Seu protótipo · {dados.nicho}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-300">
+              Preview ao vivo · {dados.nicho} · {dados.status}
             </p>
-            <h1 className="text-xl font-semibold tracking-tight">{dados.resumo.empresa || dados.nome}</h1>
+            <p className="text-sm text-slate-300">Este é o site gerado com os dados do seu negócio.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
               href={dados.downloadUrl}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950"
             >
               Baixar site.json
             </a>
             <Link
               href={dados.contratarUrl}
-              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-full bg-orange-400 px-4 py-2 text-sm font-semibold text-slate-950"
             >
               Contratar este site
             </Link>
             <Link
               href={`/conta/${dados.id}?t=${token}`}
-              className="rounded-full border border-line px-4 py-2 text-sm font-semibold"
+              className="rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white"
             >
               Minha área
             </Link>
@@ -95,37 +94,16 @@ function Hub() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <h2 className="text-lg font-semibold">Conteúdo gerado</h2>
-          <p className="mt-2 text-sm text-muted">
-            Expira em {new Date(dados.expiraEm).toLocaleDateString("pt-BR")}. Enquanto o slot existir,
-            você baixa o JSON e gerencia na área do cliente.
-          </p>
-          <dl className="mt-6 space-y-4 text-sm">
-            <div>
-              <dt className="text-muted">Hero</dt>
-              <dd className="mt-1 font-medium">{dados.resumo.heroTitulo || "—"}</dd>
-              <dd className="mt-1 text-muted">{dados.resumo.heroSubtitulo || ""}</dd>
-            </div>
-            <div>
-              <dt className="text-muted">Slogan</dt>
-              <dd className="mt-1">{dados.resumo.slogan || "—"}</dd>
-            </div>
-          </dl>
-          <a href={dados.downloadUrl} className="mt-6 inline-flex text-sm font-semibold text-accent underline">
-            Download site.json
+      {site ? (
+        <SiteLivePreview site={site} />
+      ) : (
+        <p className="p-8 text-center text-sm text-slate-400">
+          Conteúdo ainda não disponível.{" "}
+          <a href={dados.demoUrl} className="underline">
+            Ver modelo de referência
           </a>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
-          <div className="border-b border-line px-4 py-3 text-sm text-muted">
-            Visual do modelo {dados.nicho} (referência). Seu JSON já tem o nome{" "}
-            <strong>{dados.resumo.empresa || dados.nome}</strong>.
-          </div>
-          <iframe title="Modelo" src={dados.demoUrl} className="h-[70vh] w-full border-0" />
-        </section>
-      </div>
+        </p>
+      )}
     </div>
   );
 }
