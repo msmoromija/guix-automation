@@ -9,7 +9,6 @@ import { aplicarConteudoGerado } from "./aplicar-conteudo";
 import { carregarExemplo } from "./carregar-exemplo";
 import type { EntradaAutomacao, ResultadoAutomacao } from "./tipos";
 import { validarSiteJson } from "./validar-site";
-import { salvarSitePreview } from "@/lib/previews/store";
 
 function raizRepo() {
   return path.resolve(process.cwd(), process.cwd().endsWith(`${path.sep}site`) ? ".." : ".");
@@ -64,13 +63,7 @@ export async function gerarSiteCliente(
     throw new Error(`site.json inválido: ${validacao.erros.slice(0, 8).join("; ")}`);
   }
 
-  try {
-    await salvarSitePreview(clienteId, site);
-  } catch {
-    avisos.push("site.json não persistiu no R2 — preview pode falhar em produção");
-  }
-
-  if (opts?.gravarPacote) {
+  if (opts?.gravarPacote && !process.env.VERCEL) {
     const dir = path.join(raizRepo(), "clientes", clienteId);
     await mkdir(path.join(dir, "config"), { recursive: true });
     await mkdir(path.join(dir, "assets"), { recursive: true });

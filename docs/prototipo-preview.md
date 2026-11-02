@@ -1,29 +1,20 @@
-# Protótipo pré-pagamento e slots de preview
+# Rascunho por token (sem página no ar)
 
-Fluxo de venda: o cliente **vê o modelo → escolhe → prototipa grátis → baixa `site.json` → contrata**.
+Não reservamos subdomínio nem slot de site. O cliente ganha um **token** e um **site.json**. A prévia é montada na hora a partir do arquivo. Isso cria urgência (some em 72h) sem custo de hospedagem por lead.
 
-## URLs
+## Fluxo
 
-| Rota | Função |
-| --- | --- |
-| `/exemplos/{nicho}` | Modelo com barra GuiX (Usar / Contratar) + iframe da casa |
-| `/casas/{nicho}/` | Demo estática + barra flutuante `_guix-barra.js` |
-| `/prototipar?nicho=` | Formulário grátis (nome, cidade, WhatsApp) |
-| `/p/{id}?t=` | Vitrine ao vivo do `site.json` + download + contratar |
-| `/conta/{id}?t=` | Área do cliente (preview, JSON, mídia, contratar) |
-| `GET /api/prototipo/{id}/site.json?t=` | Download do `site.json` |
+1. `/prototipar` gera o JSON (OpenAI + modelo do nicho).
+2. Arquivo vai para o R2 em `prototipos/{token}.json` com `expiraEm`.
+3. Cliente vê `/visualizar/{token}` — render sob demanda.
+4. `/visualizar` pede o token se ele voltar depois.
+5. Edita nome/cidade/WhatsApp no próprio rascunho.
+6. Contratar publica de verdade (domínio + e-mail).
 
-## Slots
+TTL: `PROTOTIPO_TTL_HORAS` (default **72**).
 
-- Padrão: **20** slots (`PREVIEW_MAX_SLOTS`), TTL **7 dias** (`PREVIEW_TTL_DIAS`).
-- Path atual: `/p/{id}` (funciona já). Subdomínio `*.preview.guix.net.br` entra quando o DNS estiver pronto — mesmo `id`/token.
-- Registry em `site/data/previews/registry.json` + espelho R2 `sistema/previews/registry.json`.
-- Slot cheio: remove o protótipo mais antigo (status `prototipo`).
+## Por que não “página salva”
 
-## APIs
+O lead pensa que tem um site dele. Na prática só existe o JSON. Quando o prazo acaba, a prévia some — incentivo a contratar.
 
-- `POST /api/prototipo/criar` — público, rate limit 5/h por IP
-- `GET /api/prototipo/{id}?t=` — metadados
-- `GET /api/prototipo/{id}/site.json?t=` — download
-
-Geração reutiliza `gerarSiteCliente` (OpenAI + exemplo do nicho + biblioteca).
+PDF com prints fica para depois; o token + prévia já resolve o 500 dos slots no Vercel (`mkdir /var/task/data`).

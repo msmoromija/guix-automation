@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
 import type { Nicho } from "@/lib/media/tipos";
 import {
-  reservarSlot,
-  salvarSitePreview,
-  slotsLivres,
-  soltarSlot,
-  urlConta,
-  urlPreview,
-} from "@/lib/previews/store";
-import { PREVIEW_MAX_SLOTS } from "@/lib/previews/tipos";
+  gravarPacote,
+  horasRestantes,
+  novoToken,
+  PROTOTIPO_TTL_MS,
+  sanitizarToken,
+} from "@/lib/prototipos/cofre";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,7 +22,6 @@ const NICHOS_OK = new Set([
   "advocacia",
 ]);
 
-/** Rate limit simples em memória (por IP). */
 const hits = new Map<string, { n: number; reset: number }>();
 
 function rateLimit(ip: string) {
@@ -34,35 +31,24 @@ function rateLimit(ip: string) {
     hits.set(ip, { n: 1, reset: agora + 60 * 60 * 1000 });
     return true;
   }
-  if (cur.n >= 5) return false;
+  if (cur.n >= 8) return false;
   cur.n += 1;
   return true;
 }
 
 /**
- * Protótipo grátis (antes de pagar):
- * gera site.json, reserva slot de preview, devolve links + token.
+ * Gera site.json, guarda com token (72h). Não reserva página no ar.
  */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!rateLimit(ip)) {
     return NextResponse.json(
-      { erro: "Limite de protótipos nesta hora. Tente mais tarde ou fale no WhatsApp." },
+      { erro: "Limite de rascunhos nesta hora. Tente mais tarde ou fale no WhatsApp." },
       { status: 429 },
     );
   }
 
   try {
-    const livres = await slotsLivres();
-    if (livres <= 0) {
-      return NextResponse.json(
-        {
-          erro: `Todos os ${PREVIEW_MAX_SLOTS} slots de preview estão em uso. Tente em breve ou contrate direto.`,
-        },
-        { status: 503 },
-      );
-    }
-
     const body = await req.json();
     const nome = String(body.nome || "").trim();
     const nicho = String(body.nicho || "").trim() as Nicho;
@@ -77,37 +63,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: "nicho inválido" }, { status: 400 });
     }
 
-    const meta = await reservarSlot({ nicho, nome, cidade, whatsapp, email });
+    const token = sanitizarToken(novoToken());
+    const gerado = await gerarSiteCliente({
+      clienteId: `t${token}`,
+      nicho,
+      nome,
+      cidade,
+      whatsapp,
+      email,
+      tom: "profissional e acolhedor",
+    });
 
-    try {
-      const gerado = await gerarSiteCliente({
-        clienteId: meta.clienteId,
-        nicho,
-        nome,
-        cidade,
-        whatsapp,
-        email,
-        tom: "profissional e acolhedor",
-      });
+    const agora = Date.now();
+    await gravarPacote({
+      token,
+      nicho,
+      nome,
+      cidade,
+      whatsapp,
+      email,
+      criadoEm: new Date(agora).toISOString(),
+      expiraEm: new Date(agora + PROTOTIPO_TTL_MS).toISOString(),
+      site: gerado.site,
+    });
 
-      await salvarSitePreview(meta.clienteId, gerado.site);
-
-      return NextResponse.json({
-        ok: true,
-        id: meta.id,
-        token: meta.token,
-        clienteId: meta.clienteId,
-        expiraEm: meta.expiraEm,
-        slotsLivres: Math.max(0, livres - 1),
-        previewUrl: urlPreview(meta.id, meta.token),
-        contaUrl: urlConta(meta.id, meta.token),
-        downloadUrl: `/api/prototipo/${meta.id}/site.json?t=${meta.token}`,
-        avisos: gerado.avisos,
-      });
-    } catch (inner) {
-      await soltarSlot(meta.id);
-      throw inner;
-    }
+    return NextResponse.json({
+      ok: true,
+      token,
+      expiraEm: new Date(agora + PROTOTIPO_TTL_MS).toISOString(),
+      horas: Math.round(PROTOTIPO_TTL_MS / 3600000),
+      visualizarUrl: `/visualizar/${token}`,
+      downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
+      avisos: gerado.avisos,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
     return NextResponse.json({ erro: msg }, { status: 500 });
@@ -115,6 +103,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const livres = await slotsLivres();
-  return NextResponse.json({ slotsLivres: livres, max: PREVIEW_MAX_SLOTS });
+  return NextResponse.json({
+    ttlHoras: Math.round(PROTOTIPO_TTL_MS / 3600000),
+    nota: "Rascunho por token. Nada fica publicado até a contratação.",
+  });
 }

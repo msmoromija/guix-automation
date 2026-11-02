@@ -37,7 +37,7 @@ function Formulario() {
         setErro(data.erro || "Não foi possível gerar o protótipo.");
         return;
       }
-      router.push(`/p/${data.id}?t=${data.token}`);
+      router.push(`/visualizar/${data.token}`);
     } catch {
       setErro("Falha de conexão. Tente de novo.");
     } finally {
@@ -50,9 +50,9 @@ function Formulario() {
       <p className="text-xs font-semibold tracking-[0.16em] text-accent">PROTÓTIPO GRÁTIS</p>
       <h1 className="mt-3 text-4xl font-bold tracking-[-0.035em]">Veja o site do seu negócio</h1>
       <p className="mt-4 text-muted">
-        Escolha o modelo <strong>{nichoAtual.nome}</strong>, informe os dados básicos e geramos um{" "}
-        <code className="rounded bg-slate-100 px-1 text-sm">site.json</code> para você baixar e um
-        preview temporário — sem pagar. Depois é só contratar para publicar de verdade.
+        Escolha o modelo <strong>{nichoAtual.nome}</strong>. Geramos um arquivo do seu site e um
+        token. A prévia é montada na hora — <strong>nada fica publicado</strong>. O arquivo some em{" "}
+        <strong>72 horas</strong>. Para publicar de verdade, contrate.
       </p>
 
       <form onSubmit={enviar} className="mt-8 space-y-4">
@@ -120,8 +120,7 @@ function Formulario() {
       </form>
 
       <p className="mt-6 text-xs text-muted">
-        Slots de preview são limitados e expiram em alguns dias. O download do JSON fica disponível
-        enquanto o slot existir.
+        Guarde o token. Sem ele, o rascunho não abre. Depois de 72h o arquivo é apagado.
       </p>
     </main>
   );

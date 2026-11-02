@@ -9,7 +9,13 @@ import { JogoDaVelha } from "@/components/JogoDaVelha";
 
 export function Footer() {
   const path = usePathname() || "";
-  if (path.startsWith("/p/") || path.startsWith("/exemplos/") || path.startsWith("/conta/")) return null;
+  if (
+    path.startsWith("/p/") ||
+    path.startsWith("/exemplos/") ||
+    path.startsWith("/conta/") ||
+    path.startsWith("/visualizar/")
+  )
+    return null;
 
   return (
     <footer className="chrome-fade border-t border-line">

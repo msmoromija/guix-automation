@@ -39,8 +39,13 @@ async function lerRegistryLocal(): Promise<PreviewSlotRegistro> {
 }
 
 async function gravarRegistryLocal(reg: PreviewSlotRegistro) {
-  await mkdir(dataDir(), { recursive: true });
-  await writeFile(path.join(dataDir(), "registry.json"), JSON.stringify(reg, null, 2), "utf8");
+  if (process.env.VERCEL) return;
+  try {
+    await mkdir(dataDir(), { recursive: true });
+    await writeFile(path.join(dataDir(), "registry.json"), JSON.stringify(reg, null, 2), "utf8");
+  } catch {
+    /* Lambda/read-only */
+  }
 }
 
 async function lerRegistryR2(): Promise<PreviewSlotRegistro | null> {

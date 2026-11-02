@@ -11,7 +11,10 @@ const botao = "rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white
 export function Header() {
   const path = usePathname() || "";
   const ocultar =
-    path.startsWith("/p/") || path.startsWith("/exemplos/") || path.startsWith("/conta/");
+    path.startsWith("/p/") ||
+    path.startsWith("/exemplos/") ||
+    path.startsWith("/conta/") ||
+    path.startsWith("/visualizar/");
   const [aberto, setAberto] = useState(false);
   const [sombra, setSombra] = useState(false);
 
