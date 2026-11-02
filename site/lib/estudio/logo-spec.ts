@@ -116,14 +116,17 @@ export function svgMarca(
   const acento = hexOk(spec.corAcento) ? spec.corAcento! : opts.acento;
   const corIcone = hexOk(spec.corIcone) ? spec.corIcone! : acento;
   const temMarca = spec.layout !== "wordmark" && Boolean(spec.emblema || spec.icone);
-  const yNome = slogan ? 54 : 70;
+  // Texto óticamente centralizado com o ícone (baseline do nome + slogan).
+  const yNome = slogan ? 50 : 70;
+  const ySlogan = 76;
+  const yIconeLado = slogan ? 26 : 26;
   const nomeLimpo = nomeMarcaLimpo(opts.nome);
 
   if (!temMarca) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120" fill="none">
-      <text x="8" y="${slogan ? 52 : 72}" font-family="${fonte}" font-size="40" font-weight="600" fill="${tinta}">${nome}</text>
-      <rect x="8" y="${slogan ? 64 : 84}" width="52" height="3" fill="${acento}"/>
-      ${slogan ? `<text x="8" y="92" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
+      <text x="8" y="${slogan ? 50 : 72}" font-family="${fonte}" font-size="40" font-weight="600" fill="${tinta}">${nome}</text>
+      <rect x="8" y="${slogan ? 62 : 84}" width="52" height="3" fill="${acento}"/>
+      ${slogan ? `<text x="8" y="${ySlogan}" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
     </svg>`;
   }
 
@@ -132,7 +135,7 @@ export function svgMarca(
       <circle cx="52" cy="60" r="44" stroke="${acento}" stroke-width="2"/>
       ${grupoMarca(spec, corIcone, acento, nomeLimpo, 28, 36, 2)}
       <text x="112" y="${yNome}" font-family="${fonte}" font-size="32" font-weight="600" fill="${tinta}">${nome}</text>
-      ${slogan ? `<text x="112" y="86" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
+      ${slogan ? `<text x="112" y="${ySlogan}" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
     </svg>`;
   }
 
@@ -141,7 +144,7 @@ export function svgMarca(
       <rect x="8" y="16" width="88" height="88" rx="18" stroke="${acento}" stroke-width="1.8"/>
       ${grupoMarca(spec, corIcone, acento, nomeLimpo, 24, 32, 2.3)}
       <text x="116" y="${yNome}" font-family="${fonte}" font-size="32" font-weight="600" fill="${tinta}">${nome}</text>
-      ${slogan ? `<text x="116" y="86" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
+      ${slogan ? `<text x="116" y="${ySlogan}" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
     </svg>`;
   }
 
@@ -150,16 +153,16 @@ export function svgMarca(
     const l1 = esc(partes[0] || nome).slice(0, 22);
     const l2 = esc(partes.slice(1).join(" ")).slice(0, 28);
     return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120" fill="none">
-      ${grupoMarca(spec, corIcone, acento, nomeLimpo, 8, 16, 2.8)}
-      <text x="108" y="${l2 ? 52 : 72}" font-family="${fonte}" font-size="30" font-weight="600" fill="${tinta}">${l1}</text>
-      ${l2 ? `<text x="108" y="86" font-family="${fonte}" font-size="16" letter-spacing="5" fill="${acento}">${l2.toUpperCase()}</text>` : ""}
+      ${grupoMarca(spec, corIcone, acento, nomeLimpo, 8, yIconeLado, 2.8)}
+      <text x="108" y="${l2 ? 50 : 72}" font-family="${fonte}" font-size="30" font-weight="600" fill="${tinta}">${l1}</text>
+      ${l2 ? `<text x="108" y="${ySlogan}" font-family="${fonte}" font-size="16" letter-spacing="5" fill="${acento}">${l2.toUpperCase()}</text>` : ""}
     </svg>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120" fill="none">
-    ${grupoMarca(spec, corIcone, acento, nomeLimpo, 8, 16, 2.8)}
+    ${grupoMarca(spec, corIcone, acento, nomeLimpo, 8, yIconeLado, 2.8)}
     <text x="108" y="${yNome}" font-family="${fonte}" font-size="32" font-weight="600" fill="${tinta}">${nome}</text>
-    ${slogan ? `<text x="108" y="86" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
+    ${slogan ? `<text x="108" y="${ySlogan}" font-family="system-ui, sans-serif" font-size="13" fill="${acento}">${slogan}</text>` : ""}
   </svg>`;
 }
 

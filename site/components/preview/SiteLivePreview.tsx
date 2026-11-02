@@ -313,8 +313,17 @@ export function SiteLivePreview({
         ? "h-24 w-auto max-w-[460px] object-contain"
         : "h-14 w-auto max-w-[300px] object-contain";
   const cab = vis.cabecalho || "logo-esquerda";
+  const logoAlinhamento = vis.logoAlinhamento || "centro";
+  const alinhamentoLockup =
+    logoAlinhamento === "topo" ? "items-start" : logoAlinhamento === "base" ? "items-end" : "items-center";
+  const mostraTextoForaDoSvg = !e.logo?.src || logoArquivo;
+  const mostraSloganLockup = Boolean(e.slogan || onTexto) && (cab === "logo-slogan" || mostraTextoForaDoSvg);
   const marca = (
-    <span className={`flex min-w-0 items-center gap-3 ${cab === "centralizado" || cab === "menu-abaixo" ? "flex-col text-center" : ""}`}>
+    <span
+      className={`flex min-w-0 gap-3 ${alinhamentoLockup} ${
+        cab === "centralizado" || cab === "menu-abaixo" ? "flex-col text-center" : ""
+      }`}
+    >
       {e.logo?.src ? (
         <LogoMarca
           src={e.logo.src}
@@ -323,24 +332,26 @@ export function SiteLivePreview({
           inverter={logoArquivo && tintaClara(t.color_text)}
         />
       ) : null}
-      {!e.logo?.src || logoArquivo ? (
-        <TextoEditavel
-          as="span"
-          valor={e.nome}
-          campo="nome"
-          onTexto={onTexto}
-          className="truncate text-base font-semibold tracking-wide"
-          style={{ fontFamily: heading }}
-        />
-      ) : null}
-      {cab === "logo-slogan" && (e.slogan || onTexto) ? (
-        <TextoEditavel
-          as="span"
-          valor={e.slogan || "Frase da marca"}
-          campo="slogan"
-          onTexto={onTexto}
-          className="hidden truncate text-xs opacity-70 sm:block"
-        />
+      {mostraTextoForaDoSvg ? (
+        <span className={`flex min-w-0 flex-col leading-tight ${cab === "centralizado" || cab === "menu-abaixo" ? "items-center" : "items-start justify-center"}`}>
+          <TextoEditavel
+            as="span"
+            valor={e.nome}
+            campo="nome"
+            onTexto={onTexto}
+            className="truncate text-base font-semibold tracking-wide"
+            style={{ fontFamily: heading }}
+          />
+          {mostraSloganLockup ? (
+            <TextoEditavel
+              as="span"
+              valor={e.slogan || "Frase da marca"}
+              campo="slogan"
+              onTexto={onTexto}
+              className="mt-0.5 truncate text-[11px] font-normal opacity-70"
+            />
+          ) : null}
+        </span>
       ) : null}
     </span>
   );

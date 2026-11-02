@@ -105,10 +105,28 @@ function mesclarPatches(a: PatchPedido, b: PatchPedido): PatchPedido {
   };
 }
 
+/** Garante efeito real quando o cliente pede alinhamento do logo (a IA às vezes só muda o resumo). */
+function reforcarAlinhamentoLogo(pedido: string, patch: PatchPedido): PatchPedido {
+  if (!/\balinh/i.test(pedido)) return patch;
+  if (!/\b(logo|marca|slogan|cabe[cç]alho|texto)\b/i.test(pedido)) return patch;
+  return {
+    ...patch,
+    visual: {
+      ...(patch.visual || {}),
+      logoAlinhamento: "centro",
+      cabecalho: patch.visual?.cabecalho || "logo-slogan",
+    },
+    resumo: patch.resumo?.trim() || "Alinhei o texto do logo ao centro com a marca.",
+  };
+}
+
 async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
   const composto = falaTexto(pedido) && falaFoto(pedido);
   if (!composto) {
-    const bruto = (await executarPedido({ nicho, pedido, contexto, timeoutMs: 40000 })) as PatchPedido;
+    const bruto = reforcarAlinhamentoLogo(
+      pedido,
+      (await executarPedido({ nicho, pedido, contexto, timeoutMs: 40000 })) as PatchPedido,
+    );
     return resolverMidia(bruto, nicho);
   }
 
@@ -136,7 +154,7 @@ async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
     fotos = {};
   }
 
-  const bruto = mesclarPatches(textos || {}, fotos || {});
+  const bruto = reforcarAlinhamentoLogo(pedido, mesclarPatches(textos || {}, fotos || {}));
   if (!bruto.resumo) bruto.resumo = "Atualizei o que o motor permite neste pedido.";
   return resolverMidia(bruto, nicho);
 }

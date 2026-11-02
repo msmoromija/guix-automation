@@ -123,6 +123,7 @@ export type PatchPedido = {
     cor_fundo?: string;
     rodapeLayout?: string;
     logoTamanho?: string;
+    logoAlinhamento?: string;
     banner?: string;
     botao?: string;
     animacao?: string;
@@ -413,6 +414,7 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       cabecalho: visual?.cabecalho || "",
       rodapeLayout: visual?.rodapeLayout || "",
       logoTamanho: visual?.logoTamanho || "",
+      logoAlinhamento: visual?.logoAlinhamento || "centro",
       banner: visual?.banner || "",
       botao: visual?.botao || "",
       aparencia: visual?.aparencia || "",
@@ -984,6 +986,7 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     const cab = cabecalhoDe(patch.visual.cabecalho);
     const rodapeLayout = umDe(patch.visual.rodapeLayout, ["centralizado", "dividido", "empilhado", "minimo"] as const);
     const logoTamanho = umDe(patch.visual.logoTamanho, ["pequeno", "medio", "grande"] as const);
+    const logoAlinhamento = umDe(patch.visual.logoAlinhamento, ["centro", "topo", "base"] as const);
     const banner = umDe(patch.visual.banner, ["automatico", "solido", "degrade"] as const);
     const animacao = umDe(patch.visual.animacao, ["suave", "media", "intensa"] as const);
     const estilo = umDe(patch.visual.estilo, ["moderno", "luxo", "urbano", "classico", "suave"] as const);
@@ -996,12 +999,13 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       (chave) => typeof patch.visual?.[chave as "instagram"] === "boolean",
     );
     const agendamentoPedida = typeof patch.visual.agendamento === "boolean";
-    if (paleta || tipo || cab || rodapeLayout || logoTamanho || banner || animacao || estilo || botao || aparenciaPedida || accent || fundo || redePedida || agendamentoPedida) {
+    if (paleta || tipo || cab || rodapeLayout || logoTamanho || logoAlinhamento || banner || animacao || estilo || botao || aparenciaPedida || accent || fundo || redePedida || agendamentoPedida) {
       if (paleta) visual.paletaId = paleta.id;
       if (tipo) visual.tipografiaId = tipo.id;
       if (cab) visual.cabecalho = cab;
       if (rodapeLayout) visual.rodapeLayout = rodapeLayout;
       if (logoTamanho) visual.logoTamanho = logoTamanho;
+      if (logoAlinhamento) visual.logoAlinhamento = logoAlinhamento;
       if (banner) visual.banner = banner;
       if (animacao) visual.animacao = animacao;
       if (estilo) visual.estilo = estilo;

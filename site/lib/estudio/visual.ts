@@ -7,6 +7,7 @@ export type EstiloVisual = "moderno" | "luxo" | "urbano" | "classico" | "suave";
 export type CabecalhoLayout = "logo-esquerda" | "centralizado" | "logo-slogan" | "logo-direita" | "menu-abaixo" | "compacto";
 export type RodapeLayout = "centralizado" | "dividido" | "empilhado" | "minimo";
 export type LogoTamanho = "pequeno" | "medio" | "grande";
+export type LogoAlinhamento = "centro" | "topo" | "base";
 export type BannerLayout = "automatico" | "solido" | "degrade";
 export type Animacao = "suave" | "media" | "intensa";
 export type BotaoEstilo = "arredondado" | "quadrado" | "pílula" | "sem-contorno";
@@ -19,6 +20,8 @@ export interface VisualConfig {
   cabecalho: CabecalhoLayout;
   rodapeLayout: RodapeLayout;
   logoTamanho: LogoTamanho;
+  /** Ícone × texto do lockup no cabeçalho. */
+  logoAlinhamento: LogoAlinhamento;
   banner: BannerLayout;
   botao: BotaoEstilo;
   animacao: Animacao;
@@ -270,6 +273,7 @@ export function visualPadrao(nicho?: string): VisualConfig {
     cabecalho: "logo-esquerda",
     rodapeLayout: "centralizado",
     logoTamanho: "medio",
+    logoAlinhamento: "centro",
     banner: "automatico",
     botao: "arredondado",
     animacao: "suave",
