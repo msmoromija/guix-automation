@@ -11,6 +11,42 @@ import {
 type Servico = { id?: string; nome?: string; preco_label?: string; duracao_label?: string };
 type Pro = { id?: string; nome?: string; cargo?: string; whatsapp?: string };
 type Expediente = { dia: string; label?: string; intervalos: string[] };
+type Canal = "email" | "telefone";
+type SessaoLocal = {
+  token: string;
+  nomeCompleto: string;
+  email: string;
+  telefone: string;
+  expiraEm: string;
+};
+
+function chaveSessao(siteId: string) {
+  return `guix-agendar-sessao:${siteId}`;
+}
+
+function lerSessao(siteId?: string): SessaoLocal | null {
+  if (!siteId || typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(chaveSessao(siteId));
+    if (!raw) return null;
+    const s = JSON.parse(raw) as SessaoLocal;
+    if (!s?.token || !s.expiraEm || new Date(s.expiraEm).getTime() < Date.now()) {
+      localStorage.removeItem(chaveSessao(siteId));
+      return null;
+    }
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+function salvarSessao(siteId: string, s: SessaoLocal) {
+  localStorage.setItem(chaveSessao(siteId), JSON.stringify(s));
+}
+
+const campo =
+  "mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5 shadow-sm outline-none transition focus:ring-2";
+const chipBase = "rounded-full border px-3 py-1.5 text-sm shadow-sm transition";
 
 export function AgendarBloco({
   titulo,
@@ -56,10 +92,19 @@ export function AgendarBloco({
   const [nomeCompleto, setNomeCompleto] = useState("");
   const [email, setEmail] = useState("");
   const [tel, setTel] = useState("");
+  const [canal, setCanal] = useState<Canal>("email");
+  const [codigo, setCodigo] = useState("");
+  const [passoCadastro, setPassoCadastro] = useState<"dados" | "codigo">("dados");
+  const [destinoMask, setDestinoMask] = useState("");
+  const [sessao, setSessao] = useState<SessaoLocal | null>(null);
   const [ocupados, setOcupados] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [cancelUrl, setCancelUrl] = useState("");
+
+  useEffect(() => {
+    setSessao(lerSessao(siteId));
+  }, [siteId]);
 
   const agendas = useMemo(() => {
     const map = new Map<string, AgendaProVisual>();
@@ -87,9 +132,10 @@ export function AgendarBloco({
   }, [disponibilidade.slots, ocupados]);
 
   const hoje = new Date().toISOString().slice(0, 10);
+  const verificado = Boolean(sessao?.token) || Boolean(studio);
 
   useEffect(() => {
-    if (!data || !siteId || studio) {
+    if (!data || !siteId || studio || !verificado) {
       setOcupados([]);
       return;
     }
@@ -108,7 +154,7 @@ export function AgendarBloco({
     return () => {
       cancelado = true;
     };
-  }, [data, pro, siteId, studio]);
+  }, [data, pro, siteId, studio, verificado]);
 
   function nomeValido() {
     const n = nomeCompleto.replace(/\s+/g, " ").trim();
@@ -124,49 +170,137 @@ export function AgendarBloco({
     return d.length === 10 || d.length === 11 || (d.startsWith("55") && d.length >= 12 && d.length <= 13);
   }
 
-  const podeEnviar = Boolean(servico && data && hora && nomeValido() && emailValido() && telValido() && !enviando);
+  const podePedirCodigo = nomeValido() && emailValido() && telValido() && !enviando;
+  const podeConfirmarCodigo = codigo.replace(/\D/g, "").length === 6 && !enviando;
+  const podeEnviar = Boolean(servico && data && hora && sessao?.token && !enviando);
+
+  const estiloBorda = (ativo: boolean) => ({
+    borderColor: ativo ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
+    background: ativo ? "color-mix(in srgb, var(--a) 18%, transparent)" : "transparent",
+  });
+
+  async function pedirCodigo() {
+    if (studio) {
+      setPassoCadastro("codigo");
+      setDestinoMask(canal === "email" ? email.trim() : tel.trim());
+      setAviso("Na prévia o código não é enviado. No site publicado, o cliente confirma e-mail ou WhatsApp.");
+      return;
+    }
+    if (!podePedirCodigo || !siteId) return;
+    setEnviando(true);
+    setAviso("");
+    try {
+      const res = await fetch("/api/agendamentos/cliente/iniciar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          nomeCompleto: nomeCompleto.trim(),
+          email: email.trim(),
+          telefone: tel.trim(),
+          canal,
+          negocioNome: negocioNome || "Negócio",
+        }),
+      });
+      const j = (await res.json()) as { erro?: string; destinoMascarado?: string; aviso?: string; canal?: Canal };
+      if (!res.ok) {
+        setAviso(j.erro || "Não foi possível enviar o código.");
+        return;
+      }
+      if (j.canal === "email" || j.canal === "telefone") setCanal(j.canal);
+      setDestinoMask(j.destinoMascarado || "");
+      setPassoCadastro("codigo");
+      setAviso(j.aviso || `Código enviado para ${j.destinoMascarado || "seu contato"}.`);
+    } catch {
+      setAviso("Falha de rede. Tente de novo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function confirmarCodigo() {
+    if (studio) {
+      setSessao({
+        token: "studio",
+        nomeCompleto: nomeCompleto.trim() || "Cliente demonstração",
+        email: email.trim() || "cliente@exemplo.com",
+        telefone: tel.trim() || "79999990000",
+        expiraEm: new Date(Date.now() + 86400000).toISOString(),
+      });
+      setAviso("Cadastro liberado na prévia. No site publicado, o código precisa ser confirmado.");
+      return;
+    }
+    if (!podeConfirmarCodigo || !siteId) return;
+    setEnviando(true);
+    setAviso("");
+    try {
+      const res = await fetch("/api/agendamentos/cliente/confirmar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          email: email.trim(),
+          telefone: tel.trim(),
+          canal,
+          codigo,
+        }),
+      });
+      const j = (await res.json()) as {
+        erro?: string;
+        sessaoToken?: string;
+        nomeCompleto?: string;
+        email?: string;
+        telefone?: string;
+        expiraEm?: string;
+      };
+      if (!res.ok || !j.sessaoToken) {
+        setAviso(j.erro || "Código inválido.");
+        return;
+      }
+      const nova: SessaoLocal = {
+        token: j.sessaoToken,
+        nomeCompleto: j.nomeCompleto || nomeCompleto.trim(),
+        email: j.email || email.trim(),
+        telefone: j.telefone || tel.trim(),
+        expiraEm: j.expiraEm || new Date(Date.now() + 30 * 86400000).toISOString(),
+      };
+      salvarSessao(siteId, nova);
+      setSessao(nova);
+      setAviso("Identidade confirmada. Agora escolha o horário.");
+    } catch {
+      setAviso("Falha de rede. Tente de novo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function sairCadastro() {
+    if (siteId) localStorage.removeItem(chaveSessao(siteId));
+    setSessao(null);
+    setPassoCadastro("dados");
+    setCodigo("");
+    setAviso("");
+    setHora("");
+    setData("");
+  }
 
   async function enviar() {
-    if (studio || !podeEnviar) return;
+    if (studio || !podeEnviar || !siteId || !sessao) return;
     setEnviando(true);
     setAviso("");
     setCancelUrl("");
     try {
-      if (!siteId) {
-        // Prévia sem token: só monta o WhatsApp (modo demo).
-        const digitos = String(whatsapp || "").replace(/\D/g, "");
-        if (!digitos || /^(55)?79999990000$/.test(digitos)) {
-          setAviso("Informe o WhatsApp do negócio para confirmar.");
-          return;
-        }
-        const msg = [
-          `Olá! Quero agendar.`,
-          `Serviço: ${servico}`,
-          `Profissional: ${pro}`,
-          `Dia: ${data.split("-").reverse().join("/")}`,
-          `Horário: ${hora}`,
-          `Nome: ${nomeCompleto.trim()}`,
-          `E-mail: ${email.trim()}`,
-          `Telefone: ${tel.trim()}`,
-        ].join("\n");
-        window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
-        setAviso("Pedido enviado pelo WhatsApp (prévia sem link de cancelamento).");
-        return;
-      }
-
       const res = await fetch("/api/agendamentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           siteId,
+          sessaoToken: sessao.token,
           nicho,
           servico,
           profissional: pro,
           data,
           hora,
-          nomeCompleto: nomeCompleto.trim(),
-          email: email.trim(),
-          telefone: tel.trim(),
           negocioNome: negocioNome || "Negócio",
           negocioWhatsapp: whatsapp || "",
           negocioEmail: emailNegocio || "",
@@ -174,11 +308,17 @@ export function AgendarBloco({
       });
       const j = (await res.json()) as {
         erro?: string;
+        codigo?: string;
         cancelUrl?: string;
         whatsappUrl?: string;
         aviso?: string;
       };
       if (!res.ok) {
+        if (j.codigo === "SEM_SESSAO") {
+          sairCadastro();
+          setAviso("Sua confirmação expirou. Cadastre-se de novo.");
+          return;
+        }
         setAviso(j.erro || "Não foi possível agendar.");
         return;
       }
@@ -200,183 +340,275 @@ export function AgendarBloco({
     <section id="agendar" className="mx-auto max-w-3xl px-4 py-16 md:px-8">
       <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Agendar horário"}</h2>
       <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-        {subtitulo || "Escolha o serviço, quem atende e um horário. Nome completo, e-mail e telefone são obrigatórios. Dá para desmarcar até 3 horas antes."}
+        {subtitulo ||
+          "Primeiro confirme seu e-mail ou WhatsApp. Só então os horários liberam — assim ninguém ocupa a agenda sem se identificar."}
       </p>
-      <div className="mt-8 space-y-5 rounded-2xl border p-5" style={{ borderColor: "color-mix(in srgb, var(--tx) 12%, transparent)", background: "var(--sf)" }}>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-            01 · Serviço
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {listaSrv.map((s) => (
-              <button
-                key={s.id || s.nome}
-                type="button"
-                onClick={() => setServico(s.nome || "")}
-                className="rounded-xl border px-3 py-3 text-left text-sm"
-                style={{
-                  borderColor: servico === s.nome ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
-                  background: servico === s.nome ? "color-mix(in srgb, var(--a) 18%, transparent)" : "transparent",
-                }}
-              >
-                <span className="font-medium">{s.nome}</span>
-                <span className="mt-1 block text-xs" style={{ color: "var(--mt)" }}>
-                  {[s.duracao_label, s.preco_label].filter(Boolean).join(" · ")}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-            02 · Profissional
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setPro("Sem preferência");
-                setHora("");
-              }}
-              className="rounded-full border px-3 py-1.5 text-sm"
-              style={{
-                borderColor: pro === "Sem preferência" ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
-                background: pro === "Sem preferência" ? "color-mix(in srgb, var(--a) 18%, transparent)" : "transparent",
-              }}
-            >
-              Sem preferência
-            </button>
-            {listaPro.map((p) => (
-              <button
-                key={p.id || p.nome}
-                type="button"
-                onClick={() => {
-                  setPro(p.nome || "");
-                  setHora("");
-                }}
-                className="rounded-full border px-3 py-1.5 text-sm"
-                style={{
-                  borderColor: pro === p.nome ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
-                  background: pro === p.nome ? "color-mix(in srgb, var(--a) 18%, transparent)" : "transparent",
-                }}
-              >
-                {p.nome}
-                {p.cargo ? <span className="opacity-60"> · {p.cargo}</span> : null}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div
+        className="gx-agendar-card mt-8 space-y-6 rounded-2xl border p-5 shadow-[0_22px_48px_-28px_rgba(15,23,42,0.45)] sm:p-6"
+        style={{ borderColor: "color-mix(in srgb, var(--tx) 12%, transparent)", background: "var(--sf)" }}
+      >
+        {!verificado || (studio && !sessao) ? (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                00 · Cadastro do cliente
+              </p>
+              <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
+                Sem confirmação de contato, o agendamento fica bloqueado.
+              </p>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-              03 · Dia
-            </span>
-            <input
-              type="date"
-              min={hoje}
-              value={data}
-              onChange={(e) => {
-                setData(e.target.value);
-                setHora("");
-              }}
-              className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2.5"
-              style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-            />
-          </label>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-              04 · Horário
-            </p>
-            {!data ? (
-              <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                Escolha o dia.
-              </p>
-            ) : !slots ? (
-              <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                {disponibilidade.motivo || fechado || "Fechado neste dia."}
-              </p>
-            ) : slots.length === 0 ? (
-              <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                Sem horários livres neste dia.
-              </p>
+            {passoCadastro === "dados" ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm sm:col-span-2">
+                    Nome completo *
+                    <input
+                      value={nomeCompleto}
+                      onChange={(e) => setNomeCompleto(e.target.value)}
+                      className={campo}
+                      style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                      placeholder="Nome e sobrenome"
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    E-mail *
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={campo}
+                      style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                      placeholder="seu@email.com"
+                      autoComplete="email"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Telefone / WhatsApp *
+                    <input
+                      value={tel}
+                      onChange={(e) => setTel(e.target.value)}
+                      className={campo}
+                      style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                      placeholder="79 99999-0000"
+                      inputMode="tel"
+                      autoComplete="tel"
+                    />
+                  </label>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                    Confirmar por
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" className={chipBase} style={estiloBorda(canal === "email")} onClick={() => setCanal("email")}>
+                      E-mail
+                    </button>
+                    <button type="button" className={chipBase} style={estiloBorda(canal === "telefone")} onClick={() => setCanal("telefone")}>
+                      WhatsApp
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void pedirCodigo()}
+                  disabled={!podePedirCodigo && !studio}
+                  className="w-full rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
+                  style={{ background: "var(--a)", color: "var(--bg)" }}
+                >
+                  {enviando ? "Enviando código…" : "Enviar código de verificação"}
+                </button>
+              </>
             ) : (
-              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {slots.map((h) => (
+              <>
+                <p className="text-sm" style={{ color: "var(--mt)" }}>
+                  Digite o código de 6 dígitos enviado para <strong style={{ color: "var(--tx)" }}>{destinoMask || "seu contato"}</strong>.
+                </p>
+                <label className="block text-sm">
+                  Código *
+                  <input
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className={`${campo} tracking-[0.35em]`}
+                    style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                    placeholder="000000"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={h}
                     type="button"
-                    onClick={() => setHora(h)}
-                    className="rounded-lg border px-2 py-2 text-sm"
-                    style={{
-                      borderColor: hora === h ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
-                      background: hora === h ? "color-mix(in srgb, var(--a) 18%, transparent)" : "transparent",
+                    onClick={() => void confirmarCodigo()}
+                    disabled={!podeConfirmarCodigo && !studio}
+                    className="flex-1 rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
+                    style={{ background: "var(--a)", color: "var(--bg)" }}
+                  >
+                    {enviando ? "Confirmando…" : "Confirmar e liberar agenda"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-3 text-sm"
+                    style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                    onClick={() => {
+                      setPassoCadastro("dados");
+                      setCodigo("");
+                      setAviso("");
                     }}
                   >
-                    {h}
+                    Voltar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-2.5 shadow-sm"
+              style={{ borderColor: "color-mix(in srgb, var(--a) 35%, transparent)", background: "color-mix(in srgb, var(--a) 10%, transparent)" }}
+            >
+              <div className="min-w-0 text-sm">
+                <p className="font-semibold">{sessao?.nomeCompleto || nomeCompleto}</p>
+                <p className="truncate text-xs" style={{ color: "var(--mt)" }}>
+                  {sessao?.email || email} · {sessao?.telefone || tel}
+                </p>
+              </div>
+              {!studio ? (
+                <button type="button" className="text-xs font-medium underline" style={{ color: "var(--a)" }} onClick={sairCadastro}>
+                  Trocar cadastro
+                </button>
+              ) : null}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                01 · Serviço
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {listaSrv.map((s) => (
+                  <button
+                    key={s.id || s.nome}
+                    type="button"
+                    onClick={() => setServico(s.nome || "")}
+                    className="rounded-xl border px-3 py-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5"
+                    style={estiloBorda(servico === s.nome)}
+                  >
+                    <span className="font-medium">{s.nome}</span>
+                    <span className="mt-1 block text-xs" style={{ color: "var(--mt)" }}>
+                      {[s.duracao_label, s.preco_label].filter(Boolean).join(" · ")}
+                    </span>
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm sm:col-span-2">
-            Nome completo *
-            <input
-              value={nomeCompleto}
-              onChange={(e) => setNomeCompleto(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5"
-              style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-              placeholder="Nome e sobrenome"
-              autoComplete="name"
-              required
-            />
-          </label>
-          <label className="block text-sm">
-            E-mail *
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5"
-              style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-              placeholder="seu@email.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className="block text-sm">
-            Telefone / WhatsApp *
-            <input
-              value={tel}
-              onChange={(e) => setTel(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5"
-              style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-              placeholder="79 99999-0000"
-              inputMode="tel"
-              autoComplete="tel"
-              required
-            />
-          </label>
-        </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                02 · Profissional
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPro("Sem preferência");
+                    setHora("");
+                  }}
+                  className={chipBase}
+                  style={estiloBorda(pro === "Sem preferência")}
+                >
+                  Sem preferência
+                </button>
+                {listaPro.map((p) => (
+                  <button
+                    key={p.id || p.nome}
+                    type="button"
+                    onClick={() => {
+                      setPro(p.nome || "");
+                      setHora("");
+                    }}
+                    className={chipBase}
+                    style={estiloBorda(pro === p.nome)}
+                  >
+                    {p.nome}
+                    {p.cargo ? <span className="opacity-60"> · {p.cargo}</span> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => void enviar()}
-          disabled={!podeEnviar || studio}
-          className="w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-40"
-          style={{ background: "var(--a)", color: "var(--bg)" }}
-        >
-          {enviando ? "Confirmando…" : studio ? "Confirmar (ativo no site publicado)" : "Confirmar agendamento"}
-        </button>
-        <p className="text-xs" style={{ color: "var(--mt)" }}>
-          Sem nome completo, e-mail e telefone o horário não é marcado. Desmarque pelo link até 3 horas antes.
-        </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                  03 · Dia
+                </span>
+                <input
+                  type="date"
+                  min={hoje}
+                  value={data}
+                  onChange={(e) => {
+                    setData(e.target.value);
+                    setHora("");
+                  }}
+                  className={campo}
+                  style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                />
+              </label>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                  04 · Horário
+                </p>
+                {!data ? (
+                  <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
+                    Escolha o dia.
+                  </p>
+                ) : !slots ? (
+                  <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
+                    {disponibilidade.motivo || fechado || "Fechado neste dia."}
+                  </p>
+                ) : slots.length === 0 ? (
+                  <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
+                    Sem horários livres neste dia.
+                  </p>
+                ) : (
+                  <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {slots.map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setHora(h)}
+                        className="rounded-lg border px-2 py-2 text-sm shadow-sm transition"
+                        style={estiloBorda(hora === h)}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void enviar()}
+              disabled={!podeEnviar || studio}
+              className="w-full rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
+              style={{ background: "var(--a)", color: "var(--bg)" }}
+            >
+              {enviando ? "Confirmando…" : studio ? "Confirmar (ativo no site publicado)" : "Confirmar agendamento"}
+            </button>
+            <p className="text-xs" style={{ color: "var(--mt)" }}>
+              Desmarque pelo link até 3 horas antes. O horário fica ligado ao cadastro confirmado.
+            </p>
+          </>
+        )}
+
         {aviso ? (
-          <p className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+          <p className="rounded-xl border px-3 py-2 text-sm shadow-sm" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
             {aviso}
             {cancelUrl ? (
               <>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validarSessaoCliente } from "@/lib/agendamentos/cliente";
 import {
   gravarAgendamento,
   iniciaEmISO,
@@ -12,20 +13,6 @@ import type { Agendamento } from "@/lib/agendamentos/tipos";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-function emailOk(raw: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw.trim()) && raw.trim().length <= 120;
-}
-
-function telefoneOk(raw: string) {
-  const d = raw.replace(/\D/g, "");
-  return d.length === 10 || d.length === 11 || (d.startsWith("55") && d.length >= 12 && d.length <= 13);
-}
-
-function nomeOk(raw: string) {
-  const n = raw.replace(/\s+/g, " ").trim();
-  return n.length >= 5 && n.includes(" ");
-}
 
 export async function GET(req: NextRequest) {
   const siteId = sanitizarSiteIdPublico(String(req.nextUrl.searchParams.get("siteId") || ""));
@@ -46,9 +33,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const siteId = sanitizarSiteIdPublico(String(body.siteId || ""));
-    const nomeCompleto = String(body.nomeCompleto || "").replace(/\s+/g, " ").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const telefone = String(body.telefone || "").trim();
+    const sessaoToken = String(body.sessaoToken || "").trim();
     const servico = String(body.servico || "").trim().slice(0, 80);
     const profissional = String(body.profissional || "Sem preferência").trim().slice(0, 80);
     const data = String(body.data || "").trim();
@@ -59,9 +44,18 @@ export async function POST(req: NextRequest) {
     const nicho = String(body.nicho || "").trim().slice(0, 40);
 
     if (!siteId) return NextResponse.json({ erro: "Site inválido." }, { status: 400 });
-    if (!nomeOk(nomeCompleto)) return NextResponse.json({ erro: "Informe o nome completo." }, { status: 400 });
-    if (!emailOk(email)) return NextResponse.json({ erro: "Informe um e-mail válido." }, { status: 400 });
-    if (!telefoneOk(telefone)) return NextResponse.json({ erro: "Informe o telefone com DDD." }, { status: 400 });
+    const sessao = await validarSessaoCliente(siteId, sessaoToken);
+    if (!sessao) {
+      return NextResponse.json(
+        { erro: "Confirme seu e-mail ou telefone antes de agendar.", codigo: "SEM_SESSAO" },
+        { status: 401 },
+      );
+    }
+
+    const nomeCompleto = sessao.nomeCompleto;
+    const email = sessao.email;
+    const telefone = sessao.telefone;
+
     if (!servico) return NextResponse.json({ erro: "Escolha o serviço." }, { status: 400 });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
       return NextResponse.json({ erro: "Escolha dia e horário." }, { status: 400 });
