@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { InboxSolicitacoes } from "@/components/conta/InboxSolicitacoes";
 import { GradeExpediente } from "@/components/estudio/GradeExpediente";
 import {
   agendaProParaExpediente,
@@ -106,6 +107,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
   const [expediente, setExpediente] = useState<DiaExpediente[]>([]);
   const [pros, setPros] = useState<ProLinha[]>([]);
   const [proAberto, setProAberto] = useState(0);
+  const [aba, setAba] = useState<"grade" | "solicitacoes">("solicitacoes");
 
   const qs = useMemo(() => `t=${encodeURIComponent(token)}`, [token]);
 
@@ -222,7 +224,32 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
       {erro ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800">{erro}</p> : null}
       {ok ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{ok}</p> : null}
 
-      <section className="gx-form-card mt-8 p-5 sm:p-6">
+      <div className="mt-8 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-medium ${aba === "solicitacoes" ? "bg-ink text-white" : "border border-line bg-white"}`}
+          onClick={() => setAba("solicitacoes")}
+        >
+          Solicitações
+        </button>
+        <button
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-medium ${aba === "grade" ? "bg-ink text-white" : "border border-line bg-white"}`}
+          onClick={() => setAba("grade")}
+        >
+          Grade e ausências
+        </button>
+      </div>
+
+      {aba === "solicitacoes" ? (
+        <section className="gx-form-card mt-5 p-5 sm:p-6">
+          <InboxSolicitacoes siteId={id} token={token} />
+        </section>
+      ) : null}
+
+      {aba === "grade" ? (
+      <>
+      <section className="gx-form-card mt-5 p-5 sm:p-6">
         <h2 className="text-base font-semibold">Horário da casa</h2>
         <p className="mt-1 text-sm text-muted">Dias e intervalos em que o negócio atende. Base do agendamento.</p>
         <div className="mt-4">
@@ -441,6 +468,8 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
           Ver agendamento no site
         </Link>
       </div>
+      </>
+      ) : null}
     </main>
   );
 }

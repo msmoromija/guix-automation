@@ -118,3 +118,53 @@ export async function enviarSmsCodigo(opts: {
       : webhook.motivo,
   };
 }
+
+/** SMS com texto livre (token de acesso, avisos). */
+export async function enviarSmsTexto(opts: { telefoneDigitos: string; mensagem: string }) {
+  const sid = (process.env.TWILIO_ACCOUNT_SID || "").trim();
+  const token = (process.env.TWILIO_AUTH_TOKEN || "").trim();
+  const from = (process.env.TWILIO_FROM_NUMBER || "").trim();
+  const bodyTexto = opts.mensagem.slice(0, 320);
+
+  if (sid && token && from) {
+    try {
+      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: e164Brasil(opts.telefoneDigitos),
+          From: from,
+          Body: bodyTexto,
+        }),
+      });
+      if (res.ok) return { ok: true as const, provedor: "twilio" as const };
+    } catch {
+      /* tenta webhook */
+    }
+  }
+
+  const url = (process.env.AGENDAR_SMS_URL || "").trim();
+  if (!url) return { ok: false as const, motivo: "SMS não configurado." };
+  const auth = (process.env.AGENDAR_SMS_TOKEN || "").trim();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
+      },
+      body: JSON.stringify({
+        telefone: opts.telefoneDigitos.startsWith("55") ? opts.telefoneDigitos : `55${opts.telefoneDigitos}`,
+        to: e164Brasil(opts.telefoneDigitos),
+        mensagem: bodyTexto,
+      }),
+    });
+    if (!res.ok) return { ok: false as const, motivo: (await res.text()).slice(0, 160) };
+    return { ok: true as const, provedor: "webhook" as const };
+  } catch (e) {
+    return { ok: false as const, motivo: e instanceof Error ? e.message : "Falha no SMS" };
+  }
+}

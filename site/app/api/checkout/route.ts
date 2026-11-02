@@ -56,8 +56,24 @@ export async function POST(requisicao: Request) {
   }
   if (previewId && previewToken) {
     try {
-      const { autenticarPreview } = await import("@/lib/previews/store");
-      const meta = await autenticarPreview(previewId, previewToken);
+      const { autenticarPreview, espelharPrototipoNoRegistry } = await import("@/lib/previews/store");
+      let meta = await autenticarPreview(previewId, previewToken);
+      if (!meta) {
+        const { lerPacote, sanitizarToken } = await import("@/lib/prototipos/cofre");
+        const tok = sanitizarToken(previewToken);
+        const pacote = await lerPacote(tok);
+        if (pacote && pacote.token === sanitizarToken(previewId)) {
+          meta = await espelharPrototipoNoRegistry({
+            token: pacote.token,
+            nicho: pacote.nicho,
+            nome: pacote.nome,
+            cidade: pacote.cidade,
+            whatsapp: pacote.whatsapp,
+            email: pacote.email,
+            expiraEm: pacote.expiraEm,
+          });
+        }
+      }
       if (!meta) {
         return Response.json({ erro: "Protótipo inválido para esta cobrança." }, { status: 403 });
       }

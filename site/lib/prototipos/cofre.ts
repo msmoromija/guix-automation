@@ -6,6 +6,11 @@ import type { Nicho } from "@/lib/media/tipos";
 /** Rascunho grátis: só JSON + token. Nada fica “no ar”. */
 export const PROTOTIPO_TTL_MS = Number(process.env.PROTOTIPO_TTL_HORAS || 72) * 60 * 60 * 1000;
 
+/** Prazo padrão após aprovação para a GuiX finalizar integração (horas). */
+export const PRAZO_INTEGRACAO_HORAS = Number(process.env.GUIX_PRAZO_INTEGRACAO_HORAS || 24);
+
+export type StatusPrototipo = "rascunho" | "aprovado" | "pago" | "em_integracao" | "publicado";
+
 export interface PacotePrototipo {
   token: string;
   nicho: Nicho;
@@ -20,6 +25,16 @@ export interface PacotePrototipo {
   slogan?: string;
   edicaoFechada?: boolean;
   fechadoEm?: string;
+  /** Fluxo comercial após o estúdio. */
+  status?: StatusPrototipo;
+  aprovadoEm?: string;
+  prazoIntegracao?: string;
+  aprovacao?: {
+    email?: string;
+    telefone?: string;
+    canais: Array<"email" | "sms" | "whatsapp">;
+    enviadoEm: string;
+  };
   pedidosIa?: number;
   historico?: { site: Record<string, unknown>; visual?: VisualConfig }[];
 }

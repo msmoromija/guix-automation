@@ -332,6 +332,7 @@ export async function POST(req: NextRequest) {
     }
 
     const agora = Date.now();
+    const expiraEm = new Date(agora + PROTOTIPO_TTL_MS).toISOString();
     await gravarPacote({
       token,
       nicho,
@@ -340,19 +341,36 @@ export async function POST(req: NextRequest) {
       whatsapp,
       email,
       criadoEm: new Date(agora).toISOString(),
-      expiraEm: new Date(agora + PROTOTIPO_TTL_MS).toISOString(),
+      expiraEm,
       site: gerado.site,
       visual,
       slogan,
+      status: "rascunho",
       pedidosIa: Math.max(0, Math.min(LIMITE_PEDIDOS_IA, Number(body.pedidosIa) || 0)),
     });
+
+    try {
+      const { espelharPrototipoNoRegistry } = await import("@/lib/previews/store");
+      await espelharPrototipoNoRegistry({
+        token,
+        nicho,
+        nome,
+        cidade,
+        whatsapp,
+        email,
+        expiraEm,
+      });
+    } catch {
+      /* checkout ainda pode validar via pacote */
+    }
 
     return NextResponse.json({
       ok: true,
       token,
-      expiraEm: new Date(agora + PROTOTIPO_TTL_MS).toISOString(),
+      expiraEm,
       horas: Math.round(PROTOTIPO_TTL_MS / 3600000),
       visualizarUrl: `/visualizar/${token}`,
+      contaUrl: `/conta/${token}?t=${token}`,
       downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
       avisos: gerado.avisos,
     });

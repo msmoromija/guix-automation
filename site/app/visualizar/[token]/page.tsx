@@ -25,6 +25,8 @@ export default function VisualizarRascunhoPage() {
     nicho?: string;
     horasRestantes?: number;
     contratarUrl?: string;
+    contaUrl?: string;
+    status?: string;
   } | null>(null);
   const [erro, setErro] = useState("");
   const [avisoFoto, setAvisoFoto] = useState("");
@@ -336,7 +338,7 @@ export default function VisualizarRascunhoPage() {
       />
 
       <div className="fixed inset-x-0 bottom-0 z-50">
-        <div className="flex items-center justify-end gap-2 bg-slate-950/90 px-4 py-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-2 bg-slate-950/90 px-4 py-1.5">
           <button
             type="button"
             className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/90"
@@ -349,10 +351,16 @@ export default function VisualizarRascunhoPage() {
             {copiado ? "Link copiado" : "Copiar link"}
           </button>
           <Link
+            href={meta?.contaUrl || `/conta/${token}?t=${token}`}
+            className="rounded-full border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100"
+          >
+            {meta?.status === "aprovado" || meta?.status === "pago" ? "Área do cliente" : "Aprovar protótipo"}
+          </Link>
+          <Link
             href={meta?.contratarUrl || `/contratar?nicho=${meta?.nicho || ""}&preview=${token}&t=${token}`}
             className="rounded-full bg-orange-400 px-3 py-1 text-xs font-semibold text-slate-950"
           >
-            Publicar
+            Comprar · PIX/cartão
           </Link>
         </div>
         <PedidoIa

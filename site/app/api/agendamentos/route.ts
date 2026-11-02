@@ -5,10 +5,11 @@ import {
   iniciaEmISO,
   novoCancelToken,
   novoIdAgendamento,
+  novoManageToken,
   ocupadosNoDia,
   sanitizarSiteIdPublico,
 } from "@/lib/agendamentos/cofre";
-import { enviarEmailNegocio, linkWhatsappNegocio, urlCancelamento } from "@/lib/agendamentos/notificar";
+import { enviarEmailNegocio, linkWhatsappNegocio, urlCancelamento, urlGestao } from "@/lib/agendamentos/notificar";
 import type { Agendamento } from "@/lib/agendamentos/tipos";
 
 export const runtime = "nodejs";
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     const sessao = await validarSessaoCliente(siteId, sessaoToken);
     if (!sessao) {
       return NextResponse.json(
-        { erro: "Confirme seu e-mail ou telefone antes de agendar.", codigo: "SEM_SESSAO" },
+        { erro: "Confirme seu e-mail ou telefone antes de solicitar horário.", codigo: "SEM_SESSAO" },
         { status: 401 },
       );
     }
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     const ag: Agendamento = {
       id: novoIdAgendamento(),
       cancelToken: novoCancelToken(),
+      manageToken: novoManageToken(),
       siteId,
       nicho: nicho || undefined,
       negocioNome,
@@ -87,28 +89,33 @@ export async function POST(req: NextRequest) {
       nomeCompleto,
       email,
       telefone,
-      status: "confirmado",
+      status: "pendente",
       criadoEm: new Date().toISOString(),
     };
 
     await gravarAgendamento(ag);
-    const emailRes = await enviarEmailNegocio(ag, "novo");
-    const whatsappUrl = linkWhatsappNegocio(ag, "novo");
+    const emailRes = await enviarEmailNegocio(ag, "solicitacao");
+    const whatsappUrl = linkWhatsappNegocio(ag, "solicitacao");
 
     return NextResponse.json({
       ok: true,
       id: ag.id,
+      status: ag.status,
       cancelUrl: urlCancelamento(ag),
+      gestaoUrl: urlGestao(ag),
       whatsappUrl,
       emailEnviado: emailRes.ok,
       aviso: emailRes.ok
-        ? ""
+        ? "Solicitação enviada. O profissional precisa confirmar o horário."
         : emailRes.motivo?.includes("RESEND")
-          ? "Agendado. O WhatsApp do negócio recebe o aviso; configure RESEND_API_KEY para e-mail automático."
-          : emailRes.motivo || "",
+          ? "Solicitação registrada. Avise o negócio pelo WhatsApp; configure RESEND_API_KEY para e-mail automático."
+          : emailRes.motivo || "Solicitação registrada. Aguardando confirmação do profissional.",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    return NextResponse.json({ erro: msg.includes("R2") ? "Falha ao gravar o agendamento. Tente de novo." : "Não foi possível agendar." }, { status: 500 });
+    return NextResponse.json(
+      { erro: msg.includes("R2") ? "Falha ao gravar a solicitação. Tente de novo." : "Não foi possível solicitar o horário." },
+      { status: 500 },
+    );
   }
 }

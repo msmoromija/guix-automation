@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
+import { aprovarPrototipo, type CanalAprovacao } from "@/lib/prototipos/aprovar";
 import { aplicarEstudio, aplicarSrcNoSlot, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { aplicarPedido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
@@ -35,18 +36,23 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     nicho: pacote.nicho,
     nome: pacote.nome,
     cidade: pacote.cidade,
-    status: "rascunho",
+    whatsapp: pacote.whatsapp,
+    status: pacote.status || (pacote.edicaoFechada ? "aprovado" : "rascunho"),
     expiraEm: pacote.expiraEm,
     horasRestantes: horasRestantes(pacote),
     previewUrl: `/visualizar/${token}`,
-    contaUrl: `/visualizar/${token}`,
+    contaUrl: `/conta/${token}?t=${token}`,
     downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
+    extratoUrl: `/conta/${token}/extrato?t=${token}`,
+    agendaUrl: `/conta/${token}/agenda?t=${token}`,
     demoUrl: `/casas/${pacote.nicho}/`,
     contratarUrl: `/contratar?plano=simples&nicho=${pacote.nicho}&preview=${token}&t=${token}`,
     agendarUrl: `/visualizar/${token}#agendar`,
     logoUrl: logoSrc.startsWith("http") || logoSrc.startsWith("data:") || logoSrc.startsWith("/") ? logoSrc : "",
     visual: pacote.visual,
     edicaoFechada: Boolean(pacote.edicaoFechada),
+    aprovadoEm: pacote.aprovadoEm,
+    prazoIntegracao: pacote.prazoIntegracao,
     pedidosIa: pacote.pedidosIa || 0,
     limitePedidos: LIMITE_PEDIDOS_IA,
     desfazer: (pacote.historico || []).length,
@@ -75,7 +81,33 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  if (pacote.edicaoFechada && body.fechar !== true) {
+  if (body.aprovar === true) {
+    const canaisRaw = Array.isArray(body.canais) ? body.canais : ["email", "sms", "whatsapp"];
+    const canais = canaisRaw
+      .map((c) => String(c))
+      .filter((c): c is CanalAprovacao => c === "email" || c === "sms" || c === "whatsapp");
+    const resultado = await aprovarPrototipo(pacote, {
+      email: body.email != null ? String(body.email) : pacote.email,
+      telefone: body.telefone != null ? String(body.telefone) : pacote.whatsapp,
+      canais: canais.length ? canais : ["email"],
+    });
+    return NextResponse.json({
+      ok: true,
+      aprovado: true,
+      token,
+      status: resultado.pacote.status,
+      aprovadoEm: resultado.pacote.aprovadoEm,
+      prazoIntegracao: resultado.pacote.prazoIntegracao,
+      links: resultado.links,
+      envios: resultado.envios,
+      ops: resultado.ops,
+      edicaoFechada: true,
+      site: resultado.pacote.site,
+      visual: resultado.pacote.visual,
+    });
+  }
+
+  if (pacote.edicaoFechada && body.fechar !== true && body.somenteAgenda !== true) {
     return NextResponse.json({
       aviso: AVISO_FECHADO,
       edicaoFechada: true,

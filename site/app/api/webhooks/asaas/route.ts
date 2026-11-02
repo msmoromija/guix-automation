@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { marcarPreviewPago } from "@/lib/previews/store";
+import { atualizarStatusJob } from "@/lib/prototipos/ops";
+import { gravarPacote, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
 
 export const runtime = "nodejs";
 
@@ -43,6 +45,20 @@ export async function POST(requisicao: Request) {
         await marcarPreviewPago(pv, pagamento);
       } catch (e) {
         console.error("preview pago", e);
+      }
+      try {
+        await atualizarStatusJob(pv, "pago");
+      } catch {
+        /* ops opcional */
+      }
+      try {
+        const tok = sanitizarToken(pv);
+        const pacote = await lerPacote(tok);
+        if (pacote) {
+          await gravarPacote({ ...pacote, status: "pago" });
+        }
+      } catch (e) {
+        console.error("pacote pago", e);
       }
     }
   }

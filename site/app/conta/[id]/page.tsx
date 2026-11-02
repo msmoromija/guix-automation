@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { AprovarPrototipo } from "@/components/conta/AprovarPrototipo";
 import { KitImpressao } from "@/components/conta/KitImpressao";
 
 type Dados = {
@@ -15,9 +16,14 @@ type Dados = {
   demoUrl: string;
   contratarUrl: string;
   previewUrl: string;
+  extratoUrl?: string;
   agendarUrl?: string;
   logoUrl?: string;
-  resumo: { empresa?: string; heroTitulo?: string };
+  aprovadoEm?: string;
+  prazoIntegracao?: string;
+  cidade?: string;
+  whatsapp?: string;
+  resumo: { empresa?: string; heroTitulo?: string; slogan?: string };
 };
 
 function Conta() {
@@ -63,14 +69,22 @@ function Conta() {
 
   const editarUrl = `/visualizar/${dados.id}`;
   const agendaUrl = `/conta/${dados.id}/agenda?t=${encodeURIComponent(token)}`;
+  const extratoUrl = dados.extratoUrl || `/conta/${dados.id}/extrato?t=${encodeURIComponent(token)}`;
   const agendarAbsoluto = `${origem}${dados.agendarUrl || `/visualizar/${dados.id}#agendar`}`;
+  const jaAprovado = dados.status === "aprovado" || dados.status === "pago" || Boolean(dados.aprovadoEm);
 
   const cards = [
     {
-      titulo: "Editar agenda e horários",
-      texto: "Horário da casa, turnos e ausências de cada profissional — atualize quando a rotina mudar; o site de agendamento acompanha na hora.",
+      titulo: "Agenda e solicitações",
+      texto: "Grade por profissional, ausências e caixa de pedidos — aceite ou recuse com horário e dados do cliente.",
       href: agendaUrl,
-      cta: "Abrir editor de agenda",
+      cta: "Abrir agenda",
+    },
+    {
+      titulo: "Extrato PDF / imagem",
+      texto: "Baixe o cartão do protótipo com token, QR e prazo de integração GuiX.",
+      href: extratoUrl,
+      cta: "Abrir extrato",
     },
     {
       titulo: "Protótipo / preview",
@@ -88,12 +102,12 @@ function Conta() {
     {
       titulo: "Imagens",
       texto: "Trocar fotos da biblioteca, Unsplash ou upload próprio (isolado).",
-      href: `/painel/midia?clienteId=${encodeURIComponent(`p${dados.id}`)}`,
+      href: `/painel/midia?clienteId=${encodeURIComponent(`t${dados.id}`)}`,
       cta: "Abrir mídia",
     },
     {
       titulo: "Contratar / publicar",
-      texto: "Pagamento libera domínio, e-mail e publicação em até 24h.",
+      texto: "PIX, boleto ou cartão. Pagamento libera domínio, e-mail e publicação.",
       href: dados.contratarUrl,
       cta: "Ir para contratação",
     },
@@ -108,9 +122,28 @@ function Conta() {
       <p className="mt-2 text-muted">
         Status: <strong>{dados.status}</strong> · modelo {dados.nicho} · expira{" "}
         {new Date(dados.expiraEm).toLocaleDateString("pt-BR")}
+        {dados.prazoIntegracao ? (
+          <>
+            {" "}
+            · integração até {new Date(dados.prazoIntegracao).toLocaleString("pt-BR")}
+          </>
+        ) : null}
       </p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      <div className="mt-8">
+        <AprovarPrototipo
+          token={dados.id}
+          nome={dados.resumo.empresa || dados.nome}
+          emailInicial={undefined}
+          telefoneInicial={dados.whatsapp}
+          jaAprovado={jaAprovado}
+          prazoIntegracao={dados.prazoIntegracao}
+          contratarUrl={dados.contratarUrl}
+          extratoUrl={extratoUrl}
+        />
+      </div>
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {origem ? (
           <KitImpressao nome={dados.resumo.empresa || dados.nome} agendarUrl={agendarAbsoluto} logoUrl={dados.logoUrl} />
         ) : null}
@@ -132,7 +165,7 @@ function Conta() {
       </div>
 
       <p className="mt-10 text-xs text-muted">
-        Guarde este link: a área usa um token pessoal. Sem o token, ninguém acessa seu JSON nem o preview.
+        Guarde este link e o token: a área usa acesso pessoal. Sem o token, ninguém acessa seu JSON nem o preview.
       </p>
     </main>
   );

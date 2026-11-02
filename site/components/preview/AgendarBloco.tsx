@@ -324,7 +324,10 @@ export function AgendarBloco({
       }
       setCancelUrl(j.cancelUrl || "");
       setOcupados((lista) => [...lista, hora]);
-      setAviso(j.aviso || "Horário marcado. Guarde o link para desmarcar (até 3h antes).");
+      setAviso(
+        j.aviso ||
+          "Solicitação enviada. O horário fica reservado até o profissional confirmar. Acompanhe pelo link.",
+      );
       if (j.whatsappUrl) window.open(j.whatsappUrl, "_blank", "noopener,noreferrer");
       setHora("");
     } catch {
@@ -338,10 +341,10 @@ export function AgendarBloco({
 
   return (
     <section id="agendar" className="mx-auto max-w-3xl px-4 py-16 md:px-8">
-      <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Agendar horário"}</h2>
+      <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Solicitar horário"}</h2>
       <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
         {subtitulo ||
-          "Primeiro confirme seu e-mail ou WhatsApp. Só então os horários liberam — assim ninguém ocupa a agenda sem se identificar."}
+          "Confirme seu contato, escolha o profissional e o horário. A marcação só vale depois que o profissional confirmar."}
       </p>
 
       <div
@@ -599,10 +602,15 @@ export function AgendarBloco({
               className="w-full rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
               style={{ background: "var(--a)", color: "var(--bg)" }}
             >
-              {enviando ? "Confirmando…" : studio ? "Confirmar (ativo no site publicado)" : "Confirmar agendamento"}
+              {enviando
+                ? "Enviando solicitação…"
+                : studio
+                  ? "Solicitar (ativo no site publicado)"
+                  : "Solicitar horário ao profissional"}
             </button>
             <p className="text-xs" style={{ color: "var(--mt)" }}>
-              Desmarque pelo link até 3 horas antes. O horário fica ligado ao cadastro confirmado.
+              O profissional recebe horário e seus dados e responde (aceitar ou recusar). Enquanto estiver pendente, o
+              horário fica reservado. Depois de confirmado, desmarque pelo link até 3 horas antes.
             </p>
           </>
         )}

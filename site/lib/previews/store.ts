@@ -278,3 +278,60 @@ export async function slotsLivres() {
   const { reg } = limparExpirados(await carregarRegistry());
   return Math.max(0, PREVIEW_MAX_SLOTS - reg.itens.length);
 }
+
+/**
+ * Espelha o token do estúdio no registry de previews para o checkout Asaas
+ * autenticar com o mesmo id/token do protótipo.
+ */
+export async function espelharPrototipoNoRegistry(entrada: {
+  token: string;
+  nicho: Nicho;
+  nome: string;
+  cidade?: string;
+  whatsapp?: string;
+  email?: string;
+  expiraEm?: string;
+}): Promise<PreviewMeta | null> {
+  const id = entrada.token.trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+  if (!id) return null;
+  const limpo = limparExpirados(await carregarRegistry());
+  let reg = limpo.reg;
+  for (const m of limpo.mortos) {
+    await apagarPreviewArquivos(m.clienteId).catch(() => undefined);
+  }
+  const existente = reg.itens.find((i) => i.id === id);
+  if (existente) {
+    existente.nome = entrada.nome;
+    existente.cidade = entrada.cidade;
+    existente.whatsapp = entrada.whatsapp;
+    existente.email = entrada.email;
+    if (entrada.expiraEm) existente.expiraEm = entrada.expiraEm;
+    await salvarRegistry(reg);
+    return existente;
+  }
+  while (reg.itens.length >= PREVIEW_MAX_SLOTS) {
+    const candidatos = reg.itens
+      .filter((i) => i.status === "prototipo")
+      .sort((a, b) => a.criadoEm.localeCompare(b.criadoEm));
+    const vitima = candidatos[0];
+    if (!vitima) break;
+    reg.itens = reg.itens.filter((i) => i.id !== vitima.id);
+    await apagarPreviewArquivos(vitima.clienteId).catch(() => undefined);
+  }
+  const meta: PreviewMeta = {
+    id,
+    token: id,
+    clienteId: sanitizarClienteId(`t${id}`),
+    nicho: entrada.nicho,
+    nome: entrada.nome,
+    cidade: entrada.cidade,
+    whatsapp: entrada.whatsapp,
+    email: entrada.email,
+    criadoEm: new Date().toISOString(),
+    expiraEm: entrada.expiraEm || expiraEmIso(),
+    status: "prototipo",
+  };
+  reg.itens.push(meta);
+  await salvarRegistry(reg);
+  return meta;
+}
