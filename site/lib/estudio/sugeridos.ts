@@ -1,41 +1,65 @@
-export type ServicoSugerido = { nome: string; preco: string; duracao: string; descricao: string };
+export type ServicoSugerido = { nome: string; preco: string; duracao: string; descricao: string; imagemSrc: string };
+
+const FOTO = {
+  barbearia: [
+    "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  salao: [
+    "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  estetica: [
+    "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  petshop: [
+    "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  academia: [
+    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  contabilidade: [
+    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+  advocacia: [
+    "https://images.unsplash.com/photo-1589216532372-1c2a367900d9?auto=format&fit=crop&w=900&h=560&q=80",
+    "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=900&h=560&q=80",
+  ],
+} as Record<string, string[]>;
 export type ProSugerido = { nome: string; cargo: string; descricao: string; fotoSrc: string };
 
 const SERVICOS: Record<string, ServicoSugerido[]> = {
   barbearia: [
-    { nome: "Corte masculino", preco: "R$ 50", duracao: "40 min", descricao: "Tesoura ou máquina, do clássico ao degradê." },
-    { nome: "Barba", preco: "R$ 35", duracao: "30 min", descricao: "Toalha quente, navalha e alinhamento." },
-    { nome: "Corte e barba", preco: "R$ 80", duracao: "1 h 10 min", descricao: "Os dois no mesmo horário, com um barbeiro só." },
+    { nome: "Corte masculino", preco: "R$ 50", duracao: "40 min", descricao: "Tesoura ou máquina, do clássico ao degradê.", imagemSrc: "" },
+    { nome: "Barba", preco: "R$ 35", duracao: "30 min", descricao: "Toalha quente, navalha e alinhamento.", imagemSrc: "" },
   ],
   salao: [
-    { nome: "Corte feminino", preco: "R$ 80", duracao: "50 min", descricao: "Tesoura, do repicado ao chanel, com finalização." },
-    { nome: "Escova", preco: "R$ 60", duracao: "45 min", descricao: "Lavagem e escova para o compromisso do dia." },
-    { nome: "Coloração", preco: "R$ 180", duracao: "2 h", descricao: "Cor inteira com teste de mecha." },
+    { nome: "Corte feminino", preco: "R$ 80", duracao: "50 min", descricao: "Tesoura, do repicado ao chanel, com finalização.", imagemSrc: "" },
+    { nome: "Escova", preco: "R$ 60", duracao: "45 min", descricao: "Lavagem e escova para o compromisso do dia.", imagemSrc: "" },
   ],
   estetica: [
-    { nome: "Limpeza de pele", preco: "R$ 140", duracao: "1 h", descricao: "Higienização, extração e máscara." },
-    { nome: "Massagem relaxante", preco: "R$ 130", duracao: "50 min", descricao: "A sala fica só com você no horário." },
-    { nome: "Drenagem linfática", preco: "R$ 120", duracao: "50 min", descricao: "Massagem leve no corpo, ritmo lento." },
+    { nome: "Limpeza de pele", preco: "R$ 140", duracao: "1 h", descricao: "Higienização, extração e máscara.", imagemSrc: "" },
+    { nome: "Massagem relaxante", preco: "R$ 130", duracao: "50 min", descricao: "A sala fica só com você no horário.", imagemSrc: "" },
   ],
   petshop: [
-    { nome: "Banho", preco: "R$ 70", duracao: "45 min", descricao: "Banho e secagem. Avise o porte ao agendar." },
-    { nome: "Tosa higiênica", preco: "R$ 60", duracao: "40 min", descricao: "Patas, barriga e higiene, sem mudar o corte." },
-    { nome: "Tosa completa", preco: "R$ 110", duracao: "1 h 20 min", descricao: "Corte do corpo no estilo combinado na hora." },
+    { nome: "Banho", preco: "R$ 70", duracao: "45 min", descricao: "Banho e secagem. Avise o porte ao agendar.", imagemSrc: "" },
+    { nome: "Tosa higiênica", preco: "R$ 60", duracao: "40 min", descricao: "Patas, barriga e higiene, sem mudar o corte.", imagemSrc: "" },
   ],
   academia: [
-    { nome: "Avaliação física", preco: "R$ 90", duracao: "50 min", descricao: "Medidas e o primeiro treino da semana." },
-    { nome: "Musculação acompanhada", preco: "R$ 70", duracao: "1 h", descricao: "Sessão com professor ao lado." },
-    { nome: "Treino de iniciação", preco: "R$ 80", duracao: "1 h", descricao: "Para quem nunca treinou." },
+    { nome: "Avaliação física", preco: "R$ 90", duracao: "50 min", descricao: "Medidas e o primeiro treino da semana.", imagemSrc: "" },
+    { nome: "Musculação acompanhada", preco: "R$ 70", duracao: "1 h", descricao: "Sessão com professor ao lado.", imagemSrc: "" },
   ],
   contabilidade: [
-    { nome: "Abertura de empresa", preco: "R$ 400", duracao: "1 h", descricao: "Orientação e protocolo. Taxa do órgão, se houver, à parte." },
-    { nome: "Orientação de MEI", preco: "R$ 150", duracao: "40 min", descricao: "A inscrição no governo é grátis. Aqui explicamos o que muda." },
-    { nome: "Imposto de renda", preco: "R$ 280", duracao: "1 h", descricao: "Declaração com os documentos que você já tem." },
+    { nome: "Abertura de empresa", preco: "R$ 400", duracao: "1 h", descricao: "Orientação e protocolo. Taxa do órgão, se houver, à parte.", imagemSrc: "" },
+    { nome: "Orientação de MEI", preco: "R$ 150", duracao: "40 min", descricao: "A inscrição no governo é grátis. Aqui explicamos o que muda.", imagemSrc: "" },
   ],
   advocacia: [
-    { nome: "Consulta de família", preco: "R$ 250", duracao: "50 min", descricao: "Divórcio, guarda ou pensão. Sala reservada." },
-    { nome: "Consulta do consumidor", preco: "R$ 200", duracao: "40 min", descricao: "Compra, serviço ou cobrança. Leve contrato ou protocolo." },
-    { nome: "Consulta imobiliária", preco: "R$ 250", duracao: "50 min", descricao: "Aluguel, compra e venda ou distrato." },
+    { nome: "Consulta de família", preco: "R$ 250", duracao: "50 min", descricao: "Divórcio, guarda ou pensão. Sala reservada.", imagemSrc: "" },
+    { nome: "Consulta do consumidor", preco: "R$ 200", duracao: "40 min", descricao: "Compra, serviço ou cobrança. Leve contrato ou protocolo.", imagemSrc: "" },
   ],
 };
 
@@ -71,7 +95,16 @@ const EQUIPE: Record<string, ProSugerido[]> = {
 };
 
 export function servicosDoNicho(nicho: string): ServicoSugerido[] {
-  return (SERVICOS[nicho] || SERVICOS.barbearia).map((s) => ({ ...s }));
+  const fotos = FOTO[nicho] || FOTO.barbearia;
+  return (SERVICOS[nicho] || SERVICOS.barbearia).slice(0, 2).map((s, i) => ({
+    ...s,
+    imagemSrc: s.imagemSrc || fotos[i] || fotos[0],
+  }));
+}
+
+export function fotoModelo(nicho: string, indice = 0) {
+  const fotos = FOTO[nicho] || FOTO.barbearia;
+  return fotos[indice % fotos.length];
 }
 
 export function equipeDoNicho(nicho: string): ProSugerido[] {

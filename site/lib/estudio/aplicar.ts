@@ -7,6 +7,7 @@ export interface LinhaServico {
   preco?: string;
   duracao?: string;
   descricao?: string;
+  imagemSrc?: string;
 }
 
 export interface LinhaPro {
@@ -93,7 +94,10 @@ export function aplicarEstudio(
       const mins = Number(String(s.duracao || "").replace(/\D/g, "")) || Number(base.duracao_minutos) || 30;
       const precoNum = Number(String(s.preco || "").replace(/[^\d,]/g, "").replace(",", ".")) || Number(base.preco) || 0;
       const imagem = { ...((base.imagem as Record<string, unknown>) || {}) };
-      if (typeof imagem.src !== "string") imagem.src = "";
+      if (s.imagemSrc) {
+        imagem.src = s.imagemSrc;
+        imagem.origem = s.imagemSrc.startsWith("data:") ? "upload" : "unsplash";
+      } else if (typeof imagem.src !== "string") imagem.src = "";
       if (!imagem.id) imagem.id = `img_srv_item${i + 1}`;
       if (!imagem.alt) imagem.alt = s.nome;
       if (!imagem.categoria) imagem.categoria = "servico";

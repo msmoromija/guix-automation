@@ -77,11 +77,10 @@ export function lockupWordmark(opts: {
 }) {
   const nome = esc(opts.nome).slice(0, 42);
   const slogan = esc(opts.slogan || "").slice(0, 72);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="200" viewBox="0 0 720 200">
-    <rect width="720" height="200" fill="${opts.fundo}"/>
-    <text x="360" y="${slogan ? 88 : 108}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="36" letter-spacing="4" fill="${opts.tinta}">${nome.toUpperCase()}</text>
-    <line x1="250" y1="${slogan ? 108 : 128}" x2="470" y2="${slogan ? 108 : 128}" stroke="${opts.acento}" stroke-width="1.4"/>
-    ${slogan ? `<text x="360" y="138" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" letter-spacing="2.4" fill="${opts.acento}">${slogan.toUpperCase()}</text>` : ""}
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
+    <text x="8" y="${slogan ? 42 : 58}" font-family="Georgia, 'Times New Roman', serif" font-size="34" letter-spacing="2" fill="${opts.tinta}">${nome}</text>
+    <rect x="8" y="${slogan ? 52 : 68}" width="72" height="2" fill="${opts.acento}"/>
+    ${slogan ? `<text x="8" y="78" font-family="system-ui, sans-serif" font-size="13" fill="${opts.acento}">${slogan}</text>` : ""}
   </svg>`);
 }
 
@@ -96,14 +95,12 @@ export function lockupSelo(opts: {
   const nome = esc(opts.nome).slice(0, 36);
   const slogan = esc(opts.slogan || "").slice(0, 48);
   const ini = iniciais(opts.nome);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220">
-    <rect width="720" height="220" fill="${opts.fundo}"/>
-    <circle cx="140" cy="110" r="72" fill="none" stroke="${opts.acento}" stroke-width="2"/>
-    <circle cx="140" cy="110" r="62" fill="none" stroke="${opts.tinta}" stroke-width="0.6" opacity="0.45"/>
-    ${emblemaNicho(opts.nicho, opts.acento, 140, 110)}
-    <text x="140" y="188" text-anchor="middle" font-family="Georgia, serif" font-size="11" fill="${opts.acento}" opacity="0">${ini}</text>
-    <text x="250" y="${slogan ? 100 : 118}" font-family="Georgia, 'Times New Roman', serif" font-size="32" fill="${opts.tinta}">${nome}</text>
-    ${slogan ? `<text x="250" y="132" font-family="system-ui, sans-serif" font-size="14" fill="${opts.acento}">${slogan}</text>` : ""}
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
+    <circle cx="40" cy="48" r="36" fill="none" stroke="${opts.acento}" stroke-width="2"/>
+    ${emblemaNicho(opts.nicho, opts.acento, 40, 48)}
+    <text x="88" y="${slogan ? 44 : 54}" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="${opts.tinta}">${nome}</text>
+    ${slogan ? `<text x="88" y="68" font-family="system-ui, sans-serif" font-size="12" fill="${opts.acento}">${slogan}</text>` : ""}
+    <text x="0" y="0" font-size="1" fill="none">${ini}</text>
   </svg>`);
 }
 
@@ -118,12 +115,9 @@ export function lockupEmpilhado(opts: {
   const linha1 = esc(partes[0] || opts.nome).slice(0, 22);
   const linha2 = esc(partes.slice(1).join(" ")).slice(0, 28);
   const slogan = esc(opts.slogan || "").slice(0, 64);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240">
-    <rect width="720" height="240" fill="${opts.fundo}"/>
-    <text x="360" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="${opts.tinta}">${linha1}</text>
-    ${linha2 ? `<text x="360" y="132" text-anchor="middle" font-family="Georgia, serif" font-size="28" letter-spacing="8" fill="${opts.acento}">${linha2.toUpperCase()}</text>` : ""}
-    <rect x="330" y="148" width="60" height="1.5" fill="${opts.acento}"/>
-    ${slogan ? `<text x="360" y="178" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="${opts.tinta}" opacity="0.75">${slogan}</text>` : ""}
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
+    <text x="8" y="${linha2 ? 38 : 58}" font-family="Georgia, serif" font-size="30" fill="${opts.tinta}">${linha1}</text>
+    ${linha2 ? `<text x="8" y="68" font-family="Georgia, serif" font-size="18" letter-spacing="4" fill="${opts.acento}">${linha2.toUpperCase()}</text>` : ""}
   </svg>`);
 }
 
@@ -138,14 +132,13 @@ export function lockupEmblema(opts: {
 }) {
   const nome = esc(opts.nome).slice(0, 40);
   const slogan = esc(opts.slogan || "").slice(0, 64);
-  const icon = opts.emblemaHref
-    ? `<image href="${opts.emblemaHref}" x="36" y="48" width="112" height="112"/>`
-    : emblemaNicho(opts.nicho, opts.acento, 92, 104);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="200" viewBox="0 0 720 200">
-    <rect width="720" height="200" fill="${opts.fundo}"/>
-    ${icon}
-    <text x="176" y="${slogan ? 92 : 112}" font-family="Georgia, 'Times New Roman', serif" font-size="30" fill="${opts.tinta}">${nome}</text>
-    ${slogan ? `<text x="176" y="124" font-family="system-ui, sans-serif" font-size="14" fill="${opts.acento}">${slogan}</text>` : ""}
+  const iconCompact = opts.emblemaHref
+    ? `<image href="${opts.emblemaHref}" x="4" y="16" width="64" height="64"/>`
+    : emblemaNicho(opts.nicho, opts.acento, 36, 48);
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
+    ${iconCompact}
+    <text x="84" y="${slogan ? 42 : 54}" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="${opts.tinta}">${nome}</text>
+    ${slogan ? `<text x="84" y="66" font-family="system-ui, sans-serif" font-size="12" fill="${opts.acento}">${slogan}</text>` : ""}
   </svg>`);
 }
 

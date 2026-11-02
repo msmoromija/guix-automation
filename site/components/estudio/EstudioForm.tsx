@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EstudioPreview } from "@/components/estudio/EstudioPreview";
 import { propostasEstudio } from "@/lib/estudio/marca";
 import { montarRascunho } from "@/lib/estudio/rascunho";
-import { formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
+import { fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
   PRESETS,
   paletaPorId,
@@ -77,6 +77,8 @@ export function EstudioForm() {
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fotosProntas, setFotosProntas] = useState<{ src: string; thumb: string }[]>([]);
+  const [fotoAberta, setFotoAberta] = useState<number | null>(null);
 
   const nichoAtual = useMemo(() => nichos.find((n) => n.slug === nicho) || nichos[0], [nicho]);
   const paleta = paletaPorId(visual.paletaId);
@@ -112,8 +114,20 @@ export function EstudioForm() {
       const ia = atuais.filter((p) => p.id.startsWith("ia-"));
       return [...lista, ...ia];
     });
-    setPropostaId((id) => (id.startsWith("ia-") ? id : lista[0]?.id || lista[0].id));
+    setPropostaId((id) => {
+      if (id.startsWith("ia-")) return id;
+      if (lista.some((p) => p.id === id)) return id;
+      return lista[0].id;
+    });
   }, [nomeMarca, slogan, paleta.color_background, paleta.color_text, paleta.color_accent, nicho]);
+
+  useEffect(() => {
+    if (etapa !== 4) return;
+    void fetch(`/api/prototipo/fotos?nicho=${encodeURIComponent(nicho)}`)
+      .then((r) => r.json())
+      .then((d) => setFotosProntas(Array.isArray(d.fotos) ? d.fotos : []))
+      .catch(() => setFotosProntas([]));
+  }, [etapa, nicho]);
 
   function ir(n: number) {
     setEtapa(n);
@@ -461,7 +475,10 @@ export function EstudioForm() {
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => setPropostaId(p.id)}
+                        onClick={() => {
+                          setLogoModo("gerar");
+                          setPropostaId(p.id);
+                        }}
                         className={`overflow-hidden rounded-xl border text-left ${propostaId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
                       >
                         <div className="flex h-16 items-center px-2" style={{ background: paleta.color_background }}>
@@ -558,71 +575,133 @@ export function EstudioForm() {
               <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold">Cardápio de {nichoAtual.nome.toLowerCase()}</h2>
-                    <p className="mt-1 text-sm text-muted">Três sugestões. Clique nos campos para mudar nome, preço, tempo e texto.</p>
+                    <h2 className="text-base font-semibold">Serviços no site</h2>
+                    <p className="mt-1 text-sm text-muted">
+                      Dois modelos prontos. Edite, troque a foto (sua ou da biblioteca) e veja no simulador.
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded-full bg-ink px-4 py-2 text-sm text-white"
-                      onClick={() => setServicos(servicosDoNicho(nicho))}
-                    >
-                      Gerar de novo
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border border-line px-4 py-2 text-sm"
-                      onClick={() => setServicos((s) => [...s, { nome: "Novo serviço", preco: "R$ 0", duracao: "30 min", descricao: "" }])}
-                    >
-                      + Serviço
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full bg-ink px-4 py-2 text-sm text-white"
+                    onClick={() =>
+                      setServicos((s) => [
+                        ...s,
+                        {
+                          nome: "Novo serviço",
+                          preco: "R$ 0",
+                          duracao: "30 min",
+                          descricao: "",
+                          imagemSrc: fotoModelo(nicho, s.length),
+                        },
+                      ])
+                    }
+                  >
+                    Criar serviço
+                  </button>
                 </div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <div className="mt-4 space-y-4">
                   {servicos.map((s, i) => (
-                    <article key={`srv-${i}`} className="gx-card-in flex flex-col rounded-2xl border border-line bg-white p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <label className="block min-w-0 flex-1 text-xs font-medium text-muted">
-                          Nome
-                          <input
-                            className={campo}
-                            value={s.nome}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                    <article key={`srv-${i}`} className="gx-card-in grid gap-4 rounded-2xl border border-line p-3 sm:grid-cols-[220px_minmax(0,1fr)]">
+                      <div className="overflow-hidden rounded-xl bg-canvas">
+                        {s.imagemSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={s.imagemSrc} alt="" className="aspect-[16/10] h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex aspect-[16/10] items-center justify-center text-xs text-muted">Sem foto</div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <label className="min-w-0 flex-1 text-xs font-medium text-muted">
+                            Nome
+                            <input
+                              className={campo}
+                              value={s.nome}
+                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                            />
+                          </label>
+                          <label className="w-28 text-xs font-medium text-muted">
+                            Preço
+                            <input
+                              className={`${campo} font-semibold text-accent`}
+                              value={s.preco}
+                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
+                            />
+                          </label>
+                          <label className="w-28 text-xs font-medium text-muted">
+                            Duração
+                            <input
+                              className={campo}
+                              value={s.duracao}
+                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
+                            />
+                          </label>
+                        </div>
+                        <label className="mt-2 block text-xs font-medium text-muted">
+                          Texto
+                          <textarea
+                            rows={2}
+                            className={`${campo} resize-none`}
+                            value={s.descricao}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
                           />
                         </label>
-                        {servicos.length > 1 ? (
-                          <button type="button" className="mt-6 text-xs text-muted" onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}>
-                            Remover
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <label className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-xs">
+                            Sua foto
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(ev) => {
+                                const f = ev.target.files?.[0];
+                                if (!f) return;
+                                void arquivoParaDataUrl(f, 900).then((src) =>
+                                  setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, imagemSrc: src } : r))),
+                                );
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="rounded-full border border-line px-3 py-1.5 text-xs"
+                            onClick={() => setFotoAberta((v) => (v === i ? null : i))}
+                          >
+                            Fotos do ofício
                           </button>
+                          {servicos.length > 1 ? (
+                            <button
+                              type="button"
+                              className="rounded-full px-3 py-1.5 text-xs text-muted"
+                              onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
+                            >
+                              Remover
+                            </button>
+                          ) : null}
+                        </div>
+                        {fotoAberta === i ? (
+                          <div className="mt-3 grid grid-cols-4 gap-2">
+                            {fotosProntas.length ? (
+                              fotosProntas.map((f) => (
+                                <button
+                                  key={f.src}
+                                  type="button"
+                                  className="overflow-hidden rounded-lg border border-line"
+                                  onClick={() => {
+                                    setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, imagemSrc: f.src } : r)));
+                                    setFotoAberta(null);
+                                  }}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={f.thumb || f.src} alt="" className="aspect-[16/10] w-full object-cover" />
+                                </button>
+                              ))
+                            ) : (
+                              <p className="col-span-4 text-xs text-muted">Carregando fotos do ofício…</p>
+                            )}
+                          </div>
                         ) : null}
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <label className="block text-xs font-medium text-muted">
-                          Preço
-                          <input
-                            className={`${campo} font-semibold text-accent`}
-                            value={s.preco}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
-                          />
-                        </label>
-                        <label className="block text-xs font-medium text-muted">
-                          Duração
-                          <input
-                            className={campo}
-                            value={s.duracao}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
-                          />
-                        </label>
-                      </div>
-                      <label className="mt-2 block text-xs font-medium text-muted">
-                        Texto
-                        <textarea
-                          rows={3}
-                          className={`${campo} resize-none`}
-                          value={s.descricao}
-                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                        />
-                      </label>
                     </article>
                   ))}
                 </div>

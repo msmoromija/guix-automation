@@ -168,21 +168,21 @@ export function SiteLivePreview({
   );
 
   const marca = (
-    <span className={`flex min-w-0 items-center gap-2 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
+    <span className={`flex min-w-0 items-center gap-3 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
       {e.logo?.src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={e.logo.src} alt={e.logo.alt || e.nome || ""} className="h-9 max-w-[160px] object-contain" />
+        <img
+          src={e.logo.src}
+          alt={e.logo.alt || e.nome || ""}
+          className="h-12 w-auto max-w-[240px] object-contain object-left"
+        />
       ) : (
-        <strong className="truncate text-sm tracking-wide" style={{ fontFamily: heading }}>
+        <strong className="truncate text-base tracking-wide" style={{ fontFamily: heading }}>
           {e.nome}
         </strong>
       )}
       {vis.cabecalho === "logo-slogan" && e.slogan ? (
         <span className="hidden truncate text-xs opacity-70 sm:block">{e.slogan}</span>
-      ) : e.logo?.src ? (
-        <strong className="truncate text-sm tracking-wide" style={{ fontFamily: heading }}>
-          {e.nome}
-        </strong>
       ) : null}
     </span>
   );
@@ -257,6 +257,10 @@ export function SiteLivePreview({
             }}
           />
           <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[280px] pt-16 pb-10" : "min-h-[82vh]"}`}>
+            {e.logo?.src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={e.logo.src} alt="" className="mb-5 h-14 w-auto max-w-[280px] object-contain object-left" />
+            ) : null}
             <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
               {e.slogan}
             </p>

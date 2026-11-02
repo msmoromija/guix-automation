@@ -34,6 +34,7 @@ export async function gerarTextosSite(entrada: {
     "Hero: título com o nome do negócio ou uma promessa curta; subtítulo com 1 fato (cidade, ofício, como agendar).",
     "Sobre: 2 parágrafos. O primeiro diz quem atende e o que faz; o segundo, como é o atendimento.",
     "Cada serviço tem descrição de 1 ou 2 frases com o que entra no preço.",
+    "Nunca use a palavra 'cardápio' (no Brasil isso é menu de restaurante). Use 'serviços', 'tabela de serviços' ou 'o que fazemos'.",
     REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico,
     "imagens_sugeridas: só tags da lista, uma sugestão por foto, sem repetir a mesma tag em todos.",
   ].join(" ");
@@ -45,7 +46,7 @@ export async function gerarTextosSite(entrada: {
     slogan: entrada.slogan || "",
     cidade: entrada.cidade || "",
     servicos_informados: entrada.servicos || [],
-    cardapio: entrada.servicosDetalhe || [],
+    lista_de_servicos: entrada.servicosDetalhe || [],
     equipe_informada: entrada.profissionaisDetalhe || [],
     tom,
     estilo_visual: entrada.estilo || "moderno",

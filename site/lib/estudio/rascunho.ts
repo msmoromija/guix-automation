@@ -7,7 +7,7 @@ export function montarRascunho(opts: {
   cidade?: string;
   logoSrc?: string;
   visual: VisualConfig;
-  servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string }>;
+  servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string; imagemSrc?: string }>;
   profissionais: Array<{ nome: string; cargo?: string; descricao?: string; fotoSrc?: string }>;
   whatsapp?: string;
 }) {
@@ -50,13 +50,14 @@ export function montarRascunho(opts: {
     },
     servicos: {
       titulo: "Serviços",
-      subtitulo: servicos.length ? "Preço e texto como você deixou no cardápio." : "Gere ou escreva os serviços à esquerda.",
+      subtitulo: servicos.length ? "Preço e texto como você deixou nos serviços." : "Inclua os serviços à esquerda.",
       itens: (servicos.length ? servicos : []).map((s, i) => ({
         id: `ex-${i}`,
         nome: s.nome,
         descricao: s.descricao,
         preco_label: s.preco || "Sob consulta",
         duracao_label: s.duracao || "",
+        imagem: s.imagemSrc ? { src: s.imagemSrc, alt: s.nome } : undefined,
       })),
     },
     profissionais: {
