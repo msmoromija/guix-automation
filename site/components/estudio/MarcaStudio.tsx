@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { arquivosDoNicho } from "@/lib/estudio/biblioteca-arquivos";
 import { emblemasDoNicho, uriEmblema } from "@/lib/estudio/emblemas";
 import { ROTULO_NICHO } from "@/lib/estudio/icones-marca";
@@ -208,10 +208,17 @@ export function MarcaStudio({
 
   if (!aberto) return null;
 
+  const corpoRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const t = window.setTimeout(() => corpoRef.current?.scrollTo({ top: 0 }), 0);
+    return () => window.clearTimeout(t);
+  }, [aberto, avancado]);
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-ink/40 p-3 sm:items-center" onClick={onFechar}>
+    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-ink/40 p-3 sm:items-center" onClick={onFechar}>
       <div
-        className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="my-3 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:my-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 border-b border-line px-5 py-4 sm:px-6">
@@ -248,7 +255,7 @@ export function MarcaStudio({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={corpoRef} className="min-h-0 flex-1 overflow-y-auto">
           <div className="sticky top-0 z-10 border-b border-line bg-white px-5 py-3 sm:px-6">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Como fica agora</p>
             <div className="flex h-[88px] items-center overflow-hidden rounded-xl px-4" style={{ background: fundoSite, color: tintaSite }}>

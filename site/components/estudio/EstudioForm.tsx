@@ -895,12 +895,32 @@ export function EstudioForm() {
       if (h !== "contato" && h !== "estudio-contato") return;
       setEtapa(4);
       setErro("");
-      window.setTimeout(() => document.getElementById("estudio-contato")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+      window.setTimeout(() => {
+        const el = document.getElementById("estudio-contato");
+        scrollFormAoTopo(el);
+      }, 80);
     };
     abrir();
     window.addEventListener("hashchange", abrir);
     return () => window.removeEventListener("hashchange", abrir);
   }, []);
+
+  useEffect(() => {
+    // Nova etapa sempre começa no topo da coluna (evita “abrir de baixo”).
+    window.setTimeout(() => scrollFormAoTopo(null), 0);
+  }, [etapa]);
+
+  function scrollFormAoTopo(el?: HTMLElement | null) {
+    const col = formColRef.current;
+    if (!col) return;
+    if (!el) {
+      col.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    // scrollIntoView em coluna overflow empurra o painel para baixo — scroll só no container.
+    const top = col.scrollTop + (el.getBoundingClientRect().top - col.getBoundingClientRect().top) - 8;
+    col.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
 
   function ir(n: number, alvo?: AlvoEdicao) {
     const destino = Math.min(5, Math.max(1, n));
@@ -910,8 +930,8 @@ export function EstudioForm() {
     window.setTimeout(() => {
       const id = alvo === "contato" ? "estudio-contato" : alvo ? `estudio-${alvo}` : destino === 4 ? "estudio-contato" : "";
       const el = id ? document.getElementById(id) : null;
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      else formColRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      if (el) scrollFormAoTopo(el);
+      else scrollFormAoTopo(null);
     }, 50);
   }
 

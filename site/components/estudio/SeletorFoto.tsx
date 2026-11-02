@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SlotFoto } from "@/components/preview/SiteLivePreview";
 
 export type { SlotFoto };
@@ -33,10 +33,12 @@ export function SeletorFoto({
   const [fotos, setFotos] = useState<{ src: string; thumb: string; credito?: Record<string, unknown> }[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const corpoRef = useRef<HTMLDivElement>(null);
   const q = slot?.tipo === "hero" ? "hero" : slot?.tipo === "sobre" ? "sobre" : slot?.tipo === "galeria" ? "galeria" : "servico";
 
   useEffect(() => {
     if (!aberto || !slot) return;
+    corpoRef.current?.scrollTo({ top: 0 });
     let cancelado = false;
     setErro("");
     setCarregando(true);
@@ -72,8 +74,12 @@ export function SeletorFoto({
   if (!aberto || !slot) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/40 p-3 sm:items-center" onClick={onFechar}>
-      <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-ink/40 p-3 sm:items-center" onClick={onFechar}>
+      <div
+        ref={corpoRef}
+        className="my-3 max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:my-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold">Trocar foto</h3>
