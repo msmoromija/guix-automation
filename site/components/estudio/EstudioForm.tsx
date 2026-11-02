@@ -14,7 +14,9 @@ import { linkWhatsapp } from "@/lib/contato";
 import { MarcaStudio } from "@/components/estudio/MarcaStudio";
 import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
+import { IconeRede } from "@/components/estudio/IconeRede";
 import { CANAIS, extrasDeRedes, type CanalId } from "@/lib/estudio/canais";
+import { DIAS_SEMANA, expedientePadrao, expedienteParaSchema, resumoDoExpediente, type DiaExpediente, type NotaAgenda } from "@/lib/estudio/expediente";
 import { dicasDoNicho, fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
   PRESETS,
@@ -35,7 +37,7 @@ const ETAPAS = [
   { id: 1, titulo: "Negócio", resumo: "Nome, frase e o tom da escrita." },
   { id: 2, titulo: "Aparência", resumo: "Cores, fonte, fotos e o formato dos botões." },
   { id: 3, titulo: "Marca", resumo: "Logo, tamanho e posição no topo." },
-  { id: 4, titulo: "Contato e serviços", resumo: "Telefone, endereço, horário, dúvidas, serviços e equipe." },
+  { id: 4, titulo: "Contato", resumo: "WhatsApp, agenda da semana, recessos, redes, serviços e equipe." },
   { id: 5, titulo: "Gerar", resumo: "Gera o link de teste, válido por 3 dias." },
 ];
 
@@ -114,7 +116,9 @@ export function EstudioForm() {
     estado: string;
     cep: string;
     servicos: Array<{ nome: string; preco: string; duracao: string; descricao: string; imagemSrc: string }>;
-    pros: Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string }>;
+    pros: Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string; whatsapp: string; dias: string[] }>;
+    expediente: DiaExpediente[];
+    notasAgenda: NotaAgenda[];
     copia: CopiaViva | null;
     menuLivre: { id: string; label: string; href: string }[] | null;
     botaoLivre: string;
@@ -132,7 +136,7 @@ export function EstudioForm() {
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
-  const [pros, setPros] = useState<Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string }>>([]);
+  const [pros, setPros] = useState<Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string; whatsapp: string; dias: string[] }>>([]);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
@@ -144,7 +148,9 @@ export function EstudioForm() {
   const [botaoLivre, setBotaoLivre] = useState("");
   const [rodapeLivre, setRodapeLivre] = useState<{ texto?: string; links?: { id: string; label: string; href: string }[] } | null>(null);
   const [difsLivre, setDifsLivre] = useState<{ titulo: string; descricao: string }[] | null>(null);
-  const [horario, setHorario] = useState("");
+  const [horario, setHorario] = useState(() => resumoDoExpediente(expedientePadrao()));
+  const [expediente, setExpediente] = useState<DiaExpediente[]>(() => expedientePadrao());
+  const [notasAgenda, setNotasAgenda] = useState<NotaAgenda[]>([]);
   const [enderecoLivre, setEnderecoLivre] = useState("");
   const [eventos, setEventos] = useState<Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>>([]);
   const [avulsos, setAvulsos] = useState<Record<string, string>>({});
@@ -206,8 +212,12 @@ export function EstudioForm() {
       },
       copia,
       horario,
+      expediente: expedienteParaSchema(expediente),
       enderecoCompleto: enderecoLivre,
-      eventos,
+      eventos: [
+                        ...notasAgenda.map((n) => ({ titulo: n.titulo, descricao: n.descricao, dataLabel: n.dataLabel, horario: "09:00" })),
+        ...eventos,
+      ],
       faqs: faqs || undefined,
       menu: menuLivre || undefined,
       botaoAgendar: botaoLivre || undefined,
@@ -243,8 +253,10 @@ export function EstudioForm() {
     fotoGaleria,
     copia,
     horario,
+    expediente,
     enderecoLivre,
     eventos,
+    notasAgenda,
     faqs,
     menuLivre,
     botaoLivre,
@@ -554,7 +566,7 @@ export function EstudioForm() {
       const chave = pessoa[2] as "nome" | "cargo" | "descricao";
       setPros((rows) => {
         const next = [...rows];
-        while (next.length <= i) next.push({ nome: "", cargo: "", descricao: "", fotoSrc: "" });
+        while (next.length <= i) next.push({ nome: "", cargo: "", descricao: "", fotoSrc: "", whatsapp: "", dias: ["seg", "ter", "qua", "qui", "sex"] });
         next[i] = { ...next[i], [chave]: valor };
         return next;
       });
@@ -580,6 +592,8 @@ export function EstudioForm() {
       cep,
       servicos,
       pros,
+      expediente,
+      notasAgenda,
       copia,
       menuLivre,
       botaoLivre,
@@ -612,6 +626,8 @@ export function EstudioForm() {
     setCep(m.cep);
     setServicos(m.servicos);
     setPros(m.pros);
+    setExpediente(m.expediente);
+    setNotasAgenda(m.notasAgenda);
     setCopia(m.copia);
     setMenuLivre(m.menuLivre);
     setBotaoLivre(m.botaoLivre);
@@ -702,7 +718,7 @@ export function EstudioForm() {
     }
     const equipe = ((resultado.site.profissionais || {}) as { itens?: { nome?: string }[] }).itens || [];
     if (equipe.length && equipe.every((p) => p.nome === "Sem preferência")) {
-      setPros([{ nome: "", cargo: "", descricao: "", fotoSrc: "" }]);
+      setPros([{ nome: "", cargo: "", descricao: "", fotoSrc: "", whatsapp: "", dias: ["seg", "ter", "qua", "qui", "sex"] }]);
     }
     if (resultado.tocou.midia && siteVivo) {
       const logoAgora = String((((resultado.site.empresa || {}) as { logo?: { src?: string } }).logo || {}).src || "");
@@ -760,7 +776,7 @@ export function EstudioForm() {
     setAjustando(true);
     setAvisoIa("");
     const ctrl = new AbortController();
-    const prazo = window.setTimeout(() => ctrl.abort(), 20000);
+    const prazo = window.setTimeout(() => ctrl.abort(), 65000);
     try {
       const res = await fetch("/api/prototipo/textos", {
         method: "POST",
@@ -786,7 +802,7 @@ export function EstudioForm() {
       setUsosIa((n) => n + 1);
       setPedidoIa("");
     } catch {
-      setAvisoIa("Demorou demais. Nada mudou. Tente uma frase mais curta.");
+      setAvisoIa("Demorou demais. Peça de novo em partes: textos primeiro, fotos depois.");
     } finally {
       window.clearTimeout(prazo);
       setAjustando(false);
@@ -940,9 +956,13 @@ export function EstudioForm() {
           email,
           slogan,
           horario,
+          expediente: expedienteParaSchema(expediente),
           enderecoLivre,
           faqs,
-          eventos,
+          eventos: [
+            ...notasAgenda.map((n) => ({ titulo: n.titulo, descricao: n.descricao, dataLabel: n.dataLabel, horario: "09:00" })),
+            ...eventos,
+          ],
           menu: menuLivre || undefined,
           botaoAgendar: botaoLivre || undefined,
           rodapeTexto: rodapeLivre?.texto,
@@ -995,6 +1015,19 @@ export function EstudioForm() {
     />
   );
 
+  useEffect(() => {
+    setHorario(resumoDoExpediente(expediente));
+  }, [expediente]);
+
+  useEffect(() => {
+    setVisual((v) => ({
+      ...v,
+      agendaEquipe: pros
+        .filter((p) => p.nome.trim())
+        .map((p) => ({ nome: p.nome.trim(), dias: p.dias, inicio: "09:00", fim: "18:00" })),
+    }));
+  }, [pros]);
+
   const visualPreview = {
     ...visual,
     linkedinUrl: redes.linkedin || visual.linkedinUrl,
@@ -1014,48 +1047,64 @@ export function EstudioForm() {
         Começa no modelo do ofício. Cada passo troca uma parte. No fim, um <strong>link de teste por 3 dias</strong>.
       </p>
 
-      <ol className="mt-5 grid grid-cols-5 gap-1">
-        {ETAPAS.map((et) => (
-          <li key={et.id}>
-            <button
-              type="button"
-              onClick={() => ir(et.id)}
-              className={`w-full rounded-lg border px-1.5 py-2 text-left text-[10px] leading-tight sm:px-2 sm:text-xs ${
-                etapa === et.id ? chipOn : etapa > et.id ? "border-ink/20 bg-white" : chipOff
-              }`}
-            >
-              <span className="block text-[9px] opacity-70">{et.id}</span>
-              {et.titulo}
-            </button>
-          </li>
-        ))}
-      </ol>
-      <div className="mt-3 space-y-1">
-        {ETAPAS.map((et) => (
-          <button key={`resumo-${et.id}`} type="button" onClick={() => ir(et.id)} className={`block w-full rounded-lg px-2 py-1 text-left text-xs ${etapa === et.id ? "bg-white font-medium text-ink" : "text-muted"}`}>
-            <span className="mr-2 text-[10px] opacity-60">{et.id}</span>
-            {et.resumo}
-          </button>
-        ))}
-      </div>
-      <div className="mt-3">
-        <div className="mb-1 flex justify-between text-[11px] text-muted">
-          <span>Pronto para gerar</span>
-          <span>{prontos} de {marcosProntos.length}</span>
+      <nav aria-label="Etapas" className="mt-6">
+        <ol className="relative grid grid-cols-5 gap-x-2">
+          <span
+            className="pointer-events-none absolute left-[10%] right-[10%] top-4 h-px bg-line"
+            aria-hidden
+          />
+          <span
+            className="pointer-events-none absolute left-[10%] top-4 h-px bg-ink transition-all"
+            style={{ width: `${Math.max(0, ((etapa - 1) / (ETAPAS.length - 1)) * 80)}%` }}
+            aria-hidden
+          />
+          {ETAPAS.map((et) => {
+            const ativa = etapa === et.id;
+            const feita = etapa > et.id;
+            return (
+              <li key={et.id} className="relative z-[1] flex flex-col items-center text-center">
+                <button
+                  type="button"
+                  onClick={() => ir(et.id)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition ${
+                    ativa ? "bg-ink text-white ring-4 ring-ink/10" : feita ? "bg-ink text-white" : "border border-line bg-white text-muted"
+                  }`}
+                  aria-current={ativa ? "step" : undefined}
+                  title={et.resumo}
+                >
+                  {et.id}
+                </button>
+                <span className={`mt-2 max-w-[4.5rem] text-[10px] leading-tight sm:max-w-none sm:text-[11px] ${ativa ? "font-semibold text-ink" : "text-muted"}`}>
+                  {et.titulo}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="mt-4 text-xs leading-relaxed text-muted">{ETAPAS.find((e) => e.id === etapa)?.resumo}</p>
+        <div className="mt-3">
+          <div className="mb-1 flex justify-between text-[11px] text-muted">
+            <span>Pronto para gerar</span>
+            <span>
+              {prontos} de {marcosProntos.length}
+            </span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-black/10">
+            <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((prontos / marcosProntos.length) * 100)}%` }} />
+          </div>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((prontos / marcosProntos.length) * 100)}%` }} />
-        </div>
-      </div>
+      </nav>
 
       <form onSubmit={enviar} className="mt-6">
         <div className="space-y-5">
           {etapa === 1 ? (
             <section id="estudio-negocio" className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
-              <h2 className="text-base font-semibold">O negócio</h2>
-              <p className="mt-1 text-sm text-muted">O site à direita já está pronto no modelo do ofício. Seu nome entra agora; o resto espera você.</p>
-              <div className="mt-4 grid gap-4">
-                <label className="block text-sm">
+              <h2 className="text-base font-semibold">Identidade do negócio</h2>
+              <p className="mt-1 text-sm text-muted">
+                O que você digitar aqui aparece na hora no site à direita: nome no topo, frase e tom dos textos.
+              </p>
+              <div className="mt-5 grid gap-4">
+                <label className="block text-sm font-medium">
                   Tipo de negócio
                   <select
                     className={campo}
@@ -1075,56 +1124,46 @@ export function EstudioForm() {
                     ))}
                   </select>
                 </label>
-                <label className="block text-sm">
-                  Nome
+                <label className="block text-sm font-medium">
+                  Nome no site
                   <input required className={campo} value={nome} onChange={(e) => setNome(e.target.value)} placeholder={dicas.nome} />
+                  <span className="mt-1 block text-xs text-muted">Entra no cabeçalho e no rodapé assim que você digita.</span>
                 </label>
-                <label className="block text-sm">
+                <label className="block text-sm font-medium">
                   Frase debaixo do nome
-                  <input
-                    className={campo}
-                    value={slogan}
-                    onChange={(e) => setSlogan(e.target.value)}
-                    placeholder={dicas.slogan}
-                  />
+                  <input className={campo} value={slogan} onChange={(e) => setSlogan(e.target.value)} placeholder={dicas.slogan} />
+                </label>
+                <label className="block text-sm font-medium">
+                  O que destacar nos textos
+                  <input className={campo} value={destaque} onChange={(e) => setDestaque(e.target.value)} placeholder={`Ex.: ${dicas.destaque}`} />
                 </label>
               </div>
-              <p className="mt-6 text-sm font-semibold">Como a IA vai escrever</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {(
-                  [
-                    ["tradicional, acolhedor, de ofício", "Acolhedor"],
-                    ["direto, jovem, com energia", "Urbano"],
-                    ["sofisticado, sóbrio, premium", "Luxo"],
-                    ["profissional, claro, comercial", "Direto"],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`${chip} ${tom === id ? chipOn : chipOff}`}
-                    onClick={() => setTom(id)}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="mt-6">
+                <p className="text-sm font-semibold">Tom da escrita</p>
+                <p className="mt-1 text-xs text-muted">A IA reescreve a capa e o sobre neste tom (leva cerca de 1 segundo após o nome).</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ["tradicional, acolhedor, de ofício", "Acolhedor"],
+                      ["direto, jovem, com energia", "Urbano"],
+                      ["sofisticado, sóbrio, premium", "Luxo"],
+                      ["profissional, claro, comercial", "Direto"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button key={id} type="button" className={`${chip} ${tom === id ? chipOn : chipOff}`} onClick={() => setTom(id)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <label className="mt-4 block text-sm">
-                O que destacar
-                <input
-                  className={campo}
-                  value={destaque}
-                  onChange={(e) => setDestaque(e.target.value)}
-                  placeholder={`Ex.: ${dicas.destaque}`}
-                />
+              <label className="mt-5 flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-line px-4 py-3">
+                <span>
+                  <span className="block text-sm font-medium">IA escreve os textos</span>
+                  <span className="text-xs text-muted">Desligue se quiser digitar tudo à mão no quadro.</span>
+                </span>
+                <input type="checkbox" className="h-5 w-5" checked={iaEscreve} onChange={(e) => setIaEscreve(e.target.checked)} />
               </label>
-              <button
-                type="button"
-                className={`mt-3 ${chip} ${iaEscreve ? chipOn : chipOff}`}
-                onClick={() => setIaEscreve((v) => !v)}
-              >
-                {iaEscreve ? "A IA escreve os textos do site" : "Não usar IA nos textos"}
-              </button>
+              {escrevendo ? <p className="mt-3 text-xs font-medium text-accent">Ajustando os textos no site…</p> : null}
             </section>
           ) : null}
 
@@ -1301,86 +1340,184 @@ export function EstudioForm() {
           {etapa === 4 ? (
             <>
               <section id="estudio-contato" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
-                <h2 className="text-base font-semibold">Como o cliente te acha</h2>
-                <p className="mt-1 text-sm text-muted">Clique em qualquer texto do site para escrever. Se a palavra sair errada, o corretor oferece a troca.</p>
-                <label className="mt-4 block text-sm font-medium">
-                  Horário de funcionamento
-                  <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 8h às 18h" />
-                </label>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <CartaoCanal
-                    titulo="WhatsApp"
-                    dica="Número do negócio · o interruptor liga o botão flutuante"
-                    on={visual.whatsappFlutuante}
-                    onChange={(whatsappFlutuante) => setVisual((v) => ({ ...v, whatsappFlutuante }))}
-                    manterFilhos
-                  >
-                    <input className={campo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" inputMode="tel" autoComplete="tel" />
-                  </CartaoCanal>
-                  <CartaoCanal titulo="Agendar" dica="Botão no topo do site" on={visual.agendamento} onChange={(agendamento) => setVisual((v) => ({ ...v, agendamento }))}>
-                    <p className="mt-2 text-xs text-muted">Usa o mesmo WhatsApp neste teste.</p>
-                  </CartaoCanal>
-                  <CartaoCanal titulo="E-mail" on={Boolean(email)} onChange={() => undefined} semSwitch>
-                    <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@negocio.com" />
-                  </CartaoCanal>
-                  {canaisAtivos.map((id) => {
-                    const canal = CANAIS.find((c) => c.id === id);
-                    if (!canal) return null;
-                    return (
-                      <CartaoCanal
-                        key={id}
-                        titulo={canal.label}
-                        on
-                        onChange={() => {
-                          setCanaisAtivos((lista) => lista.filter((x) => x !== id));
-                          setRedes((r) => {
-                            const n = { ...r };
-                            delete n[id];
-                            return n;
-                          });
-                          if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
-                            setVisual((v) => ({ ...v, [id]: false }));
-                          }
-                        }}
-                      >
-                        <input
-                          className={campo}
-                          value={redes[id] || ""}
-                          onChange={(e) => {
-                            const valor = e.target.value;
-                            setRedes((r) => ({ ...r, [id]: valor }));
-                            if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
-                              setVisual((v) => ({ ...v, [id]: true }));
-                            }
-                          }}
-                          placeholder={canal.placeholder}
-                        />
-                      </CartaoCanal>
-                    );
-                  })}
+                <h2 className="text-base font-semibold">Contato e horário</h2>
+                <p className="mt-1 text-sm text-muted">WhatsApp, agenda da semana e redes. Tudo isso alimenta o site e o formulário de agendar.</p>
+
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl border border-line p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366]/15 text-[#128C7E]">
+                        <IconeRede id="whatsapp" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">WhatsApp do negócio</p>
+                        <p className="text-xs text-muted">Usado no botão flutuante e na confirmação do agendamento.</p>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        Flutuante
+                        <input type="checkbox" checked={visual.whatsappFlutuante} onChange={(e) => setVisual((v) => ({ ...v, whatsappFlutuante: e.target.checked }))} />
+                      </label>
+                    </div>
+                    <input className={`${campo} mt-3`} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" inputMode="tel" autoComplete="tel" />
+                  </div>
+
+                  <label className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
+                    <span>
+                      <span className="block text-sm font-semibold">Agendar no site</span>
+                      <span className="text-xs text-muted">Mostra o formulário: serviço, profissional, dia e hora → WhatsApp.</span>
+                    </span>
+                    <input type="checkbox" className="h-5 w-5" checked={visual.agendamento} onChange={(e) => setVisual((v) => ({ ...v, agendamento: e.target.checked }))} />
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    E-mail
+                    <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@seunegocio.com.br" />
+                  </label>
                 </div>
-                <label className="mt-4 block text-sm font-medium">
-                  Adicionar rede
-                  <select
-                    className={campo}
-                    value=""
-                    onChange={(e) => {
-                      const id = e.target.value as CanalId;
-                      if (!id) return;
-                      setCanaisAtivos((lista) => (lista.includes(id) ? lista : [...lista, id]));
-                      if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
-                        setVisual((v) => ({ ...v, [id]: true }));
-                      }
-                    }}
-                  >
-                    <option value="">Instagram, TikTok, X, LinkedIn…</option>
-                    {CANAIS.filter((c) => !canaisAtivos.includes(c.id)).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
+
+                <div className="mt-6">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Agenda da semana</p>
+                      <p className="mt-1 text-xs text-muted">Marque os dias abertos e o intervalo. O resumo no site atualiza sozinho.</p>
+                    </div>
+                    <p className="max-w-[12rem] text-right text-[11px] text-muted">{horario}</p>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {expediente.map((dia) => (
+                      <div key={dia.dia} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-xl border border-line px-3 py-2 sm:gap-3">
+                        <input
+                          type="checkbox"
+                          checked={dia.aberto}
+                          onChange={(e) =>
+                            setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, aberto: e.target.checked } : d)))
+                          }
+                          aria-label={`${dia.label} aberto`}
+                        />
+                        <span className={`text-sm ${dia.aberto ? "font-medium text-ink" : "text-muted"}`}>{dia.label}</span>
+                        <input
+                          type="time"
+                          className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
+                          value={dia.inicio}
+                          disabled={!dia.aberto}
+                          onChange={(e) => setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, inicio: e.target.value } : d)))}
+                        />
+                        <input
+                          type="time"
+                          className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
+                          value={dia.fim}
+                          disabled={!dia.aberto}
+                          onChange={(e) => setExpediente((lista) => lista.map((d) => (d.dia === dia.dia ? { ...d, fim: e.target.value } : d)))}
+                        />
+                      </div>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                  <label className="mt-3 block text-xs font-medium text-muted">
+                    Resumo livre (opcional)
+                    <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 9h às 18h" />
+                  </label>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Avisos e recessos</p>
+                      <p className="mt-1 text-xs text-muted">Ex.: Natal fechado, recesso de fim de ano.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full border border-line px-3 py-1.5 text-xs"
+                      onClick={() =>
+                        setNotasAgenda((lista) =>
+                          lista.length >= 4 ? lista : [...lista, { titulo: "Recesso", descricao: "Não atenderemos neste período.", dataLabel: "25/12" }],
+                        )
+                      }
+                    >
+                      Incluir aviso
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {notasAgenda.map((nota, i) => (
+                      <div key={`nota-${i}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
+                        <input className={campo} value={nota.titulo} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, titulo: e.target.value } : n)))} placeholder="Natal / Recesso" />
+                        <input className={campo} value={nota.dataLabel} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, dataLabel: e.target.value } : n)))} placeholder="25/12 a 01/01" />
+                        <textarea className={`${campo} sm:col-span-2`} rows={2} value={nota.descricao} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, descricao: e.target.value } : n)))} placeholder="Atenção: não atenderemos devido ao Natal." />
+                        <button type="button" className="text-xs text-muted" onClick={() => setNotasAgenda((lista) => lista.filter((_, j) => j !== i))}>
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <p className="text-sm font-semibold">Redes sociais</p>
+                  <p className="mt-1 text-xs text-muted">Aparecem com o ícone padrão no rodapé do site.</p>
+                  <div className="mt-3 space-y-2">
+                    {canaisAtivos.map((id) => {
+                      const canal = CANAIS.find((c) => c.id === id);
+                      if (!canal) return null;
+                      return (
+                        <div key={id} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-canvas text-ink">
+                            <IconeRede id={id} />
+                          </span>
+                          <input
+                            className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-sm"
+                            value={redes[id] || ""}
+                            onChange={(e) => {
+                              const valor = e.target.value;
+                              setRedes((r) => ({ ...r, [id]: valor }));
+                              if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                                setVisual((v) => ({ ...v, [id]: true }));
+                              }
+                            }}
+                            placeholder={canal.placeholder}
+                          />
+                          <button
+                            type="button"
+                            className="text-xs text-muted"
+                            onClick={() => {
+                              setCanaisAtivos((lista) => lista.filter((x) => x !== id));
+                              setRedes((r) => {
+                                const n = { ...r };
+                                delete n[id];
+                                return n;
+                              });
+                              if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                                setVisual((v) => ({ ...v, [id]: false }));
+                              }
+                            }}
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <label className="mt-3 block text-sm font-medium">
+                    Adicionar rede
+                    <select
+                      className={campo}
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value as CanalId;
+                        if (!id) return;
+                        setCanaisAtivos((lista) => (lista.includes(id) ? lista : [...lista, id]));
+                        if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                          setVisual((v) => ({ ...v, [id]: true }));
+                        }
+                      }}
+                    >
+                      <option value="">Instagram, TikTok, X, LinkedIn…</option>
+                      {CANAIS.filter((c) => !canaisAtivos.includes(c.id)).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <div className="gx-pulse-cep mt-5 rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5">
                   <p className="text-[11px] font-semibold tracking-[0.16em] text-accent">ENDEREÇO PELO CEP</p>
                   <p className="mt-1 text-sm text-muted">Digite o CEP: rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
@@ -1620,80 +1757,117 @@ export function EstudioForm() {
               <section id="estudio-equipe" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold">Quem atende</h2>
+                    <h2 className="text-base font-semibold">Equipe e agenda</h2>
                     <p className="mt-1 text-sm text-muted">
-                      Opcional. Em branco, o site agenda sem destinar profissional. Não inventamos nomes.
+                      Cadastre quem atende, os dias de cada um e o WhatsApp. No site, o cliente escolhe a pessoa ao agendar.
                     </p>
                   </div>
                   <button
                     type="button"
-                    className="rounded-full border border-line px-4 py-2 text-sm"
-                    onClick={() => setPros((p) => [...p, { nome: "", cargo: "", descricao: "", fotoSrc: "" }])}
+                    className="rounded-full bg-ink px-4 py-2 text-sm text-white"
+                    onClick={() =>
+                      setPros((p) => [
+                        ...p,
+                        {
+                          nome: "",
+                          cargo: "",
+                          descricao: "",
+                          fotoSrc: "",
+                          whatsapp: "",
+                          dias: DIAS_SEMANA.filter((d) => d.dia !== "dom").map((d) => d.dia),
+                        },
+                      ])
+                    }
                   >
-                    + Pessoa
+                    Incluir profissional
                   </button>
                 </div>
                 {pros.length === 0 ? (
                   <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
-                    Ninguém cadastrado. O cliente marca o horário, sem destinar profissional.
+                    Ninguém cadastrado ainda. O cliente pode agendar com “Sem preferência”.
                   </p>
                 ) : (
-                <div className="mt-4 grid gap-4">
-                  {pros.map((p, i) => (
-                    <article key={`pro-${i}`} className="gx-card-in flex gap-4 rounded-2xl border border-line p-4">
-                      <label className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-canvas text-2xl font-semibold text-ink/50">
-                        {p.fotoSrc ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          (p.nome || "+").slice(0, 1)
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(ev) => {
-                            const f = ev.target.files?.[0];
-                            if (!f) return;
-                            void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
-                          }}
-                        />
-                      </label>
-                      <div className="min-w-0 flex-1">
-                        <label className="block text-xs font-medium text-muted">
-                          Nome
-                          <input
-                            className={campo}
-                            value={p.nome}
-                            placeholder="Quem atende"
-                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                          />
-                        </label>
-                        <label className="mt-2 block text-xs font-medium text-muted">
-                          Função
-                          <input
-                            className={campo}
-                            value={p.cargo}
-                            placeholder={dicas.cargo}
-                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
-                          />
-                        </label>
-                        <label className="mt-2 block text-xs font-medium text-muted">
-                          Uma linha
-                          <input
-                            className={campo}
-                            value={p.descricao}
-                            placeholder="Opcional"
-                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                          />
-                        </label>
-                        <button type="button" className="mt-2 text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
-                          Remover
+                  <div className="mt-4 space-y-4">
+                    {pros.map((p, i) => (
+                      <article key={`pro-${i}`} className="gx-card-in rounded-2xl border border-line p-4">
+                        <div className="flex gap-4">
+                          <label className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-2xl font-semibold text-ink/40">
+                            {p.fotoSrc ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <>
+                                <span>{(p.nome || "+").slice(0, 1)}</span>
+                                <span className="mt-1 text-[10px] font-medium">Foto</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(ev) => {
+                                const f = ev.target.files?.[0];
+                                if (!f) return;
+                                void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
+                              }}
+                            />
+                          </label>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <label className="block text-xs font-medium text-muted">
+                              Nome
+                              <input className={campo} value={p.nome} placeholder="Quem atende" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
+                            </label>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <label className="block text-xs font-medium text-muted">
+                                Função
+                                <input className={campo} value={p.cargo} placeholder={dicas.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
+                              </label>
+                              <label className="block text-xs font-medium text-muted">
+                                WhatsApp desta pessoa
+                                <input className={campo} value={p.whatsapp} placeholder="Opcional" inputMode="tel" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))} />
+                              </label>
+                            </div>
+                            <label className="block text-xs font-medium text-muted">
+                              Sobre o atendimento
+                              <textarea className={campo} rows={2} value={p.descricao} placeholder="Especialidade, estilo, experiência…" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
+                            </label>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-xs font-medium text-muted">Dias em que atende</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {DIAS_SEMANA.map((d) => {
+                              const on = p.dias.includes(d.dia);
+                              return (
+                                <button
+                                  key={d.dia}
+                                  type="button"
+                                  className={`rounded-full px-3 py-1 text-xs ${on ? "bg-ink text-white" : "border border-line text-muted"}`}
+                                  onClick={() =>
+                                    setPros((rows) =>
+                                      rows.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              dias: on ? r.dias.filter((x) => x !== d.dia) : [...r.dias, d.dia],
+                                            }
+                                          : r,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  {d.curto}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <button type="button" className="mt-3 text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
+                          Remover profissional
                         </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                      </article>
+                    ))}
+                  </div>
                 )}
               </section>
             </>

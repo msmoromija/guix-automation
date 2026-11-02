@@ -199,6 +199,17 @@ export async function POST(req: NextRequest) {
     const empresaHorario = { ...((gerado.site.empresa as Record<string, unknown>) || {}) };
     empresaHorario.horario_resumo = horarioCliente || "Horário a combinar";
     empresaHorario.cnpj = "";
+    const expedienteBody = Array.isArray(body.expediente) ? body.expediente : null;
+    if (expedienteBody?.length) {
+      empresaHorario.expediente = expedienteBody
+        .filter((d: { dia?: string; intervalos?: string[] }) => d?.dia && Array.isArray(d.intervalos) && d.intervalos.length)
+        .slice(0, 7)
+        .map((d: { dia: string; label?: string; intervalos: string[] }) => ({
+          dia: String(d.dia),
+          label: String(d.label || d.dia),
+          intervalos: d.intervalos.filter((h: string) => /^\d{2}:\d{2}$/.test(h)).slice(0, 24),
+        }));
+    }
     if (!instagram && !facebook && !tiktok && !youtube && !linkedin) empresaHorario.redes = [];
     const end = { ...((empresaHorario.endereco as Record<string, unknown>) || {}) };
     if (!logradouro && !numero && !bairro && !cidade && !cep && !enderecoLivre) {

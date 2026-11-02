@@ -16,6 +16,8 @@ export interface LinhaPro {
   cargo?: string;
   descricao?: string;
   fotoSrc?: string;
+  whatsapp?: string;
+  dias?: string[];
 }
 
 function upsertRede(redes: Record<string, unknown>[], id: string, label: string, raw?: string) {
@@ -230,13 +232,15 @@ export function aplicarEstudio(
         if (!foto.alt) foto.alt = p.nome;
         if (!foto.categoria) foto.categoria = "profissional";
       }
+      const waPro = String(p.whatsapp || "").replace(/\D/g, "");
+      const waOk = waPro.length === 10 || waPro.length === 11 || (waPro.startsWith("55") && waPro.length >= 12 && waPro.length <= 13);
       return {
         ...base,
-        id: String(base.id || `pro_p${i + 1}`),
+        id: String(base.id || `pro_p${i + 1}`).replace(/[^a-z0-9_]/g, "") || `pro_p${i + 1}`,
         nome: p.nome,
         cargo: p.cargo || "",
         descricao: p.descricao || "",
-        whatsapp: "",
+        whatsapp: waOk ? (waPro.startsWith("55") ? waPro : `55${waPro}`) : "",
         foto,
       };
     });

@@ -1,5 +1,7 @@
 "use client";
 
+import { AgendarBloco } from "@/components/preview/AgendarBloco";
+import { IconeRede } from "@/components/estudio/IconeRede";
 import { LogoMarca } from "@/components/preview/LogoMarca";
 import { TextoEditavel } from "@/components/preview/TextoEditavel";
 import { tintaClara } from "@/lib/estudio/logo-spec";
@@ -15,7 +17,7 @@ type ItemServico = {
   duracao_label?: string;
   imagem?: Img;
 };
-type ItemPro = { id?: string; nome?: string; cargo?: string; descricao?: string; foto?: Img };
+type ItemPro = { id?: string; nome?: string; cargo?: string; descricao?: string; whatsapp?: string; foto?: Img };
 type ItemFaq = { id?: string; pergunta?: string; resposta?: string };
 
 type Site = {
@@ -28,6 +30,7 @@ type Site = {
     telefone_label?: string;
     whatsapp_mensagem?: string;
     horario_resumo?: string;
+    expediente?: { dia: string; label?: string; intervalos: string[] }[];
     endereco?: { completo?: string };
     logo?: Img;
     redes?: { id?: string; url?: string; label?: string }[];
@@ -62,7 +65,7 @@ type Site = {
   promocoes?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; validade_label?: string; imagem?: Img }[] };
   eventos?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; data_label?: string; horario?: string; imagem?: Img }[] };
   rodape?: { texto?: string; links?: { id: string; label: string; href: string }[] };
-  agendamento?: { botao_confirmar?: string };
+  agendamento?: { titulo?: string; subtitulo?: string; botao_confirmar?: string; fechado?: string; passo_profissional?: string };
   obrigado?: { botao_whatsapp?: string };
 };
 
@@ -869,6 +872,20 @@ export function SiteLivePreview({
           </section>
         ) : null}
 
+        {!rascunho && vis.agendamento !== false ? (
+          <AgendarBloco
+            titulo={site.agendamento?.titulo}
+            subtitulo={site.agendamento?.subtitulo}
+            servicos={site.servicos?.itens || []}
+            profissionais={equipeVisivel}
+            expediente={e.expediente || []}
+            agendaEquipe={vis.agendaEquipe}
+            whatsapp={e.whatsapp}
+            fechado={site.agendamento?.fechado}
+            studio={Boolean(onTexto)}
+          />
+        ) : null}
+
         <Bloco alvo="contato" label="contato" onEditar={onEditar} foco={foco} revelado={revelado}>
         <section id="contato" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
@@ -930,13 +947,23 @@ export function SiteLivePreview({
             </p>
           ) : null}
           {(vis.rodapeLayout || "centralizado") === "minimo" ? null : redes.length ? (
-            <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               {redes.map((r) => (
-                <a key={r.id} href={r.url} className="underline" target="_blank" rel="noreferrer" onClickCapture={aoAncora}>
-                  <TextoEditavel as="span" valor={vis.rotulosRede?.[r.id || ""] || r.label || r.id} campo={`rede.${r.id}.label`} onTexto={onTexto} />
+                <a
+                  key={r.id}
+                  href={r.url}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
+                  style={{ borderColor: "color-mix(in srgb, var(--tx) 18%, transparent)", color: "var(--tx)" }}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={vis.rotulosRede?.[r.id || ""] || r.label || r.id}
+                  onClickCapture={aoAncora}
+                  title={vis.rotulosRede?.[r.id || ""] || r.label || r.id}
+                >
+                  <IconeRede id={String(r.id || "")} className="h-4 w-4" />
                 </a>
               ))}
-            </p>
+            </div>
           ) : null}
           <CreditosDoSite site={site} />
         </footer>

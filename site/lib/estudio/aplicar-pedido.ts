@@ -136,6 +136,7 @@ export type PatchPedido = {
   };
   midia?: {
     foto?: { slot?: string; indice?: number; src?: string; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } };
+    fotos?: Array<{ slot?: string; indice?: number; src?: string; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } }>;
     logo?: { src?: string };
   };
 };
@@ -772,8 +773,10 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
   }
 
   const logoSrc = sanitizarLogoSrc(patch.midia?.logo?.src);
-  const fotoSrc = sanitizarFotoSrc(patch.midia?.foto?.src);
-  const slotFoto = patch.midia?.foto?.slot;
+  const fotosPedido = [
+    ...(Array.isArray(patch.midia?.fotos) ? patch.midia!.fotos! : []),
+    ...(patch.midia?.foto ? [patch.midia.foto] : []),
+  ];
   if (logoSrc) {
     const empresaLogo = { ...obj(site.empresa) };
     const logo = { ...obj(empresaLogo.logo) };
@@ -786,12 +789,20 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     site.empresa = empresaLogo;
     tocou.midia = true;
   }
-  if (fotoSrc && (slotFoto === "hero" || slotFoto === "sobre" || slotFoto === "galeria" || slotFoto === "servico")) {
-    const indice = Number(patch.midia?.foto?.indice);
-    aplicarSrcNoSlot(site, { tipo: slotFoto, indice: Number.isFinite(indice) ? indice : 0 }, fotoSrc);
-    const credito = patch.midia?.foto?.credito;
+  const slotsVistos = new Set<string>();
+  for (const item of fotosPedido) {
+    const src = sanitizarFotoSrc(item?.src);
+    const slot = item?.slot;
+    if (!src || (slot !== "hero" && slot !== "sobre" && slot !== "galeria" && slot !== "servico")) continue;
+    const chave = `${slot}:${item.indice ?? 0}`;
+    if (slotsVistos.has(chave)) continue;
+    slotsVistos.add(chave);
+    const indice = Number(item.indice);
+    const i = Number.isFinite(indice) ? indice : 0;
+    aplicarSrcNoSlot(site, { tipo: slot, indice: i }, src, item.credito as Record<string, unknown> | undefined);
+    const credito = item.credito;
     if (credito?.fotografo && credito.perfil_url && credito.texto) {
-      gravarCredito(site, slotFoto, Number.isFinite(indice) ? indice : 0, {
+      gravarCredito(site, slot, i, {
         fotografo: corta(credito.fotografo, 80),
         perfil_url: corta(credito.perfil_url, 240),
         texto: corta(credito.texto, 160),

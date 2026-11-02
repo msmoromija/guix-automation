@@ -18,25 +18,35 @@ export async function resolverMidia(patch: PatchPedido, nicho: string): Promise<
     if (src) saida.midia = { ...saida.midia, logo: { src } };
   }
 
-  const foto = midia.foto as { slot?: string; indice?: number; busca?: string; src?: string } | undefined;
-  if (foto?.busca && !foto.src) {
+  async function resolverUma(foto: { slot?: string; indice?: number; busca?: string; src?: string }) {
+    if (!foto?.busca || foto.src) return foto;
     try {
       const achadas = await buscarUnsplash(String(foto.busca).slice(0, 80), 1);
       const primeira = achadas[0];
-      if (primeira) {
-        const credito = montarCredito(primeira);
-        saida.midia = {
-          ...saida.midia,
-          foto: {
-            slot: foto.slot,
-            indice: foto.indice,
-            src: enquadrarFoto(primeira.url_regular, 1200, 800) || primeira.url_regular,
-            credito,
-          },
-        };
-      }
+      if (!primeira) return foto;
+      return {
+        slot: foto.slot,
+        indice: foto.indice,
+        src: enquadrarFoto(primeira.url_regular, 1200, 800) || primeira.url_regular,
+        credito: montarCredito(primeira),
+      };
     } catch {
-      /* a foto fica para o seletor; o resto do pedido segue */
+      return foto;
+    }
+  }
+
+  const foto = midia.foto as { slot?: string; indice?: number; busca?: string; src?: string } | undefined;
+  if (foto?.busca && !foto.src) {
+    saida.midia = { ...saida.midia, foto: await resolverUma(foto) };
+  }
+
+  const fotos = Array.isArray(midia.fotos) ? (midia.fotos as { slot?: string; indice?: number; busca?: string; src?: string }[]) : [];
+  if (fotos.length) {
+    const resolvidas = [];
+    for (const item of fotos.slice(0, 4)) resolvidas.push(await resolverUma(item));
+    saida.midia = { ...saida.midia, fotos: resolvidas };
+    if (!saida.midia?.foto?.src && resolvidas[0]?.src) {
+      saida.midia = { ...saida.midia, foto: resolvidas[0] };
     }
   }
   return saida;

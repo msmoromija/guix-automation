@@ -28,6 +28,7 @@ export function construirAoVivo(
     fotos?: { hero?: string; sobre?: string; galeria?: string[] };
     copia?: CopiaViva | null;
     horario?: string;
+    expediente?: { dia: string; label: string; intervalos: string[] }[];
     enderecoCompleto?: string;
     eventos?: { titulo: string; descricao: string; dataLabel: string; horario: string }[];
     faqs?: { titulo: string; itens: { pergunta: string; resposta: string }[] };
@@ -99,6 +100,9 @@ export function construirAoVivo(
   if (!opts.email.trim()) empresa.email = "";
   empresa.cnpj = "";
   empresa.horario_resumo = opts.horario?.trim().slice(0, 160) || "";
+  if (opts.expediente?.length) {
+    empresa.expediente = opts.expediente;
+  }
   if (!opts.whatsapp.trim()) {
     empresa.whatsapp_mensagem = "";
     empresa.whatsapp_aria = "";
@@ -106,22 +110,10 @@ export function construirAoVivo(
     empresa.whatsapp_mensagem = `Olá, vim pelo site de ${opts.nome.trim() || "vocês"} e quero agendar.`;
     empresa.whatsapp_aria = `Chamar ${opts.nome.trim() || "no WhatsApp"}`;
   }
-  const redesUser = opts.redes || {};
-  const redesAtuais = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
-  empresa.redes = redesAtuais
-    .map((r) => {
-      const id = String(r.id || "");
-      const veio = String(redesUser[id] || "").trim();
-      return { ...r, url: veio ? String(r.url || "") : "" };
-    })
-    .filter((r) => String(r.url || "").trim());
-  empresa.expediente = [
-    { dia: "seg", label: "Segunda", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-    { dia: "ter", label: "Terça", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-    { dia: "qua", label: "Quarta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-    { dia: "qui", label: "Quinta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-    { dia: "sex", label: "Sexta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-  ];
+  const temRedeCliente = Object.values(opts.redes || {}).some((u) => String(u || "").trim());
+  if (!temRedeCliente) {
+    empresa.redes = [];
+  }
   const agendamento = { ...((site.agendamento as Record<string, unknown>) || {}) };
   agendamento.fechado = "Fechado neste dia. Combine o horário no WhatsApp.";
   site.agendamento = agendamento;

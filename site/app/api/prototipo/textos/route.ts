@@ -8,7 +8,7 @@ import { escreverCopiaSimulacao, executarPedido } from "@/lib/media/openai";
 import type { Nicho } from "@/lib/media/tipos";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const NICHOS = new Set(["barbearia", "salao", "estetica", "petshop", "academia", "contabilidade", "advocacia"]);
 const hits = new Map<string, { n: number; reset: number }>();
@@ -58,21 +58,51 @@ export async function POST(req: NextRequest) {
     const bairro = String(body.bairro || "").trim();
     const servicos = listaServicos(body.servicos);
     if (body.modo === "executar") {
-      const pedido = String(body.pedido || "").trim().slice(0, 400);
+      const pedido = String(body.pedido || "").trim().slice(0, 700);
       if (pedido.length < 3) return NextResponse.json({ aviso: "Escreva o que quer mudar.", patch: null });
       if (soEstrutura(pedido)) return NextResponse.json({ aviso: AVISO_ESTRUTURA, patch: null });
       const rapido = patchRapido(pedido);
       if (rapido) return NextResponse.json({ patch: rapido, aviso: "", resumo: rapido.resumo || "" });
       try {
         const bruto = (await executarPedido({ nicho, pedido, contexto: body.contexto })) as PatchPedido;
+        if (!bruto || typeof bruto !== "object") {
+          return NextResponse.json({ patch: null, aviso: "A IA não devolveu alteração. Tente de novo." });
+        }
         const patch = await resolverMidia(bruto, nicho);
+        const temAlgo = Boolean(
+          patch.resumo ||
+            patch.hero ||
+            patch.sobre ||
+            patch.contato ||
+            patch.servicos ||
+            patch.faq ||
+            patch.visual ||
+            patch.empresa ||
+            patch.diferenciais ||
+            patch.header ||
+            patch.rodape ||
+            patch.profissionais ||
+            patch.midia?.foto?.src ||
+            (Array.isArray(patch.midia?.fotos) && patch.midia.fotos.some((f) => f?.src)) ||
+            patch.midia?.logo?.src,
+        );
+        if (!temAlgo) {
+          return NextResponse.json({
+            patch: null,
+            aviso: "Não consegui montar a alteração. Peça textos e fotos em mensagens separadas.",
+          });
+        }
         return NextResponse.json({
           patch,
           resumo: String(patch.resumo || "").slice(0, 220),
           aviso: String(patch.aviso_estrutura || "").replace(/\s+/g, " ").trim().slice(0, 280),
         });
-      } catch {
-        return NextResponse.json({ patch: null, aviso: "Não consegui aplicar agora. Tente de novo em uma frase." });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        const aviso = /abort/i.test(msg)
+          ? "Demorou demais. Peça de novo em partes: primeiro os textos, depois as fotos."
+          : "Não consegui aplicar agora. Tente de novo — se for texto e foto juntos, peça em duas mensagens.";
+        return NextResponse.json({ patch: null, aviso });
       }
     }
 

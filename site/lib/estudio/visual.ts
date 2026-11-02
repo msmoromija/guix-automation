@@ -33,6 +33,8 @@ export interface VisualConfig {
   redesExtra?: { id: string; label: string; url: string }[];
   rotulosRede?: Record<string, string>;
   presetId?: string;
+  /** Agenda por profissional — fora do schema congelado. */
+  agendaEquipe?: Array<{ nome: string; dias: string[]; inicio?: string; fim?: string; nota?: string }>;
 }
 
 export interface Paleta {

@@ -166,7 +166,7 @@ export default function VisualizarRascunhoPage() {
     setAjustando(true);
     setAvisoIa("");
     const ctrl = new AbortController();
-    const prazo = window.setTimeout(() => ctrl.abort(), 20000);
+    const prazo = window.setTimeout(() => ctrl.abort(), 55000);
     try {
       const empresa = site.empresa as { nome?: string } | undefined;
       const res = await fetch("/api/prototipo/textos", {
