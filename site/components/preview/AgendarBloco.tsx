@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   intervalosDoDia,
   intervalosDoProfissional,
@@ -20,6 +20,10 @@ export function AgendarBloco({
   expediente,
   agendaEquipe,
   whatsapp,
+  emailNegocio,
+  negocioNome,
+  siteId,
+  nicho,
   fechado,
   studio,
 }: {
@@ -36,6 +40,10 @@ export function AgendarBloco({
     ausencias?: Array<{ de: string; ate: string; motivo: string }>;
   }>;
   whatsapp?: string;
+  emailNegocio?: string;
+  negocioNome?: string;
+  siteId?: string;
+  nicho?: string;
   fechado?: string;
   studio?: boolean;
 }) {
@@ -45,8 +53,13 @@ export function AgendarBloco({
   const [pro, setPro] = useState(listaPro[0]?.nome || "Sem preferência");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
-  const [nome, setNome] = useState("");
+  const [nomeCompleto, setNomeCompleto] = useState("");
+  const [email, setEmail] = useState("");
   const [tel, setTel] = useState("");
+  const [ocupados, setOcupados] = useState<string[]>([]);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [cancelUrl, setCancelUrl] = useState("");
 
   const agendas = useMemo(() => {
     const map = new Map<string, AgendaProVisual>();
@@ -65,34 +78,120 @@ export function AgendarBloco({
     }
     const agenda = agendas.get(pro);
     const r = intervalosDoProfissional(expediente, agenda, data);
-    return {
-      slots: r.slots,
-      motivo: r.motivo || fechado || "Fechado neste dia.",
-    };
+    return { slots: r.slots, motivo: r.motivo || fechado || "Fechado neste dia." };
   }, [data, expediente, pro, agendas, fechado]);
 
-  const slots = disponibilidade.slots;
+  const slots = useMemo(() => {
+    if (!disponibilidade.slots) return null;
+    return disponibilidade.slots.filter((h) => !ocupados.includes(h));
+  }, [disponibilidade.slots, ocupados]);
+
   const hoje = new Date().toISOString().slice(0, 10);
 
-  function enviar() {
-    if (studio) return;
-    const escolhido = listaPro.find((p) => p.nome === pro);
-    const digitosPro = String(escolhido?.whatsapp || "").replace(/\D/g, "");
-    const digitosCasa = String(whatsapp || "").replace(/\D/g, "");
-    const digitos = digitosPro || digitosCasa;
-    if (!digitos || /^(55)?79999990000$/.test(digitos)) return;
-    const msg = [
-      `Olá! Quero agendar.`,
-      servico ? `Serviço: ${servico}` : "",
-      pro ? `Profissional: ${pro}` : "",
-      data ? `Dia: ${data.split("-").reverse().join("/")}` : "",
-      hora ? `Horário: ${hora}` : "",
-      nome ? `Nome: ${nome}` : "",
-      tel ? `Meu WhatsApp: ${tel}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+  useEffect(() => {
+    if (!data || !siteId || studio) {
+      setOcupados([]);
+      return;
+    }
+    let cancelado = false;
+    void fetch(
+      `/api/agendamentos?siteId=${encodeURIComponent(siteId)}&data=${encodeURIComponent(data)}&profissional=${encodeURIComponent(pro)}`,
+    )
+      .then((r) => r.json())
+      .then((j: { ocupados?: Array<{ hora: string }> }) => {
+        if (cancelado) return;
+        setOcupados((j.ocupados || []).map((o) => o.hora));
+      })
+      .catch(() => {
+        if (!cancelado) setOcupados([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [data, pro, siteId, studio]);
+
+  function nomeValido() {
+    const n = nomeCompleto.replace(/\s+/g, " ").trim();
+    return n.length >= 5 && n.includes(" ");
+  }
+
+  function emailValido() {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  }
+
+  function telValido() {
+    const d = tel.replace(/\D/g, "");
+    return d.length === 10 || d.length === 11 || (d.startsWith("55") && d.length >= 12 && d.length <= 13);
+  }
+
+  const podeEnviar = Boolean(servico && data && hora && nomeValido() && emailValido() && telValido() && !enviando);
+
+  async function enviar() {
+    if (studio || !podeEnviar) return;
+    setEnviando(true);
+    setAviso("");
+    setCancelUrl("");
+    try {
+      if (!siteId) {
+        // Prévia sem token: só monta o WhatsApp (modo demo).
+        const digitos = String(whatsapp || "").replace(/\D/g, "");
+        if (!digitos || /^(55)?79999990000$/.test(digitos)) {
+          setAviso("Informe o WhatsApp do negócio para confirmar.");
+          return;
+        }
+        const msg = [
+          `Olá! Quero agendar.`,
+          `Serviço: ${servico}`,
+          `Profissional: ${pro}`,
+          `Dia: ${data.split("-").reverse().join("/")}`,
+          `Horário: ${hora}`,
+          `Nome: ${nomeCompleto.trim()}`,
+          `E-mail: ${email.trim()}`,
+          `Telefone: ${tel.trim()}`,
+        ].join("\n");
+        window.open(`https://wa.me/${digitos}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+        setAviso("Pedido enviado pelo WhatsApp (prévia sem link de cancelamento).");
+        return;
+      }
+
+      const res = await fetch("/api/agendamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          nicho,
+          servico,
+          profissional: pro,
+          data,
+          hora,
+          nomeCompleto: nomeCompleto.trim(),
+          email: email.trim(),
+          telefone: tel.trim(),
+          negocioNome: negocioNome || "Negócio",
+          negocioWhatsapp: whatsapp || "",
+          negocioEmail: emailNegocio || "",
+        }),
+      });
+      const j = (await res.json()) as {
+        erro?: string;
+        cancelUrl?: string;
+        whatsappUrl?: string;
+        aviso?: string;
+      };
+      if (!res.ok) {
+        setAviso(j.erro || "Não foi possível agendar.");
+        return;
+      }
+      setCancelUrl(j.cancelUrl || "");
+      setOcupados((lista) => [...lista, hora]);
+      setAviso(j.aviso || "Horário marcado. Guarde o link para desmarcar (até 3h antes).");
+      if (j.whatsappUrl) window.open(j.whatsappUrl, "_blank", "noopener,noreferrer");
+      setHora("");
+    } catch {
+      setAviso("Falha de rede. Tente de novo.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   if (!listaSrv.length) return null;
@@ -101,7 +200,7 @@ export function AgendarBloco({
     <section id="agendar" className="mx-auto max-w-3xl px-4 py-16 md:px-8">
       <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Agendar horário"}</h2>
       <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-        {subtitulo || "Escolha o serviço, quem atende e um horário. A confirmação é pelo WhatsApp."}
+        {subtitulo || "Escolha o serviço, quem atende e um horário. Nome completo, e-mail e telefone são obrigatórios. Dá para desmarcar até 3 horas antes."}
       </p>
       <div className="mt-8 space-y-5 rounded-2xl border p-5" style={{ borderColor: "color-mix(in srgb, var(--tx) 12%, transparent)", background: "var(--sf)" }}>
         <div>
@@ -196,7 +295,11 @@ export function AgendarBloco({
               </p>
             ) : !slots ? (
               <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                {disponibilidade.motivo || fechado || "Fechado neste dia. Combine o horário no WhatsApp."}
+                {disponibilidade.motivo || fechado || "Fechado neste dia."}
+              </p>
+            ) : slots.length === 0 ? (
+              <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
+                Sem horários livres neste dia.
               </p>
             ) : (
               <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -220,18 +323,33 @@ export function AgendarBloco({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            Seu nome
+          <label className="block text-sm sm:col-span-2">
+            Nome completo *
             <input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              value={nomeCompleto}
+              onChange={(e) => setNomeCompleto(e.target.value)}
               className="mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5"
               style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-              placeholder="Como te chamamos"
+              placeholder="Nome e sobrenome"
+              autoComplete="name"
+              required
             />
           </label>
           <label className="block text-sm">
-            Seu WhatsApp
+            E-mail *
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border bg-transparent px-3 py-2.5"
+              style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+              placeholder="seu@email.com"
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            Telefone / WhatsApp *
             <input
               value={tel}
               onChange={(e) => setTel(e.target.value)}
@@ -239,19 +357,37 @@ export function AgendarBloco({
               style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
               placeholder="79 99999-0000"
               inputMode="tel"
+              autoComplete="tel"
+              required
             />
           </label>
         </div>
 
         <button
           type="button"
-          onClick={enviar}
-          disabled={!servico || !data || !hora || !nome.trim() || !tel.trim()}
+          onClick={() => void enviar()}
+          disabled={!podeEnviar || studio}
           className="w-full rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-40"
           style={{ background: "var(--a)", color: "var(--bg)" }}
         >
-          Confirmar no WhatsApp
+          {enviando ? "Confirmando…" : studio ? "Confirmar (ativo no site publicado)" : "Confirmar agendamento"}
         </button>
+        <p className="text-xs" style={{ color: "var(--mt)" }}>
+          Sem nome completo, e-mail e telefone o horário não é marcado. Desmarque pelo link até 3 horas antes.
+        </p>
+        {aviso ? (
+          <p className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+            {aviso}
+            {cancelUrl ? (
+              <>
+                {" "}
+                <a href={cancelUrl} className="underline" style={{ color: "var(--a)" }}>
+                  Link para desmarcar
+                </a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
       </div>
     </section>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { KitImpressao } from "@/components/conta/KitImpressao";
 
 type Dados = {
   id: string;
@@ -14,6 +15,8 @@ type Dados = {
   demoUrl: string;
   contratarUrl: string;
   previewUrl: string;
+  agendarUrl?: string;
+  logoUrl?: string;
   resumo: { empresa?: string; heroTitulo?: string };
 };
 
@@ -23,6 +26,11 @@ function Conta() {
   const token = sp.get("t") || "";
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
+  const [origem, setOrigem] = useState("");
+
+  useEffect(() => {
+    setOrigem(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (!params.id || !token) {
@@ -53,11 +61,20 @@ function Conta() {
     return <main className="px-5 py-16 text-sm text-muted">Abrindo sua área…</main>;
   }
 
+  const editarUrl = `/visualizar/${dados.id}`;
+  const agendarAbsoluto = `${origem}${dados.agendarUrl || `/visualizar/${dados.id}#agendar`}`;
+
   const cards = [
     {
+      titulo: "Editar agenda e horários",
+      texto: "Horário da casa, recessos, grade e ausências de cada profissional — tudo editável no site de teste.",
+      href: `${editarUrl}#agendar`,
+      cta: "Abrir editor de agenda",
+    },
+    {
       titulo: "Protótipo / preview",
-      texto: "Veja o resumo do site gerado e o modelo visual.",
-      href: `/p/${dados.id}?t=${token}`,
+      texto: "Veja o site gerado e teste o agendamento como o cliente final.",
+      href: editarUrl,
       cta: "Abrir preview",
     },
     {
@@ -93,6 +110,9 @@ function Conta() {
       </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        {origem ? (
+          <KitImpressao nome={dados.resumo.empresa || dados.nome} agendarUrl={agendarAbsoluto} logoUrl={dados.logoUrl} />
+        ) : null}
         {cards.map((c) => (
           <article key={c.titulo} className="rounded-2xl border border-line bg-white p-5">
             <h2 className="font-semibold">{c.titulo}</h2>
@@ -111,8 +131,7 @@ function Conta() {
       </div>
 
       <p className="mt-10 text-xs text-muted">
-        Guarde este link: a área usa um token pessoal. Sem o token, ninguém acessa seu JSON nem o
-        preview.
+        Guarde este link: a área usa um token pessoal. Sem o token, ninguém acessa seu JSON nem o preview.
       </p>
     </main>
   );
@@ -120,7 +139,7 @@ function Conta() {
 
 export default function ContaPage() {
   return (
-    <Suspense fallback={<main className="p-10 text-sm text-muted">Carregando…</main>}>
+    <Suspense fallback={<main className="px-5 py-16 text-sm text-muted">Abrindo…</main>}>
       <Conta />
     </Suspense>
   );

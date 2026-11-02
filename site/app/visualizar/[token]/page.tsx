@@ -320,6 +320,7 @@ export default function VisualizarRascunhoPage() {
       <SiteLivePreview
         site={site as Parameters<typeof SiteLivePreview>[0]["site"]}
         visual={visual}
+        siteId={token}
         onTrocarFoto={fechado ? undefined : setSlotFoto}
         onTrocarLogo={fechado ? undefined : () => logoRef.current?.click()}
         onTexto={fechado ? undefined : (campo, valor) => void gravarTexto(campo, valor)}

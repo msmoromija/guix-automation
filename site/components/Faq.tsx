@@ -46,12 +46,12 @@ const perguntas = [
   {
     pergunta: "Tem mensalidade de site?",
     resposta:
-      "Não há mensalidade de site cobrada pelo GuiX.net. Você paga a estrutura, publica e assume o controle pelo painel. O que você não paga é uma cobrança mensal só para manter a página no ar conosco.",
+      "Não há pagamento mensal. Pague uma vez pelo site e anualmente um valor específico para manter o domínio da página.",
   },
   {
     pergunta: "Quanto tempo o domínio da página fica no ar?",
     resposta:
-      "O primeiro ano do domínio já está incluso na compra inicial. Depois desse período, a renovação precisa ser feita. Você pode renovar com o time GuiX.net, mediante orçamento pelo atendimento, ou renovar o domínio direto no provedor de registro — hoje isso fica em torno de R$ 40,00 por ano. Os dados e o caminho atual de renovação a gente passa pelo suporte.",
+      "O primeiro ano do domínio já está incluso na compra inicial. Depois, a renovação é anual — o valor do provedor pode sofrer alteração a cada ano. Essa taxa mantém o domínio no ar e é paga direto ao registrador (hoje em torno de R$ 40,00/ano) ou, se preferir, com o time GuiX.net mediante orçamento. Os dados atualizados passam pelo suporte.",
   },
   {
     pergunta: "E se eu já tiver um Instagram ou WhatsApp funcionando?",

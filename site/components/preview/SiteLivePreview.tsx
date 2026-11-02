@@ -247,6 +247,7 @@ export function SiteLivePreview({
   onAncora,
   foco,
   revelado,
+  siteId,
 }: {
   site: Site;
   visual?: VisualConfig;
@@ -260,6 +261,8 @@ export function SiteLivePreview({
   onAncora?: (id: string) => void;
   foco?: AlvoEdicao[];
   revelado?: AlvoEdicao[];
+  /** Token do rascunho/site — grava agendamentos e libera cancelamento. */
+  siteId?: string;
 }) {
   const rascunho = modo === "rascunho";
   const vis = visual || visualPadrao(site.meta?.nicho);
@@ -883,8 +886,12 @@ export function SiteLivePreview({
             expediente={e.expediente || []}
             agendaEquipe={vis.agendaEquipe}
             whatsapp={e.whatsapp}
+            emailNegocio={e.email}
+            negocioNome={e.nome}
+            siteId={siteId}
+            nicho={site.meta?.nicho}
             fechado={site.agendamento?.fechado}
-            studio={Boolean(onTexto)}
+            studio={Boolean(onTexto) && !siteId}
           />
         ) : null}
 

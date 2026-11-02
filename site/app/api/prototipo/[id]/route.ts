@@ -26,7 +26,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   const site = pacote.site;
   const hero = site.hero as { titulo?: string; subtitulo?: string } | undefined;
-  const empresa = site.empresa as { nome?: string; slogan?: string } | undefined;
+  const empresa = site.empresa as { nome?: string; slogan?: string; logo?: { src?: string } } | undefined;
+  const logoSrc = String(empresa?.logo?.src || "");
 
   return NextResponse.json({
     id: token,
@@ -42,6 +43,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
     demoUrl: `/casas/${pacote.nicho}/`,
     contratarUrl: `/contratar?plano=simples&nicho=${pacote.nicho}&preview=${token}&t=${token}`,
+    agendarUrl: `/visualizar/${token}#agendar`,
+    logoUrl: logoSrc.startsWith("http") || logoSrc.startsWith("data:") || logoSrc.startsWith("/") ? logoSrc : "",
     visual: pacote.visual,
     edicaoFechada: Boolean(pacote.edicaoFechada),
     pedidosIa: pacote.pedidosIa || 0,
