@@ -97,7 +97,17 @@ export function construirAoVivo(
     empresa.telefone_label = "";
   }
   if (!opts.email.trim()) empresa.email = "";
+  empresa.cnpj = "";
   empresa.horario_resumo = opts.horario?.trim().slice(0, 160) || "";
+  if (!opts.whatsapp.trim()) {
+    empresa.whatsapp_mensagem = "";
+    empresa.whatsapp_aria = "";
+  } else {
+    empresa.whatsapp_mensagem = `Olá, vim pelo site de ${opts.nome.trim() || "vocês"} e quero agendar.`;
+    empresa.whatsapp_aria = `Chamar ${opts.nome.trim() || "no WhatsApp"}`;
+  }
+  const temRede = Object.values(opts.redes || {}).some((u) => String(u || "").trim());
+  if (!temRede) empresa.redes = [];
   const digitouLugar = Boolean(
     opts.logradouro.trim() || opts.numero.trim() || opts.bairro.trim() || opts.cidade.trim() || opts.cep.trim() || opts.enderecoCompleto?.trim(),
   );

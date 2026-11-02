@@ -13,6 +13,7 @@ export async function gerarTextosSite(entrada: {
   cidade?: string;
   bairro?: string;
   slogan?: string;
+  horario?: string;
   servicos?: string[];
   servicosDetalhe?: Array<{ nome: string; descricao?: string; preco?: string; duracao?: string }>;
   profissionaisDetalhe?: Array<{ nome: string; cargo?: string; descricao?: string }>;
@@ -30,7 +31,7 @@ export async function gerarTextosSite(entrada: {
     "A expressão 'hora marcada' no máximo UMA vez em todo o JSON. Prefira 'na agenda', 'no horário combinado', 'sem fila na porta'.",
     "Não invente endereço, CNPJ, telefone, bairro fictício nem cargo cômico (nada de animador de porta).",
     "NÃO troque os nomes dos serviços nem da equipe informados. Só reescreva descrições se estiverem pobres.",
-    "FAQ: 4 perguntas específicas deste negócio (preço, duração, o que levar, como chegar), nunca genéricas.",
+    "FAQ: 4 perguntas específicas deste negócio. Só fale de preço, endereço ou horário se esses dados existirem no pedido. Nunca invente valor, rua ou horário.",
     "Galeria: título 'O espaço' ou 'Ambiente'. Legendas curtas do que se vê, não 'A casa'.",
     "Hero: título com uma promessa curta do ofício, não só o nome. Subtítulo com 1 fato (bairro/cidade, ofício, como agendar). O subtítulo NÃO pode repetir o slogan nem o título.",
     "contato.titulo: 'Venha ao' ou 'Venha à' + bairro (ou cidade). Nunca use o bairro do modelo de exemplo.",
@@ -48,6 +49,7 @@ export async function gerarTextosSite(entrada: {
     slogan: entrada.slogan || "",
     cidade: entrada.cidade || "",
     bairro: entrada.bairro || "",
+    horario: entrada.horario || "",
     servicos_informados: entrada.servicos || [],
     lista_de_servicos: entrada.servicosDetalhe || [],
     equipe_informada: entrada.profissionaisDetalhe || [],

@@ -3,6 +3,8 @@ import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
 import { aplicarEstudio, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { copiaParaGeracao, normalizarCopia } from "@/lib/estudio/copia-viva";
 import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
+import { validarSiteJson } from "@/lib/automacao/validar-site";
+import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
@@ -122,6 +124,8 @@ export async function POST(req: NextRequest) {
     ];
 
     const token = sanitizarToken(novoToken());
+    const horarioCliente = String(body.horario || "").replace(/\s+/g, " ").trim().slice(0, 160);
+    const enderecoLivre = String(body.enderecoLivre || body.enderecoCompleto || "").replace(/\s+/g, " ").trim().slice(0, 180);
     const gerado = await gerarSiteCliente({
       clienteId: `t${token}`,
       nicho,
@@ -143,6 +147,7 @@ export async function POST(req: NextRequest) {
       tom,
       estilo: visual.estilo,
       destaque,
+      horario: horarioCliente || undefined,
       iaEscreve,
       textosProntos,
       imagensCliente,
@@ -190,18 +195,23 @@ export async function POST(req: NextRequest) {
       bairroModelo: gerado.modelo?.bairro,
       cidadeModelo: gerado.modelo?.cidade,
     });
-    const horarioCliente = String(body.horario || "").replace(/\s+/g, " ").trim().slice(0, 160);
     const empresaHorario = { ...((gerado.site.empresa as Record<string, unknown>) || {}) };
     empresaHorario.horario_resumo = horarioCliente || "Horário a combinar";
-    if (!logradouro && !numero && !bairro && !cidade && !cep) {
-      const end = { ...((empresaHorario.endereco as Record<string, unknown>) || {}) };
+    empresaHorario.cnpj = "";
+    if (!instagram && !facebook && !tiktok && !youtube && !linkedin) empresaHorario.redes = [];
+    const end = { ...((empresaHorario.endereco as Record<string, unknown>) || {}) };
+    if (!logradouro && !numero && !bairro && !cidade && !cep && !enderecoLivre) {
       end.logradouro = "";
       end.numero = "";
       end.bairro = "";
       end.cidade = "";
       end.completo = "";
-      empresaHorario.endereco = end;
+      if (String(end.estado || "").toUpperCase() === "NA") end.estado = "";
+    } else if (enderecoLivre) {
+      end.completo = enderecoLivre;
     }
+    if (String(end.estado || "").toUpperCase() === "NA") end.estado = estado || "";
+    empresaHorario.endereco = end;
     gerado.site.empresa = empresaHorario;
 
     const faqsBody = body.faqs as { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } | null;
@@ -215,6 +225,67 @@ export async function POST(req: NextRequest) {
         resposta: String(item.resposta).trim().slice(0, 400),
       }));
       gerado.site.faq = faq;
+    }
+
+    const eventosBody = Array.isArray(body.eventos) ? body.eventos : null;
+    if (eventosBody) {
+      const eventos = { ...((gerado.site.eventos as Record<string, unknown>) || {}) };
+      eventos.titulo = eventosBody.length ? String(eventos.titulo || "Agenda") : String(eventos.titulo || "Agenda");
+      eventos.itens = eventosBody.slice(0, 4).map((item: { titulo?: string; descricao?: string; dataLabel?: string; horario?: string }, i: number) => ({
+        id: `evt_cliente_${i + 1}`,
+        titulo: String(item.titulo || "Evento").trim().slice(0, 80) || "Evento",
+        descricao: String(item.descricao || "").trim().slice(0, 240),
+        data: "2026-12-01",
+        data_label: String(item.dataLabel || "A definir").trim().slice(0, 40) || "A definir",
+        horario: /^\d{2}:\d{2}$/.test(String(item.horario || "")) ? String(item.horario) : "19:00",
+        imagem: { id: `img_evt_cliente_${i + 1}`, src: "", alt: String(item.titulo || "Evento"), categoria: "evento" },
+      }));
+      gerado.site.eventos = eventos;
+    }
+
+    const menuBody = Array.isArray(body.menu) ? body.menu : null;
+    const botaoAgendar = String(body.botaoAgendar || "").trim().slice(0, 40);
+    if (menuBody?.length || botaoAgendar) {
+      const header = { ...((gerado.site.header as Record<string, unknown>) || {}) };
+      if (menuBody?.length) {
+        header.menu = menuBody.slice(0, 7).map((m: { id?: string; label?: string; href?: string }) => ({
+          id: String(m.id || "inicio"),
+          label: String(m.label || "").slice(0, 48),
+          href: String(m.href || "#inicio"),
+        }));
+      }
+      if (botaoAgendar) header.botao_agendar = botaoAgendar;
+      gerado.site.header = header;
+    }
+
+    const rodapeTexto = String(body.rodapeTexto || "").trim().slice(0, 160);
+    const rodapeLinks = Array.isArray(body.rodapeLinks) ? body.rodapeLinks : null;
+    if (rodapeTexto || rodapeLinks) {
+      const rodape = { ...((gerado.site.rodape as Record<string, unknown>) || {}) };
+      if (rodapeTexto) rodape.texto = rodapeTexto;
+      if (rodapeLinks) rodape.links = rodapeLinks;
+      gerado.site.rodape = rodape;
+    }
+
+    const difs = Array.isArray(body.diferenciais) ? body.diferenciais : null;
+    if (difs && difs.length >= 3) {
+      const bloco = { ...((gerado.site.diferenciais as Record<string, unknown>) || {}) };
+      const atuais = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
+      bloco.itens = difs.slice(0, 6).map((item: { titulo?: string; descricao?: string }, i: number) => ({
+        ...(atuais[i] || atuais[0] || {}),
+        id: String((atuais[i] || {}).id || `dif_extra_${i + 1}`),
+        titulo: String(item.titulo || "").slice(0, 60),
+        descricao: String(item.descricao || "").slice(0, 180),
+        icone: (atuais[i] || atuais[0] || {}).icone || "check",
+      }));
+      gerado.site.diferenciais = bloco;
+    }
+
+    const avulsos = body.avulsos && typeof body.avulsos === "object" ? (body.avulsos as Record<string, string>) : null;
+    if (avulsos) {
+      for (const [campo, valor] of Object.entries(avulsos)) {
+        if (campo && valor) aplicarCampoNoSite(gerado.site, campo, String(valor));
+      }
     }
 
     repararParaSchema(gerado.site, {
@@ -231,6 +302,14 @@ export async function POST(req: NextRequest) {
         descricao: p.descricao || undefined,
       })),
     });
+
+    const validacao = await validarSiteJson(gerado.site);
+    if (!validacao.ok) {
+      return NextResponse.json(
+        { erro: "O site ficou inconsistente na validação. Tente de novo." },
+        { status: 500 },
+      );
+    }
 
     const agora = Date.now();
     await gravarPacote({

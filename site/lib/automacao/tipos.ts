@@ -26,6 +26,7 @@ export interface EntradaAutomacao {
   tom?: string;
   estilo?: string;
   destaque?: string;
+  horario?: string;
   iaEscreve?: boolean;
   /** Textos já vistos na simulação. Evita uma segunda redação diferente na hora de gerar. */
   textosProntos?: GeracaoSiteJson;

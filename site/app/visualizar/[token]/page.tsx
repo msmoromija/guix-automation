@@ -36,6 +36,8 @@ export default function VisualizarRascunhoPage() {
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [copiado, setCopiado] = useState(false);
   const logoRef = useRef<HTMLInputElement>(null);
+  const filaRef = useRef(Promise.resolve());
+  const geracaoRef = useRef(0);
   const suporte = linkWhatsapp("Olá, preciso de uma alteração no site ou de uma tela nova.");
 
   useEffect(() => {
@@ -65,24 +67,30 @@ export default function VisualizarRascunhoPage() {
     })();
   }, [token]);
 
-  async function gravarTexto(campo: string, valor: string) {
+  function gravarTexto(campo: string, valor: string) {
     setAvisoIa("");
+    const geracao = ++geracaoRef.current;
     setSite((atual) => (atual ? aplicarCampoNoSite({ ...atual }, campo, valor) : atual));
-    try {
-      const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campo, valor }),
+    filaRef.current = filaRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ campo, valor }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setAvisoIa(data.erro || "Não deu para guardar esse texto.");
+            return;
+          }
+          if (geracao !== geracaoRef.current) return;
+          if (data.visual) setVisual(data.visual);
+        } catch {
+          setAvisoIa("Falha de conexão ao guardar o texto.");
+        }
       });
-      const data = await res.json();
-      if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar esse texto.");
-      else {
-        if (data.site) setSite(data.site);
-        if (data.visual) setVisual(data.visual);
-      }
-    } catch {
-      setAvisoIa("Falha de conexão ao guardar o texto.");
-    }
   }
 
   function abrirDoPedido(abrir: string) {
@@ -278,26 +286,7 @@ export default function VisualizarRascunhoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-40">
-      <div className="fixed right-4 top-4 z-40 flex gap-2">
-        <button
-          type="button"
-          className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-950 shadow"
-          onClick={() => {
-            void navigator.clipboard.writeText(window.location.href);
-            setCopiado(true);
-            window.setTimeout(() => setCopiado(false), 1600);
-          }}
-        >
-          {copiado ? "Link copiado" : "Copiar link"}
-        </button>
-        <Link
-          href={meta?.contratarUrl || `/contratar?nicho=${meta?.nicho || ""}&preview=${token}&t=${token}`}
-          className="rounded-full bg-orange-400 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow"
-        >
-          Publicar
-        </Link>
-      </div>
+    <div className="min-h-screen bg-black pb-44">
       <input
         ref={logoRef}
         type="file"
@@ -327,6 +316,25 @@ export default function VisualizarRascunhoPage() {
       />
 
       <div className="fixed inset-x-0 bottom-0 z-50">
+        <div className="flex items-center justify-end gap-2 bg-slate-950/90 px-4 py-1.5">
+          <button
+            type="button"
+            className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/90"
+            onClick={() => {
+              void navigator.clipboard.writeText(window.location.href);
+              setCopiado(true);
+              window.setTimeout(() => setCopiado(false), 1600);
+            }}
+          >
+            {copiado ? "Link copiado" : "Copiar link"}
+          </button>
+          <Link
+            href={meta?.contratarUrl || `/contratar?nicho=${meta?.nicho || ""}&preview=${token}&t=${token}`}
+            className="rounded-full bg-orange-400 px-3 py-1 text-xs font-semibold text-slate-950"
+          >
+            Publicar
+          </Link>
+        </div>
         <PedidoIa
           texto={pedido}
           onTexto={setPedido}

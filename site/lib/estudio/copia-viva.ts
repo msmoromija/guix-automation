@@ -76,7 +76,7 @@ export function soltarRepeticao(copia: CopiaViva): CopiaViva {
   return {
     ...copia,
     hero: { titulo, subtitulo },
-    sobre: { titulo: sobreTitulo || copia.sobre?.titulo, paragrafos: paragrafos.length ? paragrafos : copia.sobre?.paragrafos },
+    sobre: { titulo: sobreTitulo || copia.sobre?.titulo, paragrafos },
     servicos: { ...copia.servicos, titulo: srvTitulo, subtitulo: srvSub, itens },
   };
 }

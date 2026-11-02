@@ -349,17 +349,18 @@ export function SiteLivePreview({
 
   function aoAncora(ev: React.MouseEvent<HTMLAnchorElement>) {
     const href = ev.currentTarget.getAttribute("href") || "";
+    const alvo = ev.target as HTMLElement;
+    const noEditor = Boolean(alvo.closest("[data-editar], [contenteditable='true'], [role='textbox']"));
+    const sel = window.getSelection();
+    const selecionando = Boolean(sel && !sel.isCollapsed && ev.currentTarget.contains(sel.anchorNode));
+    if (noEditor || selecionando || ev.detail > 1) {
+      ev.preventDefault();
+      return;
+    }
     if (!href.startsWith("#")) {
       if (studio) ev.preventDefault();
       return;
     }
-    const alvo = ev.target as HTMLElement;
-    if (alvo.closest("[data-editar]")) {
-      ev.preventDefault();
-      return;
-    }
-    const editando = document.activeElement?.getAttribute("role") === "textbox" && ev.currentTarget.contains(document.activeElement);
-    if (editando) return;
     ev.preventDefault();
     const id = href.slice(1);
     ev.currentTarget.closest("[data-preview]")?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });

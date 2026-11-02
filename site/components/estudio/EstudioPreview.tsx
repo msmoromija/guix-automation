@@ -175,8 +175,13 @@ export function EstudioPreview({
   useEffect(() => {
     const alvo = foco?.[0];
     if (!alvo) return;
+    const pane = paneRef.current;
+    if (!pane) return;
     const t = window.setTimeout(() => {
-      paneRef.current?.querySelector(`[data-preview-alvo="${alvo}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = pane.querySelector(`[data-preview-alvo="${alvo}"]`) as HTMLElement | null;
+      if (!el) return;
+      const top = el.offsetTop - 12;
+      pane.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     }, 180);
     return () => window.clearTimeout(t);
   }, [foco?.[0]]);
@@ -203,11 +208,6 @@ export function EstudioPreview({
     };
   }, [vista, zoom]);
 
-  const emp = site?.empresa as { whatsapp?: string; whatsapp_mensagem?: string } | undefined;
-  const waHref = emp?.whatsapp
-    ? `https://wa.me/${emp.whatsapp}?text=${encodeURIComponent(emp.whatsapp_mensagem || "Olá")}`
-    : "";
-
   function painel(opts: { ampliar?: boolean; fechar?: () => void }) {
     return (
       <div className="flex h-full min-h-0 flex-col bg-zinc-200">
@@ -225,21 +225,8 @@ export function EstudioPreview({
           <div style={moldura}>
             <Corpo site={site} visual={visual} onEditar={onEditar} onTrocarFoto={onTrocarFoto} onTrocarLogo={onTrocarLogo} onTexto={onTexto} onAncora={onAncora} estreito={vista === "celular"} foco={foco} revelado={revelado} />
           </div>
-          {pedido}
-          {visual.whatsappFlutuante && waHref ? (
-            <a
-              href={waHref}
-              onClick={(e) => {
-                e.preventDefault();
-                onEditar?.("contato");
-              }}
-              className="absolute bottom-4 right-4 z-30 px-4 py-3 text-sm font-semibold shadow-lg"
-              style={{ background: "#25D366", color: "#052e16", borderRadius: 999 }}
-            >
-              WhatsApp
-            </a>
-          ) : null}
         </div>
+        {pedido ? <div className="shrink-0 border-t border-zinc-400/40 bg-zinc-200">{pedido}</div> : null}
       </div>
     );
   }

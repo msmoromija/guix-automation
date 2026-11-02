@@ -297,9 +297,9 @@ export function EstudioForm() {
         const doModelo = itens.length
           ? itens.map((i) => ({
               nome: String(i.nome || ""),
-              preco: String(i.preco_label || ""),
-              duracao: String(i.duracao_label || ""),
-              descricao: String(i.descricao || ""),
+              preco: "Sob consulta",
+              duracao: String(i.duracao_label || "30 min"),
+              descricao: "",
               imagemSrc: String((i.imagem as Record<string, unknown> | undefined)?.src || ""),
             }))
           : servicosDoNicho(nicho);
@@ -940,7 +940,15 @@ export function EstudioForm() {
           email,
           slogan,
           horario,
+          enderecoLivre,
           faqs,
+          eventos,
+          menu: menuLivre || undefined,
+          botaoAgendar: botaoLivre || undefined,
+          rodapeTexto: rodapeLivre?.texto,
+          rodapeLinks: rodapeLivre?.links,
+          diferenciais: difsLivre || undefined,
+          avulsos: Object.keys(avulsos).length ? avulsos : undefined,
           redes,
           visual,
           tom,

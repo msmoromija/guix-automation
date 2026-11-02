@@ -72,7 +72,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const mexe = Boolean(body.patch || body.campo || body.fotoSrc || body.logoSrc || body.visual || body.nome != null);
+  const mexe = Boolean(
+    body.patch ||
+      body.campo ||
+      body.fotoSrc ||
+      body.logoSrc ||
+      body.visual ||
+      body.nome != null ||
+      body.whatsapp != null ||
+      body.cidade != null ||
+      body.slogan != null ||
+      body.desfazer === true,
+  );
   if (pacote.edicaoFechada && body.fechar !== true && mexe) {
     return NextResponse.json({
       aviso: AVISO_FECHADO,
@@ -134,13 +145,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const visual = { ...visualPadrao(pacote.nicho), ...(pacote.visual || {}) };
     const resultado = aplicarPedido(structuredClone(pacote.site), visual, body.patch as PatchPedido);
     const empresa = resultado.site.empresa as { whatsapp?: string; endereco?: { cidade?: string } } | undefined;
+    const waNovo = String(empresa?.whatsapp || "").replace(/\D/g, "");
+    const waOk = waNovo && !/^(55)?79999990000$/.test(waNovo) ? empresa?.whatsapp : pacote.whatsapp;
     const historico = [...(pacote.historico || []), { site: pacote.site, visual: pacote.visual }].slice(-3);
     const pedidosIa = usados + 1;
     await gravarPacote({
       ...pacote,
       site: resultado.site,
       visual: resultado.visual,
-      whatsapp: empresa?.whatsapp || pacote.whatsapp,
+      whatsapp: waOk,
       cidade: empresa?.endereco?.cidade || pacote.cidade,
       historico,
       pedidosIa,
@@ -203,15 +216,32 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
   }
 
-  const nome = String(body.nome ?? pacote.nome).trim();
-  const cidade = body.cidade !== undefined ? String(body.cidade || "").trim() || undefined : pacote.cidade;
-  const whatsapp = body.whatsapp !== undefined ? String(body.whatsapp || "").trim() || undefined : pacote.whatsapp;
-  const slogan = body.slogan !== undefined ? String(body.slogan || "").trim() || undefined : pacote.slogan;
+  const empresaAtual = (pacote.site.empresa || {}) as {
+    nome?: string;
+    slogan?: string;
+    whatsapp?: string;
+    email?: string;
+    endereco?: { cidade?: string; bairro?: string; logradouro?: string; numero?: string; estado?: string; cep?: string };
+  };
+  const nome = String(body.nome ?? empresaAtual.nome ?? pacote.nome).trim() || pacote.nome;
+  const cidade =
+    body.cidade !== undefined
+      ? String(body.cidade || "").trim() || undefined
+      : empresaAtual.endereco?.cidade || pacote.cidade;
+  const whatsappBruto =
+    body.whatsapp !== undefined ? String(body.whatsapp || "").trim() : empresaAtual.whatsapp || pacote.whatsapp || "";
+  const whatsappDigitos = whatsappBruto.replace(/\D/g, "");
+  const whatsapp = whatsappDigitos && !/^(55)?79999990000$/.test(whatsappDigitos) ? whatsappBruto : undefined;
+  const slogan =
+    body.slogan !== undefined
+      ? String(body.slogan || "").trim() || undefined
+      : empresaAtual.slogan || pacote.slogan;
   const visual: VisualConfig = {
     ...visualPadrao(pacote.nicho),
     ...(pacote.visual || {}),
     ...(body.visual && typeof body.visual === "object" ? (body.visual as VisualConfig) : {}),
   };
+  const end = empresaAtual.endereco || {};
 
   const site = aplicarEstudio(pacote.site, {
     entrada: {
@@ -221,6 +251,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       cidade,
       whatsapp,
       slogan,
+      email: empresaAtual.email,
+      bairro: end.bairro,
+      logradouro: end.logradouro,
+      numero: end.numero,
+      estado: end.estado && String(end.estado).toUpperCase() !== "NA" ? end.estado : undefined,
+      cep: end.cep,
     },
     visual,
     logoSrc: sanitizarLogoSrc(body.logoSrc),
@@ -236,7 +272,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     ...pacote,
     nome,
     cidade,
-    whatsapp,
+    whatsapp: whatsapp || pacote.whatsapp,
     slogan,
     visual,
     site,

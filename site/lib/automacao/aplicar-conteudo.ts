@@ -86,7 +86,9 @@ export function aplicarConteudoGerado(
   if (textos.sobre) {
     const sobre = { ...(site.sobre as Record<string, unknown>) };
     if (textos.sobre.titulo) sobre.titulo = textos.sobre.titulo;
-    if (textos.sobre.paragrafos?.length) sobre.paragrafos = textos.sobre.paragrafos;
+    if (textos.sobre.paragrafos?.length) {
+      sobre.paragrafos = textos.sobre.paragrafos.map((p) => String(p || "").trim()).filter(Boolean).slice(0, 3);
+    }
     sobre.imagem = aplicarFoto(sobre.imagem as Record<string, unknown>, "sobre", entrada, resolvidas);
     site.sobre = sobre;
   }
@@ -112,13 +114,16 @@ export function aplicarConteudoGerado(
       const base = itens[i] || {};
       const foto = fotos[i] || fotos[0];
       const imgAtual = base.imagem as Record<string, unknown> | undefined;
+      const precoLabel = doCliente?.preco?.trim() || "Sob consulta";
+      const duracaoLabel = doCliente?.duracao?.trim() || String(base.duracao_label || "30 min");
       novos.push({
         ...base,
         id: String(base.id || `srv_${i + 1}`),
         nome: lista[i] || base.nome,
-        descricao: doCliente?.descricao || extra?.descricao || base.descricao,
-        ...(doCliente?.preco ? { preco_label: doCliente.preco } : {}),
-        ...(doCliente?.duracao ? { duracao_label: doCliente.duracao } : {}),
+        descricao: doCliente?.descricao || extra?.descricao || "",
+        preco: doCliente?.preco?.trim() ? Number(String(doCliente.preco).replace(/\D/g, "")) || 0 : 0,
+        preco_label: precoLabel,
+        duracao_label: duracaoLabel,
         imagem:
           foto?.src && (fotos.length > 1 || i === 0)
             ? patchImagem(imgAtual, {
@@ -162,11 +167,14 @@ export function aplicarConteudoGerado(
     const faq = { ...(site.faq as Record<string, unknown>) };
     if (textos.faq.titulo) faq.titulo = textos.faq.titulo;
     const atuais = Array.isArray(faq.itens) ? [...(faq.itens as Record<string, unknown>[])] : [];
-    faq.itens = textos.faq.itens.map((f, i) => ({
-      id: String(atuais[i]?.id || `faq_${String(i + 1).padStart(2, "0")}`),
-      pergunta: f.pergunta,
-      resposta: f.resposta,
-    }));
+    faq.itens = textos.faq.itens
+      .filter((f) => String(f.pergunta || "").trim() && String(f.resposta || "").trim())
+      .slice(0, 10)
+      .map((f, i) => ({
+        id: String(atuais[i]?.id || `faq_${String(i + 1).padStart(2, "0")}`),
+        pergunta: String(f.pergunta).trim().slice(0, 180),
+        resposta: String(f.resposta).trim().slice(0, 400),
+      }));
     site.faq = faq;
   }
 

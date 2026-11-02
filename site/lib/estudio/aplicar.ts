@@ -80,10 +80,13 @@ export function aplicarEstudio(
     const numero = pick("numero", opts.entrada.numero);
     const bairro = pick("bairro", opts.entrada.bairro);
     const cidade = pick("cidade", opts.entrada.cidade);
-    const estado = pick("estado", opts.entrada.estado);
+    const estadoBruto = pick("estado", opts.entrada.estado);
+    const estado = String(estadoBruto || "").trim().toUpperCase() === "NA" ? "" : estadoBruto;
     const cep = pick("cep", opts.entrada.cep);
     const rua = [logradouro, numero].filter(Boolean).join(", ");
     const resto = [bairro, [cidade, estado].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+    const completoNovo = [rua, resto].filter(Boolean).join(" — ");
+    const completoOld = String(endOld.completo || "");
     empresa.endereco = {
       ...endOld,
       ...endNovo,
@@ -91,9 +94,9 @@ export function aplicarEstudio(
       numero,
       bairro,
       cidade,
-      estado,
+      estado: estado || endNovo.estado || "",
       cep,
-      completo: [rua, resto].filter(Boolean).join(" — ") || endOld.completo,
+      completo: completoNovo || (/\bNA\b|endereço a confirmar/i.test(completoOld) ? "" : completoOld),
     };
     site.empresa = empresa;
   }
@@ -187,15 +190,16 @@ export function aplicarEstudio(
         if (!imagem.id) imagem.id = `img_srv_item${i + 1}`;
         if (!imagem.alt) imagem.alt = s.nome;
         if (!imagem.categoria) imagem.categoria = "servico";
+        const duracaoInformada = Boolean(s.duracao?.trim());
         return {
           ...base,
           id: String(base.id || `srv_item${i + 1}`),
           nome: s.nome.trim(),
-          descricao: s.descricao?.trim() ? s.descricao.trim() : String(base.descricao || ""),
-          preco: precoInformado ? (precoNum ?? 0) : Number(base.preco) || 0,
-          preco_label: s.preco?.trim() || String(base.preco_label || "Sob consulta"),
+          descricao: s.descricao?.trim() || "",
+          preco: precoInformado ? (precoNum ?? 0) : 0,
+          preco_label: precoInformado ? s.preco!.trim() : "Sob consulta",
           duracao_minutos: mins < 1 ? 30 : mins,
-          duracao_label: s.duracao?.trim() || base.duracao_label || `${mins} min`,
+          duracao_label: duracaoInformada ? s.duracao!.trim() : `${mins} min`,
           imagem,
         };
       });

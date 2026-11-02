@@ -49,6 +49,7 @@ export async function gerarSiteCliente(
           cidade: entrada.cidade,
           bairro: entrada.bairro,
           slogan: entrada.slogan,
+          horario: entrada.horario,
           servicos: entrada.servicos,
           servicosDetalhe: entrada.servicosDetalhe,
           profissionaisDetalhe: entrada.profissionaisDetalhe,

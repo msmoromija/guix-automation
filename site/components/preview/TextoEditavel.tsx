@@ -8,6 +8,9 @@ type Tag = "p" | "h1" | "h2" | "h3" | "span" | "dt";
 
 const ignoradas = new Set<string>();
 
+const PLACEHOLDER =
+  /^(escreva( o)? (endereço|telefone|horário|texto|resposta|pergunta).*|horário de funcionamento|telefone com ddd|legenda da foto)$/i;
+
 type Dica = { palavra: string; opcoes: string[]; inicio: number; fim: number; top: number; left: number };
 
 function palavraNoCursor(node: Text, offset: number) {
@@ -49,6 +52,8 @@ export function TextoEditavel({
 }) {
   const ref = useRef<HTMLElement>(null);
   const focado = useRef(false);
+  const sujo = useRef(false);
+  const valorFoco = useRef(valor || "");
   const [dica, setDica] = useState<Dica | null>(null);
   const Tag = as;
 
@@ -114,6 +119,7 @@ export function TextoEditavel({
     range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
+    sujo.current = true;
     setDica(null);
   }
 
@@ -129,6 +135,7 @@ export function TextoEditavel({
     range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
+    sujo.current = true;
   }
 
   return (
@@ -144,16 +151,58 @@ export function TextoEditavel({
         lang="pt-BR"
         spellCheck={corretor}
         autoCapitalize="sentences"
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          const posicoes: { el: HTMLElement; top: number; left: number }[] = [];
+          let node = e.currentTarget.parentElement;
+          while (node) {
+            if (node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2) {
+              posicoes.push({ el: node, top: node.scrollTop, left: node.scrollLeft });
+            }
+            node = node.parentElement;
+          }
+          const janela = { x: window.scrollX, y: window.scrollY };
+          const restaurar = () => {
+            window.scrollTo(janela.x, janela.y);
+            for (const p of posicoes) {
+              p.el.scrollTop = p.top;
+              p.el.scrollLeft = p.left;
+            }
+          };
+          const aoSoltar = () => {
+            document.removeEventListener("mouseup", aoSoltar, true);
+            restaurar();
+            requestAnimationFrame(restaurar);
+            window.setTimeout(restaurar, 50);
+          };
+          document.addEventListener("mouseup", aoSoltar, true);
+        }}
         onClick={(e) => e.stopPropagation()}
+        onInput={() => {
+          sujo.current = true;
+        }}
         onFocus={() => {
           focado.current = true;
+          sujo.current = false;
+          valorFoco.current = valor || "";
         }}
         onBlur={(e) => {
           focado.current = false;
           setDica(null);
           const next = lerTexto(e.currentTarget, multiline);
-          if (next && next !== (valor || "")) onTexto(campo, next);
+          if (!sujo.current) {
+            e.currentTarget.textContent = valor || "";
+            return;
+          }
+          if (PLACEHOLDER.test(next)) {
+            e.currentTarget.textContent = valor || "";
+            return;
+          }
+          if (next === valorFoco.current || next === (valor || "")) {
+            e.currentTarget.textContent = valor || "";
+            return;
+          }
+          if (next) onTexto(campo, next);
           else e.currentTarget.textContent = valor || "";
         }}
         onPaste={(e) => {
