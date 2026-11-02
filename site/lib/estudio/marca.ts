@@ -20,12 +20,20 @@ function dataSvg(svg: string) {
 /** Símbolo do nicho — traço único, estilo marca. */
 export function emblemaNicho(nicho: string, cor: string, cx = 60, cy = 60) {
   const n = nicho || "barbearia";
-  if (n === "barbearia" || n === "salao") {
-    return `<g fill="none" stroke="${cor}" stroke-width="3.2" stroke-linecap="round">
-      <path d="M${cx - 14} ${cy - 18} L${cx + 14} ${cy + 18}"/>
-      <path d="M${cx + 14} ${cy - 18} L${cx - 14} ${cy + 18}"/>
-      <circle cx="${cx - 16}" cy="${cy - 20}" r="7"/>
-      <circle cx="${cx + 16}" cy="${cy - 20}" r="7"/>
+  if (n === "barbearia") {
+    return `<g>
+      <rect x="${cx - 7}" y="${cy - 26}" width="14" height="52" rx="7" fill="none" stroke="${cor}" stroke-width="2.4"/>
+      <path d="M${cx - 5} ${cy - 16} Q${cx} ${cy - 8} ${cx + 5} ${cy - 16} Q${cx} ${cy - 4} ${cx - 5} ${cy - 16}" fill="${cor}"/>
+      <path d="M${cx - 5} ${cy + 2} Q${cx} ${cy + 10} ${cx + 5} ${cy + 2} Q${cx} ${cy + 14} ${cx - 5} ${cy + 2}" fill="${cor}"/>
+      <circle cx="${cx}" cy="${cy - 28}" r="3" fill="${cor}"/>
+    </g>`;
+  }
+  if (n === "salao") {
+    return `<g fill="none" stroke="${cor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M${cx - 10} ${cy + 16} L${cx} ${cy - 18} L${cx + 10} ${cy + 16}"/>
+      <path d="M${cx - 6} ${cy + 4} H${cx + 6}"/>
+      <circle cx="${cx - 12}" cy="${cy + 20}" r="5"/>
+      <circle cx="${cx + 12}" cy="${cy + 20}" r="5"/>
     </g>`;
   }
   if (n === "estetica") {
@@ -151,10 +159,10 @@ export function propostasEstudio(opts: {
 }) {
   const base = { nome: opts.nome, slogan: opts.slogan, fundo: opts.fundo, tinta: opts.tinta, acento: opts.acento };
   return [
-    { id: "wordmark", titulo: "Wordmark", nota: "Nome por extenso, editorial", src: lockupWordmark(base) },
-    { id: "selo", titulo: "Selo", nota: "Emblema do ofício + nome", src: lockupSelo({ ...base, nicho: opts.nicho }) },
-    { id: "empilhado", titulo: "Empilhado", nota: "Duas linhas, ar premium", src: lockupEmpilhado(base) },
-    { id: "emblema", titulo: "Emblema", nota: "Símbolo + wordmark", src: lockupEmblema({ ...base, nicho: opts.nicho }) },
+    { id: "wordmark", titulo: "Nome escrito", nota: "Marca só com o nome, editorial", src: lockupWordmark(base) },
+    { id: "empilhado", titulo: "Duas linhas", nota: "Nome empilhado, ar de casa premium", src: lockupEmpilhado(base) },
+    { id: "selo", titulo: "Selo do ofício", nota: "Símbolo + nome ao lado", src: lockupSelo({ ...base, nicho: opts.nicho }) },
+    { id: "emblema", titulo: "Emblema", nota: "Símbolo à esquerda e o nome", src: lockupEmblema({ ...base, nicho: opts.nicho }) },
   ];
 }
 

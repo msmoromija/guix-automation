@@ -22,10 +22,11 @@ const chipOn = "border-ink bg-ink text-white";
 const chipOff = "border-line bg-white text-ink hover:border-ink/30";
 
 const ETAPAS = [
-  { id: 1, titulo: "Negócio e aparência" },
-  { id: 2, titulo: "Marca" },
-  { id: 3, titulo: "Contato e serviços" },
-  { id: 4, titulo: "Gerar o site" },
+  { id: 1, titulo: "Negócio" },
+  { id: 2, titulo: "Aparência" },
+  { id: 3, titulo: "Marca" },
+  { id: 4, titulo: "Contato e serviços" },
+  { id: 5, titulo: "Gerar" },
 ];
 
 type Proposta = { id: string; titulo: string; nota: string; src: string };
@@ -113,7 +114,7 @@ export function EstudioForm() {
       const ia = atuais.filter((p) => p.id.startsWith("ia-"));
       return [...lista, ...ia];
     });
-    setPropostaId((id) => (id.startsWith("ia-") ? id : lista[1]?.id || lista[0].id));
+    setPropostaId((id) => (id.startsWith("ia-") ? id : lista[0]?.id || lista[0].id));
   }, [nomeMarca, slogan, paleta.color_background, paleta.color_text, paleta.color_accent, nicho]);
 
   function ir(n: number) {
@@ -185,7 +186,7 @@ export function EstudioForm() {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
-    if (etapa < 4) {
+    if (etapa < 5) {
       if (etapa === 1 && nome.trim().length < 2) {
         setErro("Escreva o nome do negócio para seguir.");
         return;
@@ -250,11 +251,11 @@ export function EstudioForm() {
         Veja o site nascer enquanto você preenche
       </h1>
       <p className="mt-3 max-w-xl text-sm text-muted sm:text-base">
-        Quatro passos. À direita, a prévia acompanha. No fim você ganha um <strong>link do site de teste</strong>,
-        válido por 3 dias — sem publicar de verdade e sem pagar ainda.
+        Cinco passos. À direita o site já aparece. No fim você ganha um <strong>link do site de teste</strong>,
+        válido por 3 dias — sem publicar e sem pagar ainda.
       </p>
 
-      <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {ETAPAS.map((et) => (
           <li key={et.id}>
             <button
@@ -274,8 +275,9 @@ export function EstudioForm() {
       <form onSubmit={enviar} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
           {etapa === 1 ? (
-            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Como se chama e que cara tem</h2>
+            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">O negócio</h2>
+              <p className="mt-1 text-sm text-muted">Nome e tipo. O resto a gente sugere.</p>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm">
                   Tipo de negócio
@@ -313,53 +315,7 @@ export function EstudioForm() {
                   />
                 </label>
               </div>
-
-              <p className="mt-6 text-sm font-semibold">Claro ou escuro</p>
-              <p className="text-xs text-muted">Escolha antes da marca: o logo precisa aparecer no banner.</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {(["claro", "escuro", "automatico"] as const).map((a) => (
-                  <button
-                    key={a}
-                    type="button"
-                    className={`${chip} ${visual.aparencia === a ? chipOn : chipOff}`}
-                    onClick={() => setVisual((v) => ({ ...v, aparencia: a }))}
-                  >
-                    {a === "automatico" ? "Do celular" : a === "claro" ? "Claro" : "Escuro"}
-                  </button>
-                ))}
-              </div>
-
-              <p className="mt-6 text-sm font-semibold">Visual pronto</p>
-              <p className="text-xs text-muted">Um toque muda cores e letras. Olhe a prévia.</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {PRESETS.map((p) => {
-                  const pal = paletaPorId(p.visual.paletaId || visual.paletaId);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`overflow-hidden rounded-xl border text-left ${visual.presetId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
-                      onClick={() => {
-                        setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }));
-                        setTom(tomDoEstilo(p.visual.estilo));
-                      }}
-                    >
-                      <span className="flex h-10">
-                        <i className="flex-1" style={{ background: pal.color_background }} />
-                        <i className="flex-1" style={{ background: pal.color_surface }} />
-                        <i className="w-10" style={{ background: pal.color_accent }} />
-                      </span>
-                      <span className="block px-3 py-2">
-                        <span className="block text-sm font-medium">{p.nome}</span>
-                        <span className="text-xs text-muted">{p.desc}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
               <p className="mt-6 text-sm font-semibold">Como a IA vai escrever</p>
-              <p className="text-xs text-muted">Isso entra no pedido à IA — textos, serviços e o tipo de foto.</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {(
                   [
@@ -380,12 +336,12 @@ export function EstudioForm() {
                 ))}
               </div>
               <label className="mt-4 block text-sm">
-                O que destacar (a IA usa isso)
+                O que destacar
                 <input
                   className={campo}
                   value={destaque}
                   onChange={(e) => setDestaque(e.target.value)}
-                  placeholder="Ex.: corte na tesoura, atendimento com hora marcada"
+                  placeholder="Ex.: corte na tesoura, navalha, ambiente reservado"
                 />
               </label>
               <button
@@ -395,9 +351,51 @@ export function EstudioForm() {
               >
                 {iaEscreve ? "A IA escreve os textos do site" : "Não usar IA nos textos"}
               </button>
+            </section>
+          ) : null}
 
+          {etapa === 2 ? (
+            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">Que cara o site tem</h2>
+              <p className="mt-1 text-sm text-muted">Toque num cartão e olhe a prévia à direita — cores e letras mudam na hora.</p>
+              <p className="mt-6 text-sm font-semibold">Claro ou escuro</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {(["claro", "escuro", "automatico"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    className={`${chip} ${visual.aparencia === a ? chipOn : chipOff}`}
+                    onClick={() => setVisual((v) => ({ ...v, aparencia: a }))}
+                  >
+                    {a === "automatico" ? "Do celular" : a === "claro" ? "Claro" : "Escuro"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-6 text-sm font-semibold">Visual pronto</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {PRESETS.map((p) => {
+                  const pal = paletaPorId(p.visual.paletaId || visual.paletaId);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`overflow-hidden rounded-2xl border text-left transition ${visual.presetId === p.id ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink/30"}`}
+                      onClick={() => {
+                        setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }));
+                        setTom(tomDoEstilo(p.visual.estilo));
+                      }}
+                    >
+                      <MiniSite paleta={pal} nome={nomeMarca} />
+                      <span className="block px-3 py-2">
+                        <span className="block text-sm font-medium">{p.nome}</span>
+                        <span className="text-xs text-muted">{p.desc}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => setAvancado((v) => !v)}>
-                {avancado ? "Esconder paleta e letras" : "Ajustar paleta e letras"}
+                {avancado ? "Esconder paleta" : "Ajustar paleta na mão"}
               </button>
               {avancado ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -420,24 +418,24 @@ export function EstudioForm() {
             </section>
           ) : null}
 
-          {etapa === 2 ? (
+          {etapa === 3 ? (
             <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Como a marca entra no site</h2>
-              <p className="mt-1 text-sm text-muted">Três caminhos. A prévia mostra o resultado no cabeçalho.</p>
+              <h2 className="text-base font-semibold">Como a marca aparece no topo</h2>
+              <p className="mt-1 text-sm text-muted">Escolha o resultado. A prévia à direita já mostra o cabeçalho.</p>
               <div className="mt-4 grid gap-3">
                 <button
                   type="button"
                   onClick={() => setLogoModo("gerar")}
                   className={`rounded-2xl border p-4 text-left ${logoModo === "gerar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
                 >
-                  <p className="text-sm font-semibold">Montar no estúdio</p>
+                  <p className="text-sm font-semibold">A gente desenha o nome</p>
                   <p className="mt-1 text-xs text-muted">
-                    Modelos com o nome escrito certo. Opcional: a IA desenha só o símbolo, sem estragar o texto.
+                    Resultado: o nome composto como marca. Opcional pedir um símbolo à IA — o texto continua nítido.
                   </p>
                   <div className="mt-3 overflow-hidden rounded-lg" style={{ background: paleta.color_background }}>
-                    {propostas[1]?.src ? (
+                    {propostas[0]?.src ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={propostas[1].src} alt="" className="h-16 w-full object-contain" />
+                      <img src={propostas[0].src} alt="" className="h-16 w-full object-contain" />
                     ) : null}
                   </div>
                 </button>
@@ -447,7 +445,7 @@ export function EstudioForm() {
                   className={`rounded-2xl border p-4 text-left ${logoModo === "enviar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
                 >
                   <p className="text-sm font-semibold">Já tenho um arquivo</p>
-                  <p className="mt-1 text-xs text-muted">PNG, JPG, SVG ou WebP. Aparece no lugar do nome desenhado.</p>
+                  <p className="mt-1 text-xs text-muted">Resultado: o seu PNG/SVG no lugar da marca desenhada.</p>
                   <div className="mt-3 flex h-16 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted">
                     {logoUpload ? "Arquivo carregado" : "Solte o arquivo depois de escolher esta opção"}
                   </div>
@@ -457,8 +455,8 @@ export function EstudioForm() {
                   onClick={() => setLogoModo("texto")}
                   className={`rounded-2xl border p-4 text-left ${logoModo === "texto" ? "border-ink ring-1 ring-ink" : "border-line"}`}
                 >
-                  <p className="text-sm font-semibold">Só o nome escrito</p>
-                  <p className="mt-1 text-xs text-muted">Sem imagem. O cabeçalho usa o nome em letra, como um jornal.</p>
+                  <p className="text-sm font-semibold">Só o nome em letra</p>
+                  <p className="mt-1 text-xs text-muted">Resultado: sem imagem. O topo usa o nome, como um jornal.</p>
                   <div className="mt-3 flex h-16 items-center justify-center rounded-lg" style={{ background: paleta.color_background, color: paleta.color_text }}>
                     <span className="text-sm font-semibold tracking-wide">{nomeMarca}</span>
                   </div>
@@ -514,7 +512,7 @@ export function EstudioForm() {
             </section>
           ) : null}
 
-          {etapa === 3 ? (
+          {etapa === 4 ? (
             <>
               <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <h2 className="text-base font-semibold">Como o cliente te acha</h2>
@@ -717,24 +715,21 @@ export function EstudioForm() {
             </>
           ) : null}
 
-          {etapa === 4 ? (
-            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
-              <h2 className="text-base font-semibold">O que acontece agora</h2>
+          {etapa === 5 ? (
+            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">Você vai receber um link válido por 3 dias</h2>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
-                  <strong>1.</strong> A IA escreve os textos no tom escolhido e escolhe fotos do ofício (barbearia ≠ salão).
+                  <strong>1.</strong> A IA escreve os textos no tom escolhido e escolhe fotos do ofício.
                 </li>
                 <li>
-                  <strong>2.</strong> Você clica abaixo e abre o site de teste neste navegador.
+                  <strong>2.</strong> Abre o site de teste neste navegador — dá para mandar o link no WhatsApp.
                 </li>
                 <li>
-                  <strong>3.</strong> Guarda o link (ou o código curto). Dá para mandar no WhatsApp e mostrar a alguém.
+                  <strong>3.</strong> Em 3 dias o teste some sozinho. Não é o site publicado.
                 </li>
                 <li>
-                  <strong>4.</strong> O teste fica no ar por <strong>3 dias</strong>. Depois some sozinho — não é o site publicado.
-                </li>
-                <li>
-                  <strong>5.</strong> Se gostar, contrata. Aí sim o site entra no seu domínio, de verdade.
+                  <strong>4.</strong> Se gostar, contrata. Aí o site entra no seu domínio de verdade.
                 </li>
               </ol>
               <div className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
@@ -755,18 +750,51 @@ export function EstudioForm() {
             ) : null}
             <button
               type="submit"
-              disabled={loading || (etapa === 1 && !nome.trim()) || (etapa === 4 && !nome.trim())}
+              disabled={loading || (etapa === 1 && !nome.trim()) || (etapa === 5 && !nome.trim())}
               className="rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
             >
-              {loading ? "Montando o site de teste…" : etapa === 4 ? "Ver meu site de teste" : "Continuar"}
+              {loading
+                ? "Montando o site de teste…"
+                : etapa === 5
+                  ? "Ver meu site de teste — link por 3 dias"
+                  : "Continuar"}
             </button>
-            {etapa === 4 ? <p className="text-xs text-muted">Link por 3 dias. Sem cartão, sem publicar.</p> : null}
+            {etapa === 5 ? <p className="text-xs text-muted">Sem cartão. Sem publicar ainda.</p> : null}
           </div>
         </div>
 
         <aside className="lg:sticky lg:top-24">{preview}</aside>
       </form>
     </main>
+  );
+}
+
+function MiniSite({
+  paleta,
+  nome,
+}: {
+  paleta: { color_background: string; color_surface: string; color_text: string; color_accent: string };
+  nome: string;
+}) {
+  return (
+    <span
+      className="block h-24 overflow-hidden px-3 py-2"
+      style={{ background: paleta.color_background, color: paleta.color_text }}
+    >
+      <span className="flex items-center justify-between text-[9px] tracking-wide opacity-80">
+        <span className="truncate font-semibold">{nome.slice(0, 18) || "MARCA"}</span>
+        <span className="rounded-full px-1.5 py-0.5" style={{ background: paleta.color_accent, color: paleta.color_background }}>
+          Agendar
+        </span>
+      </span>
+      <span className="mt-3 block text-[13px] font-bold leading-tight">{nome || "Seu negócio"}</span>
+      <span className="mt-2 block h-1 w-10 rounded-full" style={{ background: paleta.color_accent }} />
+      <span className="mt-2 flex gap-1">
+        <i className="h-6 flex-1 rounded" style={{ background: paleta.color_surface }} />
+        <i className="h-6 flex-1 rounded" style={{ background: paleta.color_surface }} />
+        <i className="h-6 flex-1 rounded" style={{ background: paleta.color_surface }} />
+      </span>
+    </span>
   );
 }
 

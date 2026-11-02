@@ -13,6 +13,8 @@ export async function gerarTextosSite(entrada: {
   cidade?: string;
   slogan?: string;
   servicos?: string[];
+  servicosDetalhe?: Array<{ nome: string; descricao?: string; preco?: string; duracao?: string }>;
+  profissionaisDetalhe?: Array<{ nome: string; cargo?: string; descricao?: string }>;
   tom?: string;
   estilo?: string;
   destaque?: string;
@@ -20,13 +22,20 @@ export async function gerarTextosSite(entrada: {
   const tags = tagsDoNicho(entrada.nicho);
   const tom = entrada.tom || tomDoEstilo(entrada.estilo);
   const sistema = [
-    "Você é o redator e diretor de arte do site. Decide textos, nomes de serviço, FAQ e que tipo de foto usar.",
+    "Você é redator de um site local real, não de template.",
     "Responda SOMENTE com JSON válido, sem markdown.",
-    "Português do Brasil, concreto, sem citar GuiX.",
-    "Não invente endereço, CNPJ, telefone.",
+    "Português do Brasil com acentuação correta (clássico, máquina, você).",
+    "Frases concretas do ofício. Evite clichê de agência.",
+    "A expressão 'hora marcada' no máximo UMA vez em todo o JSON. Prefira 'na agenda', 'no horário combinado', 'sem fila na porta'.",
+    "Não invente endereço, CNPJ, telefone, bairro fictício nem cargo cômico (nada de animador de porta).",
+    "NÃO troque os nomes dos serviços nem da equipe informados. Só reescreva descrições se estiverem pobres.",
+    "FAQ: 4 perguntas específicas deste negócio (preço, duração, o que levar, como chegar), nunca genéricas.",
+    "Galeria: título 'O espaço' ou 'Ambiente'. Legendas curtas do que se vê, não 'A casa'.",
+    "Hero: título com o nome do negócio ou uma promessa curta; subtítulo com 1 fato (cidade, ofício, como agendar).",
+    "Sobre: 2 parágrafos. O primeiro diz quem atende e o que faz; o segundo, como é o atendimento.",
+    "Cada serviço tem descrição de 1 ou 2 frases com o que entra no preço.",
     REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico,
-    "imagens_sugeridas: só tags da lista. Cada item precisa bater com o nicho.",
-    "Hero e sobre: frases novas, não genéricas de template.",
+    "imagens_sugeridas: só tags da lista, uma sugestão por foto, sem repetir a mesma tag em todos.",
   ].join(" ");
 
   const user = {
@@ -36,6 +45,8 @@ export async function gerarTextosSite(entrada: {
     slogan: entrada.slogan || "",
     cidade: entrada.cidade || "",
     servicos_informados: entrada.servicos || [],
+    cardapio: entrada.servicosDetalhe || [],
+    equipe_informada: entrada.profissionaisDetalhe || [],
     tom,
     estilo_visual: entrada.estilo || "moderno",
     o_que_destacar: entrada.destaque || "",
@@ -72,7 +83,7 @@ export async function gerarTextosSite(entrada: {
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
-      temperature: 0.55,
+      temperature: 0.7,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: sistema },

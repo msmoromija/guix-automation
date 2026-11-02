@@ -1,5 +1,6 @@
 import type { EntradaAutomacao } from "./tipos";
 import { templateIdDoNicho } from "./carregar-exemplo";
+import { ehFicticio, enderecoCompleto } from "./limpar-exemplo";
 
 function soDigitos(v: string) {
   return v.replace(/\D/g, "");
@@ -47,19 +48,13 @@ export function aplicarDadosCliente(site: Record<string, unknown>, entrada: Entr
   }
 
   const endereco = { ...((empresa.endereco as Record<string, unknown>) || {}) };
-  if (entrada.logradouro) endereco.logradouro = entrada.logradouro;
-  if (entrada.numero) endereco.numero = entrada.numero;
-  if (entrada.bairro) endereco.bairro = entrada.bairro;
-  if (entrada.cidade) endereco.cidade = entrada.cidade;
-  if (entrada.estado) endereco.estado = entrada.estado;
-  if (entrada.cep) endereco.cep = entrada.cep;
-
-  const partes = [
-    [endereco.logradouro, endereco.numero].filter(Boolean).join(", "),
-    endereco.bairro,
-    [endereco.cidade, endereco.estado].filter(Boolean).join(" - "),
-  ].filter(Boolean);
-  if (partes.length) endereco.completo = partes.join(" — ");
+  endereco.logradouro = ehFicticio(entrada.logradouro) ? "" : entrada.logradouro || "";
+  endereco.numero = entrada.numero || "";
+  endereco.bairro = ehFicticio(entrada.bairro) ? "" : entrada.bairro || "";
+  endereco.cidade = ehFicticio(entrada.cidade) ? "" : entrada.cidade || "";
+  endereco.estado = entrada.estado || "";
+  endereco.cep = entrada.cep || "";
+  endereco.completo = enderecoCompleto(entrada);
   empresa.endereco = endereco;
 
   const logo = { ...((empresa.logo as Record<string, unknown>) || {}) };

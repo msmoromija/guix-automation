@@ -25,8 +25,12 @@ function imagemClientePorCategoria(entrada: EntradaAutomacao, categoria: string)
   return entrada.imagensCliente?.find((i) => i.categoria === categoria);
 }
 
-function imagemResolvidaPorCategoria(resolvidas: ImagemResolvida[], categoria: string) {
-  return resolvidas.find((i) => i.categoria === categoria && i.src);
+function imagensDaCategoria(resolvidas: ImagemResolvida[], categoria: string) {
+  return resolvidas.filter((i) => i.categoria === categoria && i.src);
+}
+
+function imagemResolvidaPorCategoria(resolvidas: ImagemResolvida[], categoria: string, indice = 0) {
+  return imagensDaCategoria(resolvidas, categoria)[indice];
 }
 
 function aplicarFoto(
@@ -93,47 +97,63 @@ export function aplicarConteudoGerado(
     if (textos.servicos.subtitulo) servicos.subtitulo = textos.servicos.subtitulo;
 
     const itens = Array.isArray(servicos.itens) ? [...(servicos.itens as Record<string, unknown>[])] : [];
-    const nomes = (textos.servicos.itens || []).map((i) => i.nome).filter(Boolean);
+    const detalhe = entrada.servicosDetalhe || [];
+    const nomes = detalhe.length
+      ? detalhe.map((i) => i.nome)
+      : (textos.servicos.itens || []).map((i) => i.nome).filter(Boolean);
     const fallbackNomes = textos.servicos.sugestoes || [];
     const lista = nomes.length ? nomes : fallbackNomes;
-    for (let i = 0; i < Math.min(itens.length, lista.length); i++) {
+    const fotos = imagensDaCategoria(resolvidas, "servico");
+    const n = detalhe.length || Math.min(itens.length, lista.length || itens.length);
+    const novos = [];
+    for (let i = 0; i < n; i++) {
       const extra = textos.servicos.itens?.[i];
-      itens[i] = {
-        ...itens[i],
-        nome: lista[i],
-        ...(extra?.descricao ? { descricao: extra.descricao } : {}),
-      };
+      const doCliente = detalhe[i];
+      const base = itens[i] || {};
+      const foto = fotos[i] || fotos[0];
+      const imgAtual = base.imagem as Record<string, unknown> | undefined;
+      novos.push({
+        ...base,
+        id: String(base.id || `srv_${i + 1}`),
+        nome: lista[i] || base.nome,
+        descricao: doCliente?.descricao || extra?.descricao || base.descricao,
+        ...(doCliente?.preco ? { preco_label: doCliente.preco } : {}),
+        ...(doCliente?.duracao ? { duracao_label: doCliente.duracao } : {}),
+        imagem:
+          foto?.src && (fotos.length > 1 || i === 0)
+            ? patchImagem(imgAtual, {
+                src: foto.src,
+                origem: foto.origem === "unsplash" ? "unsplash" : "biblioteca",
+                credito: foto.credito as unknown as Record<string, unknown> | undefined,
+              })
+            : imgAtual,
+      });
     }
-
-    const fotoServico = imagemClientePorCategoria(entrada, "servico") || imagemResolvidaPorCategoria(resolvidas, "servico");
-    if (fotoServico) {
-      for (let i = 0; i < itens.length; i++) {
-        itens[i] = {
-          ...itens[i],
-          imagem: aplicarFoto(itens[i].imagem as Record<string, unknown>, "servico", entrada, resolvidas),
-        };
-      }
-    }
-    servicos.itens = itens;
+    servicos.itens = novos;
     site.servicos = servicos;
   }
 
-  if (textos.profissionais?.itens?.length) {
+  if (textos.profissionais?.itens?.length || entrada.profissionaisDetalhe?.length) {
     const bloco = { ...(site.profissionais as Record<string, unknown>) };
-    if (textos.profissionais.titulo) bloco.titulo = textos.profissionais.titulo;
-    if (textos.profissionais.subtitulo) bloco.subtitulo = textos.profissionais.subtitulo;
+    if (textos.profissionais?.titulo) bloco.titulo = textos.profissionais.titulo;
+    if (textos.profissionais?.subtitulo) bloco.subtitulo = textos.profissionais.subtitulo;
     const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
-    for (let i = 0; i < Math.min(itens.length, textos.profissionais.itens.length); i++) {
-      const p = textos.profissionais.itens[i];
-      itens[i] = {
-        ...itens[i],
+    const equipe = entrada.profissionaisDetalhe?.length
+      ? entrada.profissionaisDetalhe
+      : textos.profissionais?.itens || [];
+    bloco.itens = equipe.map((p, i) => {
+      const base = itens[i] || {};
+      const fotoAtual = { ...((base.foto as Record<string, unknown>) || {}) };
+      delete fotoAtual.src;
+      return {
+        ...base,
+        id: String(base.id || `pro_${i + 1}`),
         nome: p.nome,
         ...(p.cargo ? { cargo: p.cargo } : {}),
         ...(p.descricao ? { descricao: p.descricao } : {}),
-        foto: aplicarFoto(itens[i].foto as Record<string, unknown>, "profissional", entrada, resolvidas),
+        foto: fotoAtual,
       };
-    }
-    bloco.itens = itens;
+    });
     site.profissionais = bloco;
   }
 
@@ -160,18 +180,21 @@ export function aplicarConteudoGerado(
     const galeria = { ...(site.galeria as Record<string, unknown>) };
     if (textos.galeria.titulo) galeria.titulo = textos.galeria.titulo;
     const itens = Array.isArray(galeria.itens) ? [...(galeria.itens as Record<string, unknown>[])] : [];
-    const foto = aplicarFoto(
-      (itens[0] as { imagem?: Record<string, unknown> } | undefined)?.imagem,
-      "galeria",
-      entrada,
-      resolvidas,
-    );
+    const fotos = imagensDaCategoria(resolvidas, "galeria");
     for (let i = 0; i < itens.length; i++) {
       const cap = textos.galeria.legendas?.[i];
+      const foto = fotos[i];
+      const imgAtual = (itens[i] as { imagem?: Record<string, unknown> }).imagem;
       itens[i] = {
         ...itens[i],
         ...(cap ? { legenda: cap } : {}),
-        imagem: foto || (itens[i] as { imagem?: Record<string, unknown> }).imagem,
+        imagem: foto?.src
+          ? patchImagem(imgAtual, {
+              src: foto.src,
+              origem: foto.origem === "unsplash" ? "unsplash" : "biblioteca",
+              credito: foto.credito as unknown as Record<string, unknown> | undefined,
+            })
+          : imgAtual,
       };
     }
     galeria.itens = itens;
@@ -213,6 +236,9 @@ export function aplicarConteudoGerado(
   const empresa = { ...(site.empresa as Record<string, unknown>) };
   if (empresa.logo) {
     empresa.logo = aplicarFoto(empresa.logo as Record<string, unknown>, "logo", entrada, resolvidas);
+  }
+  if (!empresa.slogan && textos.hero?.subtitulo) {
+    empresa.slogan = textos.hero.subtitulo.split(/[.!?]/)[0]?.slice(0, 80) || "";
   }
   site.empresa = empresa;
 

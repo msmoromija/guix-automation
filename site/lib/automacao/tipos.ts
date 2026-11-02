@@ -21,6 +21,8 @@ export interface EntradaAutomacao {
   linkedin?: string;
   cnpj?: string;
   servicos?: string[];
+  servicosDetalhe?: Array<{ nome: string; descricao?: string; preco?: string; duracao?: string }>;
+  profissionaisDetalhe?: Array<{ nome: string; cargo?: string; descricao?: string }>;
   tom?: string;
   estilo?: string;
   destaque?: string;

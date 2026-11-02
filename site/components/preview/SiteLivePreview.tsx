@@ -1,6 +1,7 @@
 "use client";
 
 import { googleFontsHref, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { enquadrarFoto } from "@/lib/media/tratar-url";
 
 type Img = { src?: string; alt?: string; origem?: string; credito?: { texto?: string; perfil_url?: string; fotografo?: string } };
 type ItemServico = {
@@ -99,6 +100,30 @@ function wa(digitos?: string, msg?: string) {
   if (!digitos) return "#contato";
   const text = encodeURIComponent(msg || "Olá, vim pelo site.");
   return `https://wa.me/${digitos}?text=${text}`;
+}
+
+function Foto({
+  src,
+  alt,
+  className,
+  style,
+  w,
+  h,
+  faces,
+}: {
+  src?: string;
+  alt?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  w: number;
+  h: number;
+  faces?: boolean;
+}) {
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={enquadrarFoto(src, w, h, faces) || src} alt={alt || ""} className={`gx-photo ${className || ""}`} style={style} />
+  );
 }
 
 /** Vitrine ao vivo a partir do site.json do cliente. */
@@ -201,13 +226,14 @@ export function SiteLivePreview({
           )}
         </header>
 
-        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[420px]" : "min-h-[70vh]"}`}>
+        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[420px]" : "min-h-[82vh]"}`}>
           {vis.banner !== "solido" && vis.banner !== "degrade" && site.hero?.imagem?.src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Foto
               src={site.hero.imagem.src}
               alt={site.hero.imagem.alt || ""}
               className="absolute inset-0 h-full w-full object-cover"
+              w={1920}
+              h={1080}
             />
           ) : (
             <div
@@ -226,7 +252,7 @@ export function SiteLivePreview({
               background: "linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 55%, transparent), transparent)",
             }}
           />
-          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-12 pt-24 md:px-8 ${rascunho ? "min-h-[420px]" : "min-h-[70vh]"}`}>
+          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[420px]" : "min-h-[82vh]"}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
               {e.slogan}
             </p>
@@ -260,52 +286,78 @@ export function SiteLivePreview({
         </section>
 
         {rascunho ? null : (
-        <section id="sobre" className="mx-auto grid max-w-5xl gap-8 px-4 py-16 md:grid-cols-2 md:px-8">
+        <section id="sobre" className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-20 md:grid-cols-2 md:px-8">
           <div>
-            <h2 className="text-3xl font-bold">{site.sobre?.titulo}</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
+              {e.nome}
+            </p>
+            <h2 className="mt-2 text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.sobre?.titulo}
+            </h2>
             {(site.sobre?.paragrafos || []).map((p) => (
-              <p key={p.slice(0, 24)} className="mt-4 text-sm leading-6" style={{ color: "var(--mt)" }}>
+              <p key={p.slice(0, 24)} className="mt-4 text-sm leading-7 md:text-base" style={{ color: "var(--mt)" }}>
                 {p}
               </p>
             ))}
+            <a
+              href={wa(e.whatsapp, e.whatsapp_mensagem)}
+              className="mt-6 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold"
+              style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
+            >
+              {site.hero?.botao_principal || "Quero agendar"}
+            </a>
           </div>
           {site.sobre?.imagem?.src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={site.sobre.imagem.src}
-              alt={site.sobre.imagem.alt || ""}
-              className="h-80 w-full object-cover"
-              style={{ borderRadius: "var(--r)" }}
-            />
+            <div className="gx-photo-frame h-96 w-full" style={{ borderRadius: "var(--r)" }}>
+              <Foto
+                src={site.sobre.imagem.src}
+                alt={site.sobre.imagem.alt || ""}
+                className="h-full w-full object-cover"
+                style={{ borderRadius: "var(--r)" }}
+                w={1200}
+                h={900}
+              />
+            </div>
           ) : null}
         </section>
         )}
 
-        <section id="servicos" className="px-4 py-12 md:px-8" style={{ background: "var(--sf)" }}>
+        <section id="servicos" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
-            <h2 className="text-3xl font-bold">{site.servicos?.titulo}</h2>
-            <p className="mt-2 text-sm" style={{ color: "var(--mt)" }}>
+            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.servicos?.titulo}
+            </h2>
+            <p className="mt-2 max-w-xl text-sm" style={{ color: "var(--mt)" }}>
               {site.servicos?.subtitulo}
             </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {(site.servicos?.itens || []).slice(0, 6).map((s) => (
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {(site.servicos?.itens || []).slice(0, 6).map((s, i) => (
                 <article
                   key={s.id || s.nome}
-                  className="overflow-hidden"
+                  className={`gx-card-in overflow-hidden ${i === 0 && !rascunho ? "sm:col-span-2 lg:col-span-1" : ""}`}
                   style={{ background: "var(--bg)", borderRadius: "var(--r)" }}
                 >
                   {s.imagem?.src ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.imagem.src} alt={s.imagem.alt || ""} className="aspect-[16/10] w-full object-cover" />
+                    <div className="gx-photo-frame aspect-[16/10] w-full">
+                      <Foto src={s.imagem.src} alt={s.imagem.alt || ""} className="h-full w-full object-cover" w={1200} h={750} />
+                    </div>
                   ) : null}
-                  <div className="p-4">
-                    <h3 className="font-semibold">{s.nome}</h3>
-                    <p className="mt-2 text-xs leading-5" style={{ color: "var(--mt)" }}>
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold">{s.nome}</h3>
+                    <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
                       {s.descricao}
                     </p>
-                    <p className="mt-3 text-sm" style={{ color: "var(--s)" }}>
-                      {s.preco_label} · {s.duracao_label}
+                    <p className="mt-4 text-xl font-bold" style={{ color: "var(--s)" }}>
+                      {s.preco_label}
+                      {s.duracao_label ? (
+                        <span className="ml-2 text-sm font-normal opacity-80">{s.duracao_label}</span>
+                      ) : null}
                     </p>
+                    {!rascunho ? (
+                      <a href={wa(e.whatsapp, e.whatsapp_mensagem)} className="mt-4 inline-block text-sm font-semibold underline">
+                        Agendar este
+                      </a>
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -313,55 +365,69 @@ export function SiteLivePreview({
           </div>
         </section>
 
-        <section id="profissionais" className="mx-auto max-w-5xl px-4 py-16 md:px-8">
-          <h2 className="text-3xl font-bold">{site.profissionais?.titulo}</h2>
+        <section id="profissionais" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+          <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+            {site.profissionais?.titulo}
+          </h2>
           <p className="mt-2 text-sm" style={{ color: "var(--mt)" }}>
             {site.profissionais?.subtitulo}
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid gap-8 sm:grid-cols-3">
             {(site.profissionais?.itens || []).slice(0, 6).map((p) => (
               <article key={p.id || p.nome} className="text-center">
                 {p.foto?.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Foto
                     src={p.foto.src}
                     alt={p.foto.alt || p.nome || ""}
                     className="mx-auto h-36 w-36 rounded-full object-cover"
+                    w={400}
+                    h={400}
+                    faces
                   />
                 ) : (
                   <div
-                    className="mx-auto flex h-36 w-36 items-center justify-center rounded-full text-2xl"
-                    style={{ background: "var(--sf)" }}
+                    className="mx-auto flex h-36 w-36 items-center justify-center rounded-full text-3xl font-semibold"
+                    style={{ background: "var(--sf)", color: "var(--s)" }}
                   >
                     {(p.nome || "?").slice(0, 1)}
                   </div>
                 )}
-                <h3 className="mt-3 font-semibold">{p.nome}</h3>
-                <p className="text-xs" style={{ color: "var(--s)" }}>
+                <h3 className="mt-4 font-semibold">{p.nome}</h3>
+                <p className="text-sm" style={{ color: "var(--s)" }}>
                   {p.cargo}
                 </p>
+                {p.descricao ? (
+                  <p className="mx-auto mt-2 max-w-xs text-xs leading-5" style={{ color: "var(--mt)" }}>
+                    {p.descricao}
+                  </p>
+                ) : null}
               </article>
             ))}
           </div>
         </section>
 
         {!rascunho && (site.galeria?.itens?.length ?? 0) > 0 ? (
-          <section id="galeria" className="mx-auto max-w-5xl px-4 py-12 md:px-8">
-            <h2 className="text-3xl font-bold">{site.galeria?.titulo || "Galeria"}</h2>
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+          <section id="galeria" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.galeria?.titulo && site.galeria.titulo !== "A casa" ? site.galeria.titulo : "O espaço"}
+            </h2>
+            <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
               {(site.galeria?.itens || []).slice(0, 6).map((g) => (
-                <figure key={g.id || g.legenda}>
+                <figure key={g.id || g.legenda} className="gx-card-in">
                   {g.imagem?.src ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={g.imagem.src}
-                      alt={g.imagem.alt || g.legenda || ""}
-                      className="aspect-square w-full object-cover"
-                      style={{ borderRadius: "var(--r)" }}
-                    />
+                    <div className="gx-photo-frame aspect-square w-full" style={{ borderRadius: "var(--r)" }}>
+                      <Foto
+                        src={g.imagem.src}
+                        alt={g.imagem.alt || g.legenda || ""}
+                        className="h-full w-full object-cover"
+                        style={{ borderRadius: "var(--r)" }}
+                        w={900}
+                        h={900}
+                      />
+                    </div>
                   ) : null}
-                  {g.legenda ? (
-                    <figcaption className="mt-1 text-xs" style={{ color: "var(--mt)" }}>
+                  {g.legenda && g.legenda !== "A casa" ? (
+                    <figcaption className="mt-2 text-xs" style={{ color: "var(--mt)" }}>
                       {g.legenda}
                     </figcaption>
                   ) : null}
@@ -387,20 +453,24 @@ export function SiteLivePreview({
           </section>
         ) : null}
 
-        <section id="contato" className="px-4 py-16 md:px-8" style={{ background: "var(--sf)" }}>
+        <section id="contato" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
-            <h2 className="text-3xl font-bold">{site.contato?.titulo || "Contato"}</h2>
-            <p className="mt-2 text-sm" style={{ color: "var(--mt)" }}>
+            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.contato?.titulo || "Onde estamos"}
+            </h2>
+            <p className="mt-2 max-w-xl text-sm" style={{ color: "var(--mt)" }}>
               {site.contato?.subtitulo}
             </p>
-            <p className="mt-4 text-sm">{e.endereco?.completo}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
-              {e.horario_resumo}
-            </p>
+            {e.endereco?.completo ? <p className="mt-6 text-base">{e.endereco.completo}</p> : null}
+            {e.horario_resumo ? (
+              <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
+                {e.horario_resumo}
+              </p>
+            ) : null}
             <a
               href={wa(e.whatsapp, e.whatsapp_mensagem)}
-              className="mt-6 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold"
-              style={{ background: "var(--a)", color: "var(--bg)" }}
+              className="mt-8 inline-flex rounded-full px-6 py-3 text-sm font-semibold"
+              style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
             >
               Chamar no WhatsApp
             </a>

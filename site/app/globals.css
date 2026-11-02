@@ -69,6 +69,24 @@ html {
   animation: gx-rise 0.45s ease both;
 }
 
+.gx-photo {
+  object-fit: cover;
+  filter: saturate(0.92) contrast(1.06);
+}
+
+.gx-photo-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.gx-photo-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.28), transparent 42%);
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);

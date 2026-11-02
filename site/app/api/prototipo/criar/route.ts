@@ -107,6 +107,21 @@ export async function POST(req: NextRequest) {
       destaque,
       iaEscreve,
       servicos: servicos.map((s: { nome?: string }) => String(s.nome || "").trim()).filter(Boolean),
+      servicosDetalhe: servicos
+        .filter((s: { nome?: string }) => String(s.nome || "").trim())
+        .map((s: { nome?: string; descricao?: string; preco?: string; duracao?: string }) => ({
+          nome: String(s.nome || "").trim(),
+          descricao: String(s.descricao || "").trim() || undefined,
+          preco: String(s.preco || "").trim() || undefined,
+          duracao: String(s.duracao || "").trim() || undefined,
+        })),
+      profissionaisDetalhe: profissionais
+        .filter((p: { nome?: string }) => String(p.nome || "").trim())
+        .map((p: { nome?: string; cargo?: string; descricao?: string }) => ({
+          nome: String(p.nome || "").trim(),
+          cargo: String(p.cargo || "").trim() || undefined,
+          descricao: String(p.descricao || "").trim() || undefined,
+        })),
     });
     aplicarEstudio(gerado.site, {
       entrada: {

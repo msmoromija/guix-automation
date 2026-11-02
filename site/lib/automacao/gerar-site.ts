@@ -8,6 +8,7 @@ import { sanitizarClienteId } from "@/lib/media/isolamento";
 import { aplicarDadosCliente } from "./aplicar-cliente";
 import { aplicarConteudoGerado } from "./aplicar-conteudo";
 import { carregarExemplo } from "./carregar-exemplo";
+import { limparIdentidadeExemplo, polirTextosSite } from "./limpar-exemplo";
 import type { EntradaAutomacao, ResultadoAutomacao } from "./tipos";
 import { validarSiteJson } from "./validar-site";
 
@@ -27,6 +28,7 @@ export async function gerarSiteCliente(
   if (!entrada.nome?.trim()) throw new Error("nome obrigatório");
 
   let site = await carregarExemplo(entrada.nicho);
+  site = limparIdentidadeExemplo(site, { ...entrada, clienteId });
   site = aplicarDadosCliente(site, { ...entrada, clienteId });
 
   const textos =
@@ -43,6 +45,8 @@ export async function gerarSiteCliente(
           cidade: entrada.cidade,
           slogan: entrada.slogan,
           servicos: entrada.servicos,
+          servicosDetalhe: entrada.servicosDetalhe,
+          profissionaisDetalhe: entrada.profissionaisDetalhe,
           tom: entrada.tom,
           estilo: entrada.estilo,
           destaque: entrada.destaque,
@@ -54,11 +58,17 @@ export async function gerarSiteCliente(
     motivo: s.motivo || "",
   }));
 
-  // Garante pelo menos hero/sobre/servico na resolução
-  for (const cat of ["hero", "sobre", "servico", "galeria", "profissional"] as CategoriaImagem[]) {
+  for (const cat of ["hero", "sobre"] as CategoriaImagem[]) {
     if (!sugestoes.some((s) => s.categoria === cat)) {
-      sugestoes.push({ categoria: cat, tags: [], motivo: "fallback automação" });
+      sugestoes.push({ categoria: cat, tags: [], motivo: "bloco principal" });
     }
+  }
+  const nServ = Math.max(3, entrada.servicosDetalhe?.length || entrada.servicos?.length || 3);
+  while (sugestoes.filter((s) => s.categoria === "servico").length < nServ) {
+    sugestoes.push({ categoria: "servico", tags: [], motivo: `serviço ${sugestoes.length}` });
+  }
+  while (sugestoes.filter((s) => s.categoria === "galeria").length < 6) {
+    sugestoes.push({ categoria: "galeria", tags: [], motivo: `espaço ${sugestoes.length}` });
   }
 
   const resolvidas = await escolherImagensDoNicho({
@@ -67,7 +77,7 @@ export async function gerarSiteCliente(
   });
 
   const aplicado = aplicarConteudoGerado(site, textos, resolvidas, { ...entrada, clienteId });
-  site = aplicado.site;
+  site = polirTextosSite(aplicado.site);
   const avisos = [...aplicado.avisos];
   if (entrada.iaEscreve !== false) avisos.push("textos escritos pela IA");
   if (resolvidas.some((r) => r.origem === "unsplash")) avisos.push("fotos do ofício via Unsplash (nicho filtrado)");
