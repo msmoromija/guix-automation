@@ -127,7 +127,7 @@ export function EstudioForm() {
   const [nome, setNome] = useState("");
   const [slogan, setSlogan] = useState("");
   const [cidade, setCidade] = useState("");
-  const [estado, setEstado] = useState("SE");
+  const [estado, setEstado] = useState("");
   const [logradouro, setLogradouro] = useState("");
   const [numero, setNumero] = useState("");
   const [bairro, setBairro] = useState("");
@@ -1693,6 +1693,16 @@ export function EstudioForm() {
                         }}
                       />
                     </label>
+                    <label className="block w-full text-sm font-medium sm:w-20">
+                      UF
+                      <input
+                        className={`${campo} uppercase tracking-[0.12em]`}
+                        value={estado}
+                        maxLength={2}
+                        placeholder="UF"
+                        onChange={(e) => setEstado(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={() => void buscarCep()}
@@ -1712,17 +1722,13 @@ export function EstudioForm() {
                       Número
                       <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="120" />
                     </label>
-                    <label className="block text-sm sm:col-span-2">
+                    <label className="block text-sm sm:col-span-3">
                       Bairro
                       <input className={campo} value={bairro} onChange={(e) => setBairro(e.target.value)} />
                     </label>
-                    <label className="block text-sm sm:col-span-2">
+                    <label className="block text-sm sm:col-span-3">
                       Cidade
                       <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} />
-                    </label>
-                    <label className="block text-sm sm:col-span-2">
-                      UF
-                      <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} />
                     </label>
                   </div>
                 </SecaoColapsavel>
