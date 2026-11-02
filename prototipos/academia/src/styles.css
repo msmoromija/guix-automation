@@ -1,0 +1,95 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/*
+ * Theme values are injected at runtime from site.json (tema) by
+ * src/theme/applyTheme.ts as CSS variables on <html>. This file only maps
+ * those variables to Tailwind utilities. No hex colors here.
+ */
+@theme inline {
+  --color-page: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-ink: var(--color-text);
+  --color-ink-muted: var(--color-text-muted);
+  --color-lime: var(--color-accent);
+  --color-steel: var(--color-secondary);
+  --color-base: var(--color-primary);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+  --radius-theme: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: color-mix(in oklab, var(--color-secondary) 35%, transparent);
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 4.5rem;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-body), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading), "Arial Narrow", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 0.95;
+  }
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  border-radius: var(--radius);
+  background-color: var(--color-accent);
+  color: var(--color-background);
+  font-weight: 700;
+  transition: filter 0.15s;
+  &:hover { filter: brightness(1.08); }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  border-radius: var(--radius);
+  background-color: transparent;
+  border: 1px solid var(--color-secondary);
+  color: var(--color-text);
+  font-weight: 600;
+  transition: background-color 0.15s;
+  &:hover { background-color: color-mix(in oklab, var(--color-secondary) 15%, transparent); }
+}
+
+@utility field {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  background-color: var(--color-background);
+  border: 1px solid color-mix(in oklab, var(--color-secondary) 45%, transparent);
+  color: var(--color-text);
+  color-scheme: dark;
+  &:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+}
+
+@utility hero-shade {
+  background: linear-gradient(
+    to top,
+    var(--color-background) 8%,
+    color-mix(in oklab, var(--color-background) 70%, transparent) 50%,
+    color-mix(in oklab, var(--color-background) 30%, transparent) 100%
+  );
+}

@@ -1,0 +1,801 @@
+# Bento Banho Com Hora Marcada
+
+Você vai criar um protótipo de site profissional para um pet shop de banho e tosa. Faça tudo nesta resposta. Não divida em etapas, não faça perguntas e não proponha um painel administrativo.
+
+Este projeto é uma vitrine de um sistema que depois será automatizado. A liberdade criativa existe só no desenho visual, dentro da direção indicada abaixo. Estrutura, nomes de arquivo, chaves do JSON, rotas, ordem das seções e atributos de dados são especificação. Desviar isso é erro.
+
+Se alguma ideia visual conflitar com o contrato de dados, o contrato vence.
+
+Não conecte banco, Supabase, autenticação, login, pagamento ou armazenamento externo. Não crie painel, blog, loja, carrinho, área do cliente nem página além das quatro rotas. Não instale biblioteca nova se o starter já resolver o caso. Pode usar React Router se o starter for Vite e ainda não tiver rota. Se o starter for Next.js, use o App Router e não migre para Vite. Não troque de framework.
+
+Não escreva a palavra Guix em lugar nenhum. Este site é o Pet Shop Bento, não o site da empresa que vende o sistema.
+
+Não crie clínica veterinária, vacina, remédio, consulta clínica, venda de ração nem catálogo de produtos. O site é só banho, tosa e corte de unhas com hora marcada. Sem desenho infantil e sem mascote cartoon.
+
+Interface em português do Brasil. Identificadores de código em inglês, como estão neste prompt. html lang="pt-BR".
+
+---
+
+DIREÇÃO VISUAL
+
+Fundo claro, quase areia. Superfície branca. Texto verde bem escuro. Detalhe em terracota e areia dourada. Título com a fonte de heading. Corpo com a fonte de body. Hero com fotografia grande de cachorro e o título sobre a imagem, legível no celular.
+
+O botão principal usa fundo color_accent e texto color_primary. Não use color_background no texto do botão: o fundo da página é claro e o texto sumiria. O botão secundário é transparente, com borda color_secondary e texto color_primary.
+
+Proibido: visual escuro de barbearia, rosa choque, gradiente roxo, ilustração de patinha cartoon, ícone 3D, vídeo, carrossel automático, texto em inglês e lorem ipsum.
+
+O celular é a tela principal. A demonstração será aberta num telefone.
+
+---
+
+FONTE ÚNICA DE CONTEÚDO
+
+Crie src/content/site.json com o JSON integral que está no final deste prompt, entre as marcas SITE_JSON_START e SITE_JSON_END. Não traduza chaves. Não renomeie chaves. Não simplifique o formato. Não mova telefone, endereço ou expediente para outro lugar. Não invente campo. Não apague campo com string vazia: string vazia é um estado válido.
+
+Todo texto visível ao usuário sai desse JSON. O JSX não contém frase de marketing, rótulo de botão, nome de serviço, preço, endereço ou horário escritos à mão.
+
+Também crie src/content/site.types.ts com tipos que espelham esse JSON. Não use any. Não torne opcional um campo que existe no arquivo.
+
+Importe o JSON num módulo único e use esse objeto nas páginas. Alterar hero.titulo no JSON precisa mudar o título da home sem editar o componente.
+
+---
+
+TEMA
+
+Crie src/theme/applyTheme.ts. Ele recebe o objeto do site e define no documentElement, antes do primeiro render:
+
+--color-primary
+--color-secondary
+--color-accent
+--color-background
+--color-surface
+--color-text
+--color-text-muted
+--font-heading
+--font-body
+--radius
+
+Os valores saem de site.tema. Carregue apenas as duas famílias Google Fonts citadas em font_heading e font_body.
+
+Nenhum componente declara cor hexadecimal. Borda e superfície usam essas variáveis. radius none = 0, sm = 2px a 4px, md = 8px, lg = 16px. Use o valor de site.tema.radius.
+
+---
+
+ROTAS
+
+Exatamente estas:
+
+/                  home
+/agendar           agenda
+/privacidade       privacidade
+/obrigado          confirmação
+
+/agendar lê os parâmetros de busca servico e profissional. Quando o id existir, o campo correspondente já vem selecionado.
+
+As quatro páginas usam o mesmo cabeçalho, o mesmo rodapé e o botão flutuante de WhatsApp.
+
+---
+
+ORDEM DA HOME
+
+A home só compõe seções, nesta ordem, sem seção extra:
+
+1. Header
+2. Hero, com id="inicio" e data-section="hero"
+3. Sobre, id="sobre"
+4. Serviços, id="servicos"
+5. Profissionais, id="profissionais"
+6. Diferenciais, id="diferenciais"
+7. Promoções, id="promocoes"
+8. Eventos, id="eventos"
+9. Galeria, id="galeria"
+10. FAQ, id="faq"
+11. Contato, id="contato"
+12. Rodapé
+
+Promoções, eventos e galeria não renderizam quando itens estiver vazio. As demais seções da home renderizam.
+
+O menu do cabeçalho sai só de header.menu. Não acrescente diferenciais, eventos ou galeria no menu. O botão do cabeçalho usa header.botao_agendar, leva a /agendar e tem data-action="agendar".
+
+No celular o menu vira um botão que abre e fecha. Itens são links âncora.
+
+---
+
+ARQUIVOS
+
+src/content/site.json
+src/content/site.types.ts
+src/theme/applyTheme.ts
+src/lib/whatsapp.ts
+src/lib/expediente.ts
+src/lib/lead.ts
+src/components/icons.tsx
+src/components/Header.tsx
+src/components/HeroSection.tsx
+src/components/SobreSection.tsx
+src/components/ServicosSection.tsx
+src/components/ProfissionaisSection.tsx
+src/components/DiferenciaisSection.tsx
+src/components/PromocoesSection.tsx
+src/components/EventosSection.tsx
+src/components/GaleriaSection.tsx
+src/components/FaqSection.tsx
+src/components/ContatoSection.tsx
+src/components/Rodape.tsx
+src/components/WhatsappFlutuante.tsx
+src/components/Seo.tsx
+src/pages/HomePage.tsx
+src/pages/AgendarPage.tsx
+src/pages/PrivacidadePage.tsx
+src/pages/ObrigadoPage.tsx
+
+Seo.tsx define document.title com seo.title na home e com o título da página nas internas, e a meta description com seo.description. Se canonical_url vier vazio, não crie tag canonical.
+
+---
+
+ATRIBUTOS OBRIGATÓRIOS
+
+data-section em cada bloco: header, hero, sobre, servicos, profissionais, diferenciais, promocoes, eventos, galeria, faq, contato, rodape.
+
+data-field no elemento que exibe o texto, com o caminho: hero.titulo, hero.subtitulo, empresa.nome, servicos.titulo, contato.titulo, e o equivalente para os outros textos.
+
+data-component e data-item-id nos repetíveis:
+
+card_servico
+card_profissional
+card_diferencial
+card_promocao
+card_evento
+card_galeria
+item_faq
+
+data-action:
+
+agendar
+whatsapp
+enviar_contato
+confirmar_agendamento
+
+---
+
+DADOS NA TELA
+
+Telefone, WhatsApp, e-mail, endereço, horário e redes vêm de empresa. A seção contato não tem cópia desses dados. O rodapé mostra empresa.nome, empresa.cnpj, empresa.telefone_label, empresa.email, empresa.horario_resumo e rodape.texto. Redes com url vazia não aparecem. Ícone ou imagem de logo com src vazio não quebra: mostre empresa.nome como wordmark.
+
+Preço na tela é preco_label. Duração na tela é duracao_label. Não formate o número por conta própria.
+
+Imagem usa sempre o objeto, com src e alt. Sem alt vazio. Sem imagem de enfeite fora do JSON.
+
+Mapa: só renderize iframe se empresa.endereco.mapa_embed_url não for vazio.
+
+Ícones dos diferenciais: um único mapa em icons.tsx, da lista calendar, clock, map-pin, phone, message-circle, scissors, sparkles, star, shield, users, award, heart, leaf, paw-print, scale, dumbbell, home, check, para ícones Lucide. Ícone fora da lista vira star.
+
+---
+
+CARDS
+
+Serviço: foto, nome, descrição, preço, duração e um botão Agendar. O botão vai para /agendar?servico={id} e tem data-action="agendar".
+
+Profissional: foto, nome, cargo, descrição e um botão Agendar para /agendar?profissional={id}. Um botão só. Sem segundo botão de WhatsApp no card.
+
+Promoção: imagem, título, descrição e validade_label.
+
+Evento: imagem, título, descrição, data_label e horario.
+
+Galeria: grade de imagens com legenda. Clique abre um dialog simples com a imagem e a legenda, fechável por botão e por Escape.
+
+FAQ: perguntas abrem e fecham a resposta. Pode haver mais de uma aberta.
+
+---
+
+WHATSAPP
+
+src/lib/whatsapp.ts exporta uma função que recebe número e texto e devolve https://wa.me/{somente digitos}?text={texto codificado}.
+
+Botões genéricos usam empresa.whatsapp e empresa.whatsapp_mensagem. São o botão secundário do hero, o botão flutuante e qualquer chamada solta. O flutuante tem aria-label = empresa.whatsapp_aria, fica fixo no canto inferior direito e não cobre o menu.
+
+---
+
+AGENDA
+
+Página única, sem wizard. Grupos nesta ordem: serviço, profissional, dia, horário, dados.
+
+Campos com name exatamente:
+
+servico_id
+profissional_id
+data
+horario
+nome
+telefone
+observacao
+
+Serviço é um select ou uma lista de botões com os itens de servicos. Profissional inclui primeiro a opção de id qualquer e rótulo agendamento.sem_preferencia, depois os profissionais do JSON. O id qualquer não entra na lista de profissionais da home.
+
+Data é input type="date", mínimo hoje no fuso local. Ao ler o valor YYYY-MM-DD, construa a data com new Date(ano, mes - 1, dia). Não use new Date("YYYY-MM-DD"), porque isso desloca o dia.
+
+src/lib/expediente.ts descobre o dia da semana nessa data local e procura empresa.expediente. A chave dia usa dom, seg, ter, qua, qui, sex, sab. Se o dia não existir no expediente, mostre agendamento.fechado e não mostre horários. Se existir, mostre os intervalos desse dia, e só esses.
+
+Nome e telefone são obrigatórios. Observação não é. Se faltar campo obrigatório, mostre agendamento.erro_campos e não navegue.
+
+No envio válido, grave em sessionStorage na chave presenca.lead um objeto com tipo "agendamento", servico_id, profissional_id, data, horario, nome, telefone, email vazio e mensagem igual à observação. Depois navegue para /obrigado.
+
+A mensagem de WhatsApp desse pedido é:
+
+Olá, quero agendar: {nome do serviço} com {nome do profissional, ou agendamento.sem_preferencia} em {dd/mm/aaaa} às {hh:mm}. Meu nome é {nome}. WhatsApp: {telefone}. {observação, só se houver}
+
+---
+
+CONTATO
+
+Formulário com name: nome, telefone, email, mensagem. Nome, telefone e mensagem são obrigatórios. E-mail não é.
+
+data-action do botão: enviar_contato.
+
+No envio, grave presenca.lead com tipo "contato", ids e data e horario vazios, mais nome, telefone, email e mensagem. Navegue para /obrigado.
+
+Mensagem de WhatsApp:
+
+Olá, meu nome é {nome}. WhatsApp: {telefone}. {mensagem}
+
+---
+
+PÁGINA OBRIGADO
+
+Leia presenca.lead. Se o tipo for agendamento, use obrigado.agendamento. Se for contato, use obrigado.contato. Se não houver lead, mostre o texto de contato e esconda o botão de WhatsApp.
+
+O botão principal abre a URL do WhatsApp já com a mensagem do tipo correspondente e tem data-action="whatsapp". O outro botão volta para / e usa obrigado.botao_inicio.
+
+---
+
+PRIVACIDADE
+
+Título e parágrafos saem de privacidade. Sem texto jurídico extra escrito no componente.
+
+---
+
+CRITÉRIO DE PRONTO
+
+O projeto abre na home do Pet Shop Bento, em português, sem login.
+Existem só as quatro rotas.
+site.json conserva as chaves do JSON abaixo.
+Trocar um texto no JSON troca a tela.
+Não há cor hexadecimal em componente.
+O botão principal tem texto escuro sobre o fundo areia.
+Agendar a partir de um serviço já traz esse serviço selecionado.
+Segunda-feira não oferece horário. Terça-feira oferece os horários do JSON.
+Confirmar o agendamento leva a /obrigado e o WhatsApp abre com serviço, data e nome.
+A página funciona no celular.
+A palavra Guix não aparece.
+Não existe vacina, clínica veterinária nem loja de produtos.
+
+SITE_JSON_START
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "petshop",
+    "template_id": "petshop-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Pet Shop Bento",
+    "slogan": "Banho e tosa com hora marcada.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Pet Shop Bento",
+      "categoria": "logo"
+    },
+    "telefone": "7930000003",
+    "telefone_label": "(79) 3000-0003",
+    "whatsapp": "5579999990003",
+    "whatsapp_label": "(79) 99999-0003",
+    "whatsapp_mensagem": "Olá, vim pelo site do Pet Shop Bento e quero agendar um horário.",
+    "whatsapp_aria": "Chamar o Pet Shop Bento no WhatsApp",
+    "email": "contato@petshopbento.com.br",
+    "endereco": {
+      "logradouro": "Rua Campos",
+      "numero": "128",
+      "complemento": "",
+      "bairro": "Grageru",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49027-000",
+      "completo": "Rua Campos, 128 — Grageru, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      { "id": "instagram", "label": "Instagram", "url": "https://instagram.com/petshopbento" },
+      { "id": "facebook", "label": "Facebook", "url": "" },
+      { "id": "tiktok", "label": "TikTok", "url": "" }
+    ],
+    "expediente": [
+      { "dia": "ter", "label": "Terça", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+      { "dia": "qua", "label": "Quarta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+      { "dia": "qui", "label": "Quinta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+      { "dia": "sex", "label": "Sexta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+      { "dia": "sab", "label": "Sábado", "intervalos": ["08:00", "09:00", "10:00", "11:00", "12:00"] }
+    ],
+    "horario_resumo": "Terça a sexta, 8h às 18h · Sábado, 8h às 13h"
+  },
+  "tema": {
+    "color_primary": "#243028",
+    "color_secondary": "#C46B4A",
+    "color_accent": "#E7C98A",
+    "color_background": "#F7F3EA",
+    "color_surface": "#FFFFFF",
+    "color_text": "#243028",
+    "color_text_muted": "#5E675F",
+    "font_heading": "Literata",
+    "font_body": "Nunito Sans",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Pet Shop Bento | Banho e tosa no Grageru, Aracaju",
+    "description": "Agende banho e tosa no Pet Shop Bento, no Grageru, em Aracaju. Hora marcada por porte, de terça a sábado. Não é clínica veterinária.",
+    "keywords": ["pet shop em Aracaju", "banho e tosa", "tosa no Grageru", "agendamento pet"],
+    "og_title": "Pet Shop Bento | Banho e tosa no Grageru",
+    "og_description": "Banho e tosa com hora marcada no Grageru. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Cachorro claro olhando para a câmera",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "A casa", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Equipe", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Promoções", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "Banho e tosa na hora marcada.",
+    "subtitulo": "Você escolhe o porte, o serviço e o horário. O Bento fica no Grageru e atende de terça a sábado.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Cachorro claro deitado, pronto para o cuidado",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Banho e tosa, sem fila na porta",
+    "paragrafos": [
+      "O Bento trabalha com hora marcada para o animal não esperar no transporte nem na recepção. O horário já separa o porte e o serviço.",
+      "A casa fica no Grageru, em Aracaju, e abre de terça a sábado. Fazemos banho, tosa higiênica, tosa completa e corte de unhas.",
+      "Não somos clínica veterinária. Não aplicamos vacina e não damos medicamento. Se o caso for de veterinário, a gente avisa antes de marcar."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Dois cachorros correndo ao ar livre",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "O preço muda com o porte. Escolha o serviço e siga para o horário.",
+    "itens": [
+      {
+        "id": "srv_banho_p",
+        "nome": "Banho porte pequeno",
+        "descricao": "Banho e secagem para cães de até 10 kg. Inclui perfume neutro.",
+        "preco": 50,
+        "preco_label": "R$ 50",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_banho_p",
+          "src": "https://images.unsplash.com/photo-1583511655857-d19b40a7b2a0?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro pequeno de pelagem clara",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_banho_m",
+        "nome": "Banho porte médio",
+        "descricao": "Banho e secagem para cães de 10 a 25 kg.",
+        "preco": 70,
+        "preco_label": "R$ 70",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_banho_m",
+          "src": "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro de porte médio sentado",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_banho_g",
+        "nome": "Banho porte grande",
+        "descricao": "Banho e secagem para cães acima de 25 kg. Avise a raça ao agendar.",
+        "preco": 90,
+        "preco_label": "R$ 90",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_banho_g",
+          "src": "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro de porte grande em ambiente claro",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_tosa_higienica",
+        "nome": "Tosa higiênica",
+        "descricao": "Higiene das patas, da barriga e da região íntima, sem mudar o corte do corpo.",
+        "preco": 60,
+        "preco_label": "R$ 60",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_tosa_higienica",
+          "src": "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro de focinho curto em retrato",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_tosa",
+        "nome": "Tosa completa",
+        "descricao": "Corte do corpo no estilo combinado na hora. Traga uma foto se tiver preferência.",
+        "preco": 110,
+        "preco_label": "R$ 110",
+        "duracao_minutos": 80,
+        "duracao_label": "1 h 20 min",
+        "imagem": {
+          "id": "img_srv_tosa",
+          "src": "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro tosado com bandana",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_unhas",
+        "nome": "Corte de unhas",
+        "descricao": "Só as unhas, para quem já tomou banho em casa.",
+        "preco": 25,
+        "preco_label": "R$ 25",
+        "duracao_minutos": 15,
+        "duracao_label": "15 min",
+        "imagem": {
+          "id": "img_srv_unhas",
+          "src": "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cachorro deitado olhando para o lado",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Equipe",
+    "subtitulo": "Escolha quem cuida do animal ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_rafael",
+        "nome": "Rafael Dantas",
+        "cargo": "Tosador",
+        "descricao": "Tosa completa e higiênica. Pede foto de referência quando o corte é específico.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_rafael",
+          "src": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Rafael Dantas",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_ingrid",
+        "nome": "Ingrid Paiva",
+        "cargo": "Banhista",
+        "descricao": "Banho de porte pequeno e médio. Separa os horários para o animal não ficar aguardando.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_ingrid",
+          "src": "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Ingrid Paiva",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_taina",
+        "nome": "Tainá Lopes",
+        "cargo": "Banhista",
+        "descricao": "Banho de porte grande e corte de unhas. Confirma a raça pelo WhatsApp quando há dúvida.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_taina",
+          "src": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Tainá Lopes",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "O animal entra no horário. Não fica em caixa esperando vaga.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_porte",
+        "titulo": "Preço por porte",
+        "descricao": "Pequeno, médio e grande têm tempo e valor próprios.",
+        "icone": "paw-print"
+      },
+      {
+        "id": "dif_vet",
+        "titulo": "Sem atendimento veterinário",
+        "descricao": "Vacina, remédio e consulta clínica ficam com o veterinário.",
+        "icone": "shield"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp da casa",
+        "descricao": "A confirmação sai do mesmo número do pet shop.",
+        "icone": "message-circle"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Promoções",
+    "itens": [
+      {
+        "id": "prm_quinta",
+        "titulo": "Quinta do banho",
+        "descricao": "Banho de porte pequeno ou médio por R$ 45 nas quintas, das 8h às 12h.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_quinta",
+          "src": "https://images.unsplash.com/photo-1583511655857-d19b40a7b2a0?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cachorro pequeno depois do cuidado",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_unhas",
+        "titulo": "Unhas no retorno",
+        "descricao": "Corte de unhas por R$ 15 para quem volta em até 20 dias depois do banho.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_unhas",
+          "src": "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cachorro em ambiente claro",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Eventos",
+    "itens": [
+      {
+        "id": "evt_tosa",
+        "titulo": "Manhã de tosa higiênica",
+        "descricao": "Horários extras só de tosa higiênica, com vagas limitadas. Reserve pelo WhatsApp.",
+        "data": "2026-11-21",
+        "data_label": "21 de novembro",
+        "horario": "08:00",
+        "imagem": {
+          "id": "img_evt_tosa",
+          "src": "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cachorro em retrato próximo",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_banho",
+        "titulo": "Sábado de banho pequeno",
+        "descricao": "Manhã reservada para porte pequeno. As vagas acabam quando a grade fecha.",
+        "data": "2026-12-05",
+        "data_label": "5 de dezembro",
+        "horario": "08:00",
+        "imagem": {
+          "id": "img_evt_banho",
+          "src": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cachorro claro em dia de banho",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "A casa",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Porte pequeno",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1583511655857-d19b40a7b2a0?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cachorro pequeno de pelagem clara",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Porte médio",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cachorro de porte médio",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Porte grande",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cachorro de porte grande",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Depois da tosa",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cachorro com pelagem aparada",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Dupla",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=900&q=80",
+          "alt": "Dois cachorros lado a lado",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Gato",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=900&q=80",
+          "alt": "Gato em retrato",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_agendar",
+        "pergunta": "Preciso agendar?",
+        "resposta": "Sim. O horário reserva a bancada para o seu animal, sem fila de espera."
+      },
+      {
+        "id": "faq_vet",
+        "pergunta": "Vocês aplicam vacina ou atendem doente?",
+        "resposta": "Não. O Bento faz banho e tosa. Vacina, remédio e consulta são com veterinário."
+      },
+      {
+        "id": "faq_porte",
+        "pergunta": "Como sei o porte?",
+        "resposta": "Até 10 kg é pequeno, de 10 a 25 kg é médio, acima de 25 kg é grande. Se tiver dúvida, chame no WhatsApp com a raça."
+      },
+      {
+        "id": "faq_gato",
+        "pergunta": "Atendem gato?",
+        "resposta": "Sim, no banho de porte pequeno, se o gato aceitar manuseio. Avise na observação."
+      },
+      {
+        "id": "faq_pagamento",
+        "pergunta": "Quais formas de pagamento?",
+        "resposta": "Dinheiro, PIX e cartão de débito ou crédito."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 3 horas de antecedência e peça para liberar a bancada."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Grageru",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, quem vai cuidar e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: vira-lata, 12 kg, medo de secador",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O pet shop atende de terça a sábado.",
+    "erro_campos": "Preencha serviço, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para o pet shop confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao pet shop."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Pet Shop Bento usa os dados que você informa no site para responder seu contato e confirmar horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o pet shop falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do pet shop e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Pet Shop Bento · Grageru, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar horário", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}
+SITE_JSON_END
+
+This project was built with [Lovable](https://lovable.dev).
+
+**Live app**: https://bento-banho-com-hora-marcada.lovable.app
+
+## Build with Lovable
+
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/8dc329a3-c4bb-4006-8ff8-7a2154772759).
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+```sh
+git clone <this-repository-url>
+cd <repository-name>
+npm i
+npm run dev
+```

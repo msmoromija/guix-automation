@@ -1,0 +1,549 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "salao",
+    "template_id": "salao-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Salão Vila Flor",
+    "slogan": "Corte, cor e unhas com hora marcada.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Salão Vila Flor",
+      "categoria": "logo"
+    },
+    "telefone": "7930000001",
+    "telefone_label": "(79) 3000-0001",
+    "whatsapp": "5579999990001",
+    "whatsapp_label": "(79) 99999-0001",
+    "whatsapp_mensagem": "Olá, vim pelo site do Salão Vila Flor e quero agendar um horário.",
+    "whatsapp_aria": "Chamar o Salão Vila Flor no WhatsApp",
+    "email": "contato@salaovilaflor.com.br",
+    "endereco": {
+      "logradouro": "Avenida Santos Dumont",
+      "numero": "880",
+      "complemento": "",
+      "bairro": "Atalaia",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49037-000",
+      "completo": "Avenida Santos Dumont, 880 — Atalaia, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/salaovilaflor"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "seg",
+        "label": "Segunda",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "sab",
+        "label": "Sábado",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00"]
+      }
+    ],
+    "horario_resumo": "Segunda a sexta, 9h às 19h · Sábado, 9h às 16h"
+  },
+  "tema": {
+    "color_primary": "#3F2A26",
+    "color_secondary": "#8D5A4A",
+    "color_accent": "#C4A484",
+    "color_background": "#F6F1EB",
+    "color_surface": "#FFFFFF",
+    "color_text": "#2C2420",
+    "color_text_muted": "#6F6560",
+    "font_heading": "Cormorant Garamond",
+    "font_body": "Outfit",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Salão Vila Flor | Cabelo e unhas na Atalaia, Aracaju",
+    "description": "Agende corte, escova, coloração e manicure no Salão Vila Flor, na Atalaia, em Aracaju. Hora marcada e atendimento pelo WhatsApp, de segunda a sábado.",
+    "keywords": [
+      "salão de beleza em Aracaju",
+      "salão na Atalaia",
+      "corte feminino",
+      "coloração",
+      "manicure",
+      "agendamento"
+    ],
+    "og_title": "Salão Vila Flor | Cabelo e unhas na Atalaia",
+    "og_description": "Hora marcada para corte, cor e unhas na Atalaia, em Aracaju. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Cabeleireira cortando o cabelo de uma cliente",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "O salão", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Equipe", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Promoções", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "Seu horário, sem espera na recepção.",
+    "subtitulo": "Corte, escova, cor e unhas na Atalaia. Você escolhe a profissional e chega na hora. Segunda a sábado.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Cabeleireira cortando o cabelo de uma cliente no salão",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Um salão de hora marcada",
+    "paragrafos": [
+      "O Vila Flor reserva o horário com uma profissional, para você não ficar esperando na recepção. Dá para escolher o serviço e quem vai atender antes de sair de casa.",
+      "O espaço fica na Atalaia, em Aracaju, e abre de segunda a sábado. Corte, escova, coloração, hidratação, penteado e manicure acontecem no mesmo endereço.",
+      "A confirmação sai pelo WhatsApp do salão. Se quiser falar antes, chame nesse mesmo número."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Cliente com o cabelo sendo lavado e preparado no salão",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Preço fechado e tempo reservado na agenda. Escolha um e siga para o horário.",
+    "itens": [
+      {
+        "id": "srv_corte",
+        "nome": "Corte feminino",
+        "descricao": "Corte com tesoura, do repicado ao chanel, com finalização simples.",
+        "preco": 80,
+        "preco_label": "R$ 80",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_corte",
+          "src": "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=800&q=80",
+          "alt": "Corte feminino em andamento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_escova",
+        "nome": "Escova",
+        "descricao": "Lavagem e escova para um compromisso. O efeito dura o dia.",
+        "preco": 60,
+        "preco_label": "R$ 60",
+        "duracao_minutos": 45,
+        "duracao_label": "45 min",
+        "imagem": {
+          "id": "img_srv_escova",
+          "src": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cabelo feminino sendo escovado",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_cor",
+        "nome": "Coloração",
+        "descricao": "Cor inteira com teste de mecha. O tempo pode variar conforme o comprimento.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 120,
+        "duracao_label": "2 h",
+        "imagem": {
+          "id": "img_srv_cor",
+          "src": "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cabelo sendo preparado para coloração",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_hidratacao",
+        "nome": "Hidratação",
+        "descricao": "Tratamento no fio para recuperar o brilho entre uma cor e outra.",
+        "preco": 90,
+        "preco_label": "R$ 90",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_hidratacao",
+          "src": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cadeiras do salão prontas para atendimento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_manicure",
+        "nome": "Manicure",
+        "descricao": "Cutilagem e esmaltação. Dá para encaixar no mesmo dia do corte.",
+        "preco": 35,
+        "preco_label": "R$ 35",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_manicure",
+          "src": "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=800&q=80",
+          "alt": "Esmaltes e pincéis de manicure sobre a mesa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_penteado",
+        "nome": "Penteado",
+        "descricao": "Penteado para festa, com prova de estilo se você avisar com antecedência.",
+        "preco": 120,
+        "preco_label": "R$ 120",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_penteado",
+          "src": "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cliente com cabelo arrumado para um evento",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Equipe",
+    "subtitulo": "Escolha com quem se cuidar ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_helena",
+        "nome": "Helena Prado",
+        "cargo": "Cabeleireira",
+        "descricao": "Corte e escova. Gosta de manter o comprimento e ajustar o contorno.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_helena",
+          "src": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Helena Prado",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_marina",
+        "nome": "Marina Costa",
+        "cargo": "Cabeleireira",
+        "descricao": "Coloração e hidratação. Faz teste de mecha antes de aplicar a cor.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_marina",
+          "src": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Marina Costa",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_lucia",
+        "nome": "Lúcia Neri",
+        "cargo": "Manicure",
+        "descricao": "Manicure e esmaltação. Atende no mesmo horário do cabelo quando a agenda permitir.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_lucia",
+          "src": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Lúcia Neri",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "O horário é com uma profissional. A recepção não vira fila.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do salão",
+        "descricao": "A confirmação sai do mesmo número da casa.",
+        "icone": "message-circle"
+      },
+      {
+        "id": "dif_mecha",
+        "titulo": "Teste de mecha",
+        "descricao": "Coloração só começa depois do teste, no mesmo atendimento.",
+        "icone": "sparkles"
+      },
+      {
+        "id": "dif_unhas",
+        "titulo": "Unhas no mesmo lugar",
+        "descricao": "Manicure no mesmo endereço do corte, quando houver horário livre.",
+        "icone": "heart"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Promoções",
+    "itens": [
+      {
+        "id": "prm_quarta",
+        "titulo": "Quarta da escova",
+        "descricao": "Escova e manicure por R$ 80 nas quartas, entre 9h e 14h.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_quarta",
+          "src": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cabelo escovado no salão",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_raiz",
+        "titulo": "Retoque de raiz",
+        "descricao": "Retoque de raiz por R$ 140 para quem volta em até 30 dias depois da coloração.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_raiz",
+          "src": "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Atendimento de cor no salão",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Eventos",
+    "itens": [
+      {
+        "id": "evt_penteado",
+        "titulo": "Noite de penteados",
+        "descricao": "Dois penteados de festa para escolher, com vagas limitadas. Reserve pelo WhatsApp.",
+        "data": "2026-11-28",
+        "data_label": "28 de novembro",
+        "horario": "18:00",
+        "imagem": {
+          "id": "img_evt_penteado",
+          "src": "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Penteado pronto para uma festa",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_cor",
+        "titulo": "Manhã de cor",
+        "descricao": "Conversa sobre manutenção da cor e um retoque de raiz demonstrativo. Vagas limitadas.",
+        "data": "2026-12-12",
+        "data_label": "12 de dezembro",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_cor",
+          "src": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Ambiente do salão preparado para o evento",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O salão",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Corte",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=80",
+          "alt": "Corte feminino na cadeira do salão",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Lavagem",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=900&q=80",
+          "alt": "Lavagem de cabelo antes da escova",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Escova",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=80",
+          "alt": "Escova modelando o cabelo",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Unhas",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=900&q=80",
+          "alt": "Mesa de manicure com esmaltes",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Penteado",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cabelo arrumado para evento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Ambiente",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cadeiras e espelhos do salão",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_agendar",
+        "pergunta": "Preciso agendar?",
+        "resposta": "Sim. Cada horário fica com uma profissional, para não formar espera na recepção."
+      },
+      {
+        "id": "faq_preferencia",
+        "pergunta": "Posso ir sem escolher a profissional?",
+        "resposta": "Pode. Na agenda existe a opção sem preferência, e o salão encaixa você com quem estiver livre."
+      },
+      {
+        "id": "faq_cor",
+        "pergunta": "Coloração precisa de teste?",
+        "resposta": "Sim. O teste de mecha faz parte do atendimento, antes de aplicar a cor no cabelo todo."
+      },
+      {
+        "id": "faq_pagamento",
+        "pergunta": "Quais formas de pagamento?",
+        "resposta": "Dinheiro, PIX e cartão de débito ou crédito."
+      },
+      {
+        "id": "faq_unhas",
+        "pergunta": "Consigo fazer unha no mesmo dia do cabelo?",
+        "resposta": "Sim, se a Lúcia tiver horário livre. Avise na observação ao agendar."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 3 horas de antecedência e peça para liberar o horário."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha à Atalaia",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, a profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: corte na altura do ombro, esmalte vermelho",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O salão atende de segunda a sábado.",
+    "erro_campos": "Preencha serviço, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para o salão confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao salão."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Salão Vila Flor usa os dados que você informa no site para responder seu contato e confirmar horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o salão falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do salão e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Salão Vila Flor · Atalaia, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar horário", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}

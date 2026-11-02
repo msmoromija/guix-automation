@@ -1,0 +1,543 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "estetica",
+    "template_id": "estetica-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Estúdio Serra Clara",
+    "slogan": "Pele, corpo e horário marcado.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Estúdio Serra Clara",
+      "categoria": "logo"
+    },
+    "telefone": "7930000002",
+    "telefone_label": "(79) 3000-0002",
+    "whatsapp": "5579999990002",
+    "whatsapp_label": "(79) 99999-0002",
+    "whatsapp_mensagem": "Olá, vim pelo site do Estúdio Serra Clara e quero agendar um horário.",
+    "whatsapp_aria": "Chamar o Estúdio Serra Clara no WhatsApp",
+    "email": "contato@estudioserraclara.com.br",
+    "endereco": {
+      "logradouro": "Rua São Cristóvão",
+      "numero": "210",
+      "complemento": "sala 2",
+      "bairro": "Treze de Julho",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49020-000",
+      "completo": "Rua São Cristóvão, 210, sala 2 — Treze de Julho, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/estudioserraclara"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "sab",
+        "label": "Sábado",
+        "intervalos": ["09:00", "10:00", "11:00", "12:00"]
+      }
+    ],
+    "horario_resumo": "Terça a sexta, 10h às 18h · Sábado, 9h às 13h"
+  },
+  "tema": {
+    "color_primary": "#1E3330",
+    "color_secondary": "#6E8B82",
+    "color_accent": "#D7C4A3",
+    "color_background": "#F4F6F3",
+    "color_surface": "#FFFFFF",
+    "color_text": "#1C2826",
+    "color_text_muted": "#5C6B66",
+    "font_heading": "Fraunces",
+    "font_body": "Outfit",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Estúdio Serra Clara | Estética no Treze de Julho, Aracaju",
+    "description": "Agende limpeza de pele, massagem e sobrancelha no Estúdio Serra Clara, no Treze de Julho, em Aracaju. Sala reservada e horário marcado, de terça a sábado.",
+    "keywords": [
+      "estética em Aracaju",
+      "limpeza de pele",
+      "massagem em Aracaju",
+      "design de sobrancelhas",
+      "agendamento"
+    ],
+    "og_title": "Estúdio Serra Clara | Estética no Treze de Julho",
+    "og_description": "Limpeza de pele, massagem e sobrancelha com hora marcada no Treze de Julho. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Atendimento de cuidado facial em ambiente claro",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "O estúdio", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Profissionais", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Promoções", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "Um horário só seu, do começo ao fim.",
+    "subtitulo": "Limpeza de pele, massagem e sobrancelha no Treze de Julho. A sala fica reservada para você. Terça a sábado.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Profissional cuidando da pele do rosto de uma cliente",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Estética com sala reservada",
+    "paragrafos": [
+      "No Serra Clara, cada horário ocupa a sala. Você não atravessa um atendimento no meio do outro e não espera num corredor cheio.",
+      "O estúdio fica no Treze de Julho, em Aracaju, e abre de terça a sábado. Os serviços são de pele, corpo e sobrancelha, feitos por esteticistas e massoterapeuta.",
+      "A confirmação do horário chega pelo WhatsApp do estúdio. Se tiver alguma observação sobre a pele, escreva no agendamento."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Toalhas e ambiente de estética em tons claros",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Tempo reservado na sala. Escolha um serviço e siga para o horário.",
+    "itens": [
+      {
+        "id": "srv_limpeza",
+        "nome": "Limpeza de pele",
+        "descricao": "Higienização, extração e máscara. A pele fica sensível no dia. Evite sol forte depois.",
+        "preco": 140,
+        "preco_label": "R$ 140",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_limpeza",
+          "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80",
+          "alt": "Limpeza de pele em andamento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_drenagem",
+        "nome": "Drenagem linfática",
+        "descricao": "Massagem leve no corpo, em ritmo lento. Beba água no restante do dia.",
+        "preco": 120,
+        "preco_label": "R$ 120",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_drenagem",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+          "alt": "Massagem corporal em maca",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_massagem",
+        "nome": "Massagem relaxante",
+        "descricao": "Massagem no corpo para aliviar o cansaço do dia. A sala fica só com você.",
+        "preco": 130,
+        "preco_label": "R$ 130",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_massagem",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=800&q=80",
+          "alt": "Ambiente de massagem com luz baixa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_sobrancelha",
+        "nome": "Design de sobrancelhas",
+        "descricao": "Desenho e limpeza da sobrancelha, sem tinta e sem procedimento invasivo.",
+        "preco": 40,
+        "preco_label": "R$ 40",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_sobrancelha",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cuidado próximo do rosto durante o atendimento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_facial",
+        "nome": "Hidratação facial",
+        "descricao": "Limpeza superficial e máscara hidratante. Não substitui acompanhamento dermatológico.",
+        "preco": 110,
+        "preco_label": "R$ 110",
+        "duracao_minutos": 45,
+        "duracao_label": "45 min",
+        "imagem": {
+          "id": "img_srv_facial",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=800&q=80",
+          "alt": "Produtos de cuidado facial organizados na bancada",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_depilacao",
+        "nome": "Depilação de pernas",
+        "descricao": "Depilação com cera das pernas. Avise se a pele estiver irritada ou queimada de sol.",
+        "preco": 70,
+        "preco_label": "R$ 70",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_depilacao",
+          "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sala de atendimento com toalhas claras",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Profissionais",
+    "subtitulo": "Escolha quem atende ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_ana",
+        "nome": "Ana Luiza Pires",
+        "cargo": "Esteticista",
+        "descricao": "Limpeza de pele e hidratação facial. Explica o que será feito antes de começar.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_ana",
+          "src": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Ana Luiza Pires",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_beatriz",
+        "nome": "Beatriz Moura",
+        "cargo": "Esteticista",
+        "descricao": "Sobrancelha e depilação. Trabalha com horário curto e sala individual.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_beatriz",
+          "src": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Beatriz Moura",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_camila",
+        "nome": "Camila Rocha",
+        "cargo": "Massoterapeuta",
+        "descricao": "Drenagem e massagem relaxante. Ajusta a pressão no começo da sessão.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_camila",
+          "src": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Camila Rocha",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_sala",
+        "titulo": "Sala só sua",
+        "descricao": "O horário reserva a sala. O atendimento não acontece na frente de outras pessoas.",
+        "icone": "home"
+      },
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "Você chega e entra. Não há lista de espera no corredor.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do estúdio",
+        "descricao": "A confirmação sai do mesmo número da casa.",
+        "icone": "message-circle"
+      },
+      {
+        "id": "dif_explicacao",
+        "titulo": "Explicação antes",
+        "descricao": "A profissional diz o que vai fazer e o que evitar no resto do dia.",
+        "icone": "shield"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Promoções",
+    "itens": [
+      {
+        "id": "prm_terca",
+        "titulo": "Terça da pele",
+        "descricao": "Limpeza de pele e design de sobrancelhas por R$ 160 nas terças.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_terca",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Atendimento facial no estúdio",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_dupla",
+        "titulo": "Massagem em dupla de horários",
+        "descricao": "Duas sessões de massagem relaxante, marcadas no mesmo mês, por R$ 220.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_dupla",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Sala de massagem preparada",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Eventos",
+    "itens": [
+      {
+        "id": "evt_pele",
+        "titulo": "Noite de cuidado da pele",
+        "descricao": "Rotina simples de limpeza em casa, com vagas limitadas. Reserve pelo WhatsApp.",
+        "data": "2026-11-25",
+        "data_label": "25 de novembro",
+        "horario": "19:00",
+        "imagem": {
+          "id": "img_evt_pele",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Produtos de pele dispostos para o encontro",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_massagem",
+        "titulo": "Manhã de alongamento e massagem",
+        "descricao": "Uma sessão curta de massagem relaxante para quem nunca fez. Vagas limitadas.",
+        "data": "2026-12-06",
+        "data_label": "6 de dezembro",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_massagem",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Maca preparada para massagem",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O estúdio",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Sala",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=900&q=80",
+          "alt": "Sala clara com toalhas dobradas",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Rosto",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cuidado facial em andamento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Massagem",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80",
+          "alt": "Massagem em maca no estúdio",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Detalhe",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&q=80",
+          "alt": "Bancada com produtos de estética",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Ambiente",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80",
+          "alt": "Ambiente calmo preparado para atendimento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=900&q=80",
+          "alt": "Profissional em atendimento de perto",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_agendar",
+        "pergunta": "Preciso agendar?",
+        "resposta": "Sim. A sala é reservada por horário, então não atendemos por ordem de chegada."
+      },
+      {
+        "id": "faq_medico",
+        "pergunta": "Vocês fazem procedimento médico?",
+        "resposta": "Não. O estúdio faz estética: pele, massagem, sobrancelha e depilação. Não há consulta médica, botox nem preenchimento."
+      },
+      {
+        "id": "faq_pele",
+        "pergunta": "Posso fazer limpeza de pele se estiver com o rosto irritado?",
+        "resposta": "Não. Se a pele estiver queimada de sol, ferida ou muito irritada, chame no WhatsApp antes e remarque."
+      },
+      {
+        "id": "faq_pagamento",
+        "pergunta": "Quais formas de pagamento?",
+        "resposta": "Dinheiro, PIX e cartão de débito ou crédito."
+      },
+      {
+        "id": "faq_atraso",
+        "pergunta": "E se eu atrasar?",
+        "resposta": "Chegue no horário. Com mais de 10 minutos de atraso, a sessão pode ser encurtada para não invadir o horário seguinte."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 4 horas de antecedência e peça para liberar a sala."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Treze de Julho",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, a profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: pele sensível, prefiro pressão leve",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O estúdio atende de terça a sábado.",
+    "erro_campos": "Preencha serviço, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para o estúdio confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao estúdio."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Estúdio Serra Clara usa os dados que você informa no site para responder seu contato e confirmar horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o estúdio falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do estúdio e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Estúdio Serra Clara · Treze de Julho, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar horário", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}

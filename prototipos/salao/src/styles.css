@@ -1,0 +1,80 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/* Fallbacks only; real values come from site.tema via applyTheme (inline on <html>). */
+@theme {
+  --color-primary: oklch(0.3 0.03 30);
+  --color-secondary: oklch(0.5 0.07 35);
+  --color-accent: oklch(0.73 0.06 65);
+  --color-background: oklch(0.96 0.01 70);
+  --color-surface: oklch(1 0 0);
+  --color-text: oklch(0.26 0.015 50);
+  --color-text-muted: oklch(0.52 0.015 50);
+  --font-heading: Georgia, serif;
+  --font-body: system-ui, sans-serif;
+}
+
+:root {
+  --radius: 8px;
+}
+
+@utility rounded-site {
+  border-radius: var(--radius);
+}
+
+@utility line {
+  border: 1px solid color-mix(in oklab, var(--color-secondary) 25%, transparent);
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: var(--color-primary);
+  font-weight: 600;
+  transition: filter 0.2s;
+  &:hover { filter: brightness(0.95); }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid var(--color-secondary);
+  color: var(--color-primary);
+  font-weight: 600;
+  &:hover { background: color-mix(in oklab, var(--color-accent) 20%, transparent); }
+}
+
+@utility field {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--color-secondary) 35%, transparent);
+  color: var(--color-text);
+  &:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-heading); color: var(--color-primary); font-weight: 600; line-height: 1.1; }
+}

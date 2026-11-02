@@ -1,0 +1,108 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/*
+ * Design system. Runtime values (--color-*, --font-*, --radius) are set on
+ * <html> by src/theme/applyTheme.ts from site.json -> tema. Components only
+ * use the tokens below; never hex colors.
+ */
+
+@theme inline {
+  --color-site-primary: var(--color-primary);
+  --color-site-secondary: var(--color-secondary);
+  --color-site-accent: var(--color-accent);
+  --color-site-bg: var(--color-background);
+  --color-site-surface: var(--color-surface);
+  --color-site-text: var(--color-text);
+  --color-site-muted: var(--color-text-muted);
+  --color-site-line: color-mix(in oklab, var(--color-text) 14%, transparent);
+  --color-site-overlay: color-mix(in oklab, var(--color-primary) 62%, transparent);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+  --radius-site: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-site-line);
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: var(--radius);
+  background-color: var(--color-accent);
+  color: var(--color-background);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--color-accent);
+  transition: filter 0.2s ease;
+  &:hover {
+    filter: brightness(1.15);
+  }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  border-radius: var(--radius);
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease;
+  &:hover {
+    background-color: color-mix(in oklab, var(--color-secondary) 8%, transparent);
+  }
+}
+
+@utility eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+@utility field {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in oklab, var(--color-text) 22%, transparent);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1rem;
+  &:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+}

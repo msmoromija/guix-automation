@@ -1,0 +1,776 @@
+Você vai criar um protótipo de site profissional para um escritório de contabilidade. Faça tudo nesta resposta. Não divida em etapas, não faça perguntas e não proponha um painel administrativo.
+
+Este projeto é uma vitrine de um sistema que depois será automatizado. A liberdade criativa existe só no desenho visual, dentro da direção indicada abaixo. Estrutura, nomes de arquivo, chaves do JSON, rotas, ordem das seções e atributos de dados são especificação. Desviar isso é erro.
+
+Se alguma ideia visual conflitar com o contrato de dados, o contrato vence.
+
+Não conecte banco, Supabase, autenticação, login, pagamento ou armazenamento externo. Não crie painel, blog, loja, carrinho, área do cliente nem página além das quatro rotas. Não instale biblioteca nova se o starter já resolver o caso. Pode usar React Router se o starter for Vite e ainda não tiver rota. Se o starter for Next.js, use o App Router e não migre para Vite. Não troque de framework.
+
+Não escreva a palavra Guix em lugar nenhum. Este site é a Lima Contabilidade, não o site da empresa que vende o sistema.
+
+Este escritório é fictício. Não copie outro escritório real. Não prometa redução de imposto, não ofereça venda de nota fiscal e não ensine a pagar menos tributo. A primeira conversa é sem custo, como está no JSON. A inscrição de MEI no governo permanece descrita como gratuita.
+
+Interface em português do Brasil. Identificadores de código em inglês, como estão neste prompt. html lang="pt-BR".
+
+---
+
+DIREÇÃO VISUAL
+
+Fundo cinza muito claro, quase papel. Superfície branca. Texto azul-marinho. Detalhe bronze discreto. Título com a fonte de heading, serifada. Corpo com a fonte de body. Hero com fotografia de escritório e o título legível no celular. Cantos curtos, pouco enfeite, aparência de escritório e não de aplicativo.
+
+O botão principal usa fundo color_accent e texto color_background. O accent é azul escuro e o background é claro, então o texto do botão fica claro. Não use color_primary no texto desse botão, porque ela é da mesma família do fundo do botão. O botão secundário é transparente, com borda color_secondary e texto color_primary.
+
+Proibido: gradiente roxo, ilustração de moeda cartoon, ícone 3D, vídeo, carrossel automático, texto em inglês e lorem ipsum.
+
+O celular é a tela principal. A demonstração será aberta num telefone.
+
+---
+
+FONTE ÚNICA DE CONTEÚDO
+
+Crie src/content/site.json com o JSON integral que está no final deste prompt, entre as marcas SITE_JSON_START e SITE_JSON_END. Não traduza chaves. Não renomeie chaves. Não simplifique o formato. Não mova telefone, endereço ou expediente para outro lugar. Não invente campo. Não apague campo com string vazia: string vazia é um estado válido.
+
+Todo texto visível ao usuário sai desse JSON. O JSX não contém frase de marketing, rótulo de botão, nome de serviço, preço, endereço ou horário escritos à mão.
+
+Também crie src/content/site.types.ts com tipos que espelham esse JSON. Não use any. Não torne opcional um campo que existe no arquivo.
+
+Importe o JSON num módulo único e use esse objeto nas páginas. Alterar hero.titulo no JSON precisa mudar o título da home sem editar o componente.
+
+---
+
+TEMA
+
+Crie src/theme/applyTheme.ts. Ele recebe o objeto do site e define no documentElement, antes do primeiro render:
+
+--color-primary
+--color-secondary
+--color-accent
+--color-background
+--color-surface
+--color-text
+--color-text-muted
+--font-heading
+--font-body
+--radius
+
+Os valores saem de site.tema. Carregue apenas as duas famílias Google Fonts citadas em font_heading e font_body.
+
+Nenhum componente declara cor hexadecimal. Borda e superfície usam essas variáveis. radius none = 0, sm = 2px a 4px, md = 8px, lg = 16px. Use o valor de site.tema.radius.
+
+---
+
+ROTAS
+
+Exatamente estas:
+
+/                  home
+/agendar           agenda
+/privacidade       privacidade
+/obrigado          confirmação
+
+/agendar lê os parâmetros de busca servico e profissional. Quando o id existir, o campo correspondente já vem selecionado.
+
+As quatro páginas usam o mesmo cabeçalho, o mesmo rodapé e o botão flutuante de WhatsApp.
+
+---
+
+ORDEM DA HOME
+
+A home só compõe seções, nesta ordem, sem seção extra:
+
+1. Header
+2. Hero, com id="inicio" e data-section="hero"
+3. Sobre, id="sobre"
+4. Serviços, id="servicos"
+5. Profissionais, id="profissionais"
+6. Diferenciais, id="diferenciais"
+7. Promoções, id="promocoes"
+8. Eventos, id="eventos"
+9. Galeria, id="galeria"
+10. FAQ, id="faq"
+11. Contato, id="contato"
+12. Rodapé
+
+Promoções, eventos e galeria não renderizam quando itens estiver vazio. As demais seções da home renderizam.
+
+O menu do cabeçalho sai só de header.menu. Não acrescente diferenciais, eventos ou galeria no menu. O botão do cabeçalho usa header.botao_agendar, leva a /agendar e tem data-action="agendar".
+
+No celular o menu vira um botão que abre e fecha. Itens são links âncora.
+
+---
+
+ARQUIVOS
+
+src/content/site.json
+src/content/site.types.ts
+src/theme/applyTheme.ts
+src/lib/whatsapp.ts
+src/lib/expediente.ts
+src/lib/lead.ts
+src/components/icons.tsx
+src/components/Header.tsx
+src/components/HeroSection.tsx
+src/components/SobreSection.tsx
+src/components/ServicosSection.tsx
+src/components/ProfissionaisSection.tsx
+src/components/DiferenciaisSection.tsx
+src/components/PromocoesSection.tsx
+src/components/EventosSection.tsx
+src/components/GaleriaSection.tsx
+src/components/FaqSection.tsx
+src/components/ContatoSection.tsx
+src/components/Rodape.tsx
+src/components/WhatsappFlutuante.tsx
+src/components/Seo.tsx
+src/pages/HomePage.tsx
+src/pages/AgendarPage.tsx
+src/pages/PrivacidadePage.tsx
+src/pages/ObrigadoPage.tsx
+
+Seo.tsx define document.title com seo.title na home e com o título da página nas internas, e a meta description com seo.description. Se canonical_url vier vazio, não crie tag canonical.
+
+---
+
+ATRIBUTOS OBRIGATÓRIOS
+
+data-section em cada bloco: header, hero, sobre, servicos, profissionais, diferenciais, promocoes, eventos, galeria, faq, contato, rodape.
+
+data-field no elemento que exibe o texto, com o caminho: hero.titulo, hero.subtitulo, empresa.nome, servicos.titulo, contato.titulo, e o equivalente para os outros textos.
+
+data-component e data-item-id nos repetíveis:
+
+card_servico
+card_profissional
+card_diferencial
+card_promocao
+card_evento
+card_galeria
+item_faq
+
+data-action:
+
+agendar
+whatsapp
+enviar_contato
+confirmar_agendamento
+
+---
+
+DADOS NA TELA
+
+Telefone, WhatsApp, e-mail, endereço, horário e redes vêm de empresa. A seção contato não tem cópia desses dados. O rodapé mostra empresa.nome, empresa.cnpj, empresa.telefone_label, empresa.email, empresa.horario_resumo e rodape.texto. Redes com url vazia não aparecem. Ícone ou imagem de logo com src vazio não quebra: mostre empresa.nome como wordmark.
+
+Preço na tela é preco_label. Duração na tela é duracao_label. Não formate o número por conta própria.
+
+Imagem usa sempre o objeto, com src e alt. Sem alt vazio. Sem imagem de enfeite fora do JSON.
+
+Mapa: só renderize iframe se empresa.endereco.mapa_embed_url não for vazio.
+
+Ícones dos diferenciais: um único mapa em icons.tsx, da lista calendar, clock, map-pin, phone, message-circle, scissors, sparkles, star, shield, users, award, heart, leaf, paw-print, scale, dumbbell, home, check, para ícones Lucide. Ícone fora da lista vira star.
+
+---
+
+CARDS
+
+Serviço: foto, nome, descrição, preço, duração e um botão Agendar. O botão vai para /agendar?servico={id} e tem data-action="agendar".
+
+Profissional: foto, nome, cargo, descrição e um botão Agendar para /agendar?profissional={id}. Um botão só. Sem segundo botão de WhatsApp no card.
+
+Promoção: imagem, título, descrição e validade_label.
+
+Evento: imagem, título, descrição, data_label e horario.
+
+Galeria: grade de imagens com legenda. Clique abre um dialog simples com a imagem e a legenda, fechável por botão e por Escape.
+
+FAQ: perguntas abrem e fecham a resposta. Pode haver mais de uma aberta.
+
+---
+
+WHATSAPP
+
+src/lib/whatsapp.ts exporta uma função que recebe número e texto e devolve https://wa.me/{somente digitos}?text={texto codificado}.
+
+Botões genéricos usam empresa.whatsapp e empresa.whatsapp_mensagem. São o botão secundário do hero, o botão flutuante e qualquer chamada solta. O flutuante tem aria-label = empresa.whatsapp_aria, fica fixo no canto inferior direito e não cobre o menu.
+
+---
+
+AGENDA
+
+Página única, sem wizard. Grupos nesta ordem: serviço, profissional, dia, horário, dados.
+
+Campos com name exatamente:
+
+servico_id
+profissional_id
+data
+horario
+nome
+telefone
+observacao
+
+Serviço é um select ou uma lista de botões com os itens de servicos. Profissional inclui primeiro a opção de id qualquer e rótulo agendamento.sem_preferencia, depois os profissionais do JSON. O id qualquer não entra na lista de profissionais da home.
+
+Data é input type="date", mínimo hoje no fuso local. Ao ler o valor YYYY-MM-DD, construa a data com new Date(ano, mes - 1, dia). Não use new Date("YYYY-MM-DD"), porque isso desloca o dia.
+
+src/lib/expediente.ts descobre o dia da semana nessa data local e procura empresa.expediente. A chave dia usa dom, seg, ter, qua, qui, sex, sab. Se o dia não existir no expediente, mostre agendamento.fechado e não mostre horários. Se existir, mostre os intervalos desse dia, e só esses.
+
+Nome e telefone são obrigatórios. Observação não é. Se faltar campo obrigatório, mostre agendamento.erro_campos e não navegue.
+
+No envio válido, grave em sessionStorage na chave presenca.lead um objeto com tipo "agendamento", servico_id, profissional_id, data, horario, nome, telefone, email vazio e mensagem igual à observação. Depois navegue para /obrigado.
+
+A mensagem de WhatsApp desse pedido é:
+
+Olá, quero agendar: {nome do serviço} com {nome do profissional, ou agendamento.sem_preferencia} em {dd/mm/aaaa} às {hh:mm}. Meu nome é {nome}. WhatsApp: {telefone}. {observação, só se houver}
+
+---
+
+CONTATO
+
+Formulário com name: nome, telefone, email, mensagem. Nome, telefone e mensagem são obrigatórios. E-mail não é.
+
+data-action do botão: enviar_contato.
+
+No envio, grave presenca.lead com tipo "contato", ids e data e horario vazios, mais nome, telefone, email e mensagem. Navegue para /obrigado.
+
+Mensagem de WhatsApp:
+
+Olá, meu nome é {nome}. WhatsApp: {telefone}. {mensagem}
+
+---
+
+PÁGINA OBRIGADO
+
+Leia presenca.lead. Se o tipo for agendamento, use obrigado.agendamento. Se for contato, use obrigado.contato. Se não houver lead, mostre o texto de contato e esconda o botão de WhatsApp.
+
+O botão principal abre a URL do WhatsApp já com a mensagem do tipo correspondente e tem data-action="whatsapp". O outro botão volta para / e usa obrigado.botao_inicio.
+
+---
+
+PRIVACIDADE
+
+Título e parágrafos saem de privacidade. Sem texto jurídico extra escrito no componente.
+
+---
+
+CRITÉRIO DE PRONTO
+
+O projeto abre na home da Lima Contabilidade, em português, sem login.
+Existem só as quatro rotas.
+site.json conserva as chaves do JSON abaixo.
+Trocar um texto no JSON troca a tela.
+Não há cor hexadecimal em componente.
+O botão principal tem texto claro sobre o fundo azul escuro.
+Agendar a partir de um serviço já traz esse serviço selecionado.
+Sábado não oferece horário. Segunda-feira oferece os horários do JSON.
+Confirmar o agendamento leva a /obrigado e o WhatsApp abre com serviço, data e nome.
+A página funciona no celular.
+A palavra Guix não aparece.
+Não existe promessa de pagar menos imposto nem venda de nota.
+
+SITE_JSON_START
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "contabilidade",
+    "template_id": "contabilidade-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Lima Contabilidade",
+    "slogan": "Reunião marcada com o contador.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Lima Contabilidade",
+      "categoria": "logo"
+    },
+    "telefone": "7930000005",
+    "telefone_label": "(79) 3000-0005",
+    "whatsapp": "5579999990005",
+    "whatsapp_label": "(79) 99999-0005",
+    "whatsapp_mensagem": "Olá, vim pelo site da Lima Contabilidade e quero agendar uma reunião.",
+    "whatsapp_aria": "Chamar a Lima Contabilidade no WhatsApp",
+    "email": "contato@limacontabilidade.com.br",
+    "endereco": {
+      "logradouro": "Rua João Pessoa",
+      "numero": "400",
+      "complemento": "sala 3",
+      "bairro": "Centro",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49010-130",
+      "completo": "Rua João Pessoa, 400, sala 3 — Centro, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      { "id": "instagram", "label": "Instagram", "url": "https://instagram.com/limacontabilidade" },
+      { "id": "facebook", "label": "Facebook", "url": "" },
+      { "id": "tiktok", "label": "TikTok", "url": "" }
+    ],
+    "expediente": [
+      { "dia": "seg", "label": "Segunda", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "ter", "label": "Terça", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "qua", "label": "Quarta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "qui", "label": "Quinta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "sex", "label": "Sexta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] }
+    ],
+    "horario_resumo": "Segunda a sexta, 8h às 17h"
+  },
+  "tema": {
+    "color_primary": "#1A3654",
+    "color_secondary": "#8A6A3B",
+    "color_accent": "#1A3654",
+    "color_background": "#F4F6F8",
+    "color_surface": "#FFFFFF",
+    "color_text": "#1A2332",
+    "color_text_muted": "#5C6B7A",
+    "font_heading": "Source Serif 4",
+    "font_body": "Source Sans 3",
+    "radius": "sm"
+  },
+  "seo": {
+    "title": "Lima Contabilidade | Escritório no Centro de Aracaju",
+    "description": "Agende reunião na Lima Contabilidade, no Centro de Aracaju. Abertura de empresa, imposto de renda e folha, de segunda a sexta.",
+    "keywords": ["contabilidade em Aracaju", "contador no Centro", "imposto de renda", "abertura de empresa", "agendamento"],
+    "og_title": "Lima Contabilidade | Reunião no Centro",
+    "og_description": "Reunião marcada com o contador no Centro de Aracaju. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Mesa de trabalho com documentos e computador",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar reunião",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "O escritório", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Equipe", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Condições", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "A reunião com o contador tem hora.",
+    "subtitulo": "Abertura de empresa, imposto de renda e folha no Centro. Você escolhe o assunto e chega no horário. Segunda a sexta.",
+    "botao_principal": "Agendar reunião",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Pessoa analisando documentos em uma mesa de escritório",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Escritório de hora marcada",
+    "paragrafos": [
+      "A Lima atende com reunião marcada, no Centro de Aracaju. A primeira conversa serve para entender a empresa ou a declaração, sem compromisso de contrato.",
+      "O escritório cuida de abertura, imposto de renda de pessoa física, folha e regularização de pendências. O preço da tela é o da reunião ou do serviço indicado.",
+      "A abertura do MEI no portal do governo é gratuita. Aqui, quando há cobrança, ela é pela orientação e pelo acompanhamento do escritório, e isso é dito antes de começar."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Documentos e caneta sobre a mesa",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Cada item é um horário com o escritório. O contrato mensal, se fizer sentido, é combinado depois da primeira reunião.",
+    "itens": [
+      {
+        "id": "srv_conversa",
+        "nome": "Primeira conversa",
+        "descricao": "Trinta minutos para contar a situação da empresa ou da declaração. Não gera contrato.",
+        "preco": 0,
+        "preco_label": "Sem custo",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_conversa",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Calculadora e papéis em uma reunião",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_irpf",
+        "nome": "Imposto de renda",
+        "descricao": "Declaração de pessoa física, com os informes em mãos. Empresa tem outro serviço.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_irpf",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
+          "alt": "Pessoa assinando documentos",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_abertura",
+        "nome": "Abertura de empresa",
+        "descricao": "Orientação e protocolo de abertura. O custo do órgão público, quando existir, é à parte e informado antes.",
+        "preco": 400,
+        "preco_label": "R$ 400",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_abertura",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Tela com números em uma mesa de trabalho",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_mei",
+        "nome": "Orientação de MEI",
+        "descricao": "A inscrição do MEI no governo não é cobrada por nós. Este horário é a explicação do que muda na prática.",
+        "preco": 150,
+        "preco_label": "R$ 150",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_mei",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80",
+          "alt": "Reunião de orientação com notebook",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_folha",
+        "nome": "Folha e pró-labore",
+        "descricao": "Conversa para implantar ou revisar folha e pró-labore. A mensalidade do escritório vem depois, por escrito.",
+        "preco": 150,
+        "preco_label": "R$ 150",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_folha",
+          "src": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
+          "alt": "Planilha e cálculos sobre a mesa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_pendencia",
+        "nome": "Regularização",
+        "descricao": "Olhada inicial em pendência fiscal. O orçamento do restante sai depois de ver os documentos.",
+        "preco": 250,
+        "preco_label": "R$ 250",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_pendencia",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
+          "alt": "Pasta de documentos aberta",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Equipe",
+    "subtitulo": "Escolha com quem falar ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_clara",
+        "nome": "Clara Lima",
+        "cargo": "Contadora",
+        "descricao": "Abertura de empresa e primeira conversa. Explica o que é do escritório e o que é taxa de órgão.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_clara",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Clara Lima",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_eduardo",
+        "nome": "Eduardo Vargas",
+        "cargo": "Contador",
+        "descricao": "Imposto de renda e regularização. Pede a lista de documentos antes da reunião.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_eduardo",
+          "src": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Eduardo Vargas",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_renata",
+        "nome": "Renata Pires",
+        "cargo": "Analista fiscal",
+        "descricao": "Folha e pró-labore. Confere o que a empresa já envia hoje antes de propor mudança.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_renata",
+          "src": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Renata Pires",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_conversa",
+        "titulo": "Primeira conversa sem custo",
+        "descricao": "Meia hora para ver se o escritório serve. Sem contrato nessa reunião.",
+        "icone": "check"
+      },
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "A sala fica reservada. Você não espera no corredor do prédio.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_taxa",
+        "titulo": "Taxa de órgão à parte",
+        "descricao": "O que for de junta, prefeitura ou Receita é dito antes, separado do honorário.",
+        "icone": "shield"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do escritório",
+        "descricao": "A confirmação sai do mesmo número da Lima.",
+        "icone": "message-circle"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Condições",
+    "itens": [
+      {
+        "id": "prm_irpf",
+        "titulo": "IRPF com antecedência",
+        "descricao": "Declaração de pessoa física por R$ 150 para quem marcar até 31/03/2027.",
+        "validade": "2027-03-31",
+        "validade_label": "Até 31/03/2027",
+        "imagem": {
+          "id": "img_prm_irpf",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Documentos preparados para a declaração",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_quinta",
+        "titulo": "Quinta da abertura",
+        "descricao": "A reunião de abertura de empresa não tem honorário nas quintas de manhã. Taxas de órgão continuam à parte.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_quinta",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Mesa do escritório em dia de reunião",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Encontros",
+    "itens": [
+      {
+        "id": "evt_irpf",
+        "titulo": "Manhã de imposto de renda",
+        "descricao": "Plantão de dúvidas sobre documentos da declaração. Vagas limitadas. Não substitui a entrega.",
+        "data": "2027-03-12",
+        "data_label": "12 de março",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_irpf",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Sala preparada para o encontro",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_mei",
+        "titulo": "Conversa sobre MEI",
+        "descricao": "Uma hora para quem pensa em abrir MEI e quer saber o que muda no dia a dia. Vagas limitadas.",
+        "data": "2026-11-26",
+        "data_label": "26 de novembro",
+        "horario": "18:00",
+        "imagem": {
+          "id": "img_evt_mei",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Encontro no escritório",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O escritório",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Reunião",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80",
+          "alt": "Reunião com notebook e papéis",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Documentos",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=900&q=80",
+          "alt": "Documentos assinados na mesa",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Números",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cálculos e calculadora",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Mesa",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Tela de trabalho no escritório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Sala",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80",
+          "alt": "Sala de reunião clara",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80",
+          "alt": "Profissional em atendimento",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_conversa",
+        "pergunta": "A primeira conversa é paga?",
+        "resposta": "Não. São 30 minutos, sem contrato. Os outros serviços têm o preço escrito no card."
+      },
+      {
+        "id": "faq_mei",
+        "pergunta": "Vocês cobram para abrir MEI?",
+        "resposta": "A inscrição no portal do governo é gratuita. Os R$ 150 são da orientação do escritório, se você quiser esse horário."
+      },
+      {
+        "id": "faq_nota",
+        "pergunta": "Vocês emitem nota para quem não é cliente?",
+        "resposta": "Não. O escritório não vende nota fiscal. Atendemos empresas com contrato ou pessoas na declaração."
+      },
+      {
+        "id": "faq_documentos",
+        "pergunta": "O que levo na reunião?",
+        "resposta": "Documento com foto e o que tiver do assunto: informes, CNPJ ou guias. Se faltar papel, a reunião ainda serve para listar o que buscar."
+      },
+      {
+        "id": "faq_sabado",
+        "pergunta": "Atendem no sábado?",
+        "resposta": "Não. A agenda é de segunda a sexta, das 8h às 17h."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo uma reunião?",
+        "resposta": "Chame no WhatsApp com pelo menos 4 horas de antecedência e peça para liberar o horário."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Centro",
+    "subtitulo": "Agende a reunião pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar reunião",
+    "subtitulo": "Escolha o assunto, o profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Assunto",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: MEI aberto em 2024, quero saber da declaração",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O escritório atende de segunda a sexta.",
+    "erro_campos": "Preencha assunto, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Sua reunião está separada nesta tela. Chame no WhatsApp para o escritório confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao escritório."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "A Lima Contabilidade usa os dados que você informa no site para responder seu contato e confirmar a reunião.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o escritório falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do escritório e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Lima Contabilidade · Centro, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar reunião", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}
+SITE_JSON_END

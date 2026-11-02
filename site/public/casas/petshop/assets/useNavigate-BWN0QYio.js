@@ -1,0 +1,1 @@
+import{a as e,s as t}from"./Seo-Deg6c9r1.js";import{r as n}from"./link-2lUbSh8s.js";var r=t(e(),1);function i(e){let t=n();return r.useCallback(n=>t.navigate({...n,from:n.from??e?.from}),[e?.from,t])}export{i as t};

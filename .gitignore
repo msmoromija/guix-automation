@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.output/
+.next/
+.vercel/
+.vite/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log
+clientes/
+site/data/
+data/
+tmp-ffmpeg/
+*.zip

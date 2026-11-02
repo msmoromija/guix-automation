@@ -1,0 +1,80 @@
+import type { EntradaAutomacao } from "./tipos";
+import { templateIdDoNicho } from "./carregar-exemplo";
+
+function soDigitos(v: string) {
+  return v.replace(/\D/g, "");
+}
+
+function rotuloTel(digitos: string) {
+  const d = soDigitos(digitos);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return digitos;
+}
+
+function whatsappE164(raw: string) {
+  let d = soDigitos(raw);
+  if (d.length === 10 || d.length === 11) d = `55${d}`;
+  return d;
+}
+
+/** Preenche empresa / meta / seo básicos a partir dos dados do cliente. */
+export function aplicarDadosCliente(site: Record<string, unknown>, entrada: EntradaAutomacao) {
+  const meta = { ...(site.meta as Record<string, unknown>) };
+  meta.nicho = entrada.nicho;
+  meta.template_id = templateIdDoNicho(entrada.nicho);
+  meta.schema_version = "1.0.0";
+  meta.locale = "pt-BR";
+  site.meta = meta;
+
+  const empresa = { ...(site.empresa as Record<string, unknown>) };
+  empresa.nome = entrada.nome;
+  if (entrada.slogan) empresa.slogan = entrada.slogan;
+  if (entrada.cnpj) empresa.cnpj = entrada.cnpj;
+  if (entrada.email) empresa.email = entrada.email;
+
+  if (entrada.telefone) {
+    const dig = soDigitos(entrada.telefone);
+    empresa.telefone = dig;
+    empresa.telefone_label = rotuloTel(dig);
+  }
+  if (entrada.whatsapp) {
+    const wa = whatsappE164(entrada.whatsapp);
+    empresa.whatsapp = wa;
+    empresa.whatsapp_label = rotuloTel(wa.startsWith("55") ? wa.slice(2) : wa);
+    empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar um horário.`;
+    empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
+  }
+
+  const endereco = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+  if (entrada.logradouro) endereco.logradouro = entrada.logradouro;
+  if (entrada.numero) endereco.numero = entrada.numero;
+  if (entrada.bairro) endereco.bairro = entrada.bairro;
+  if (entrada.cidade) endereco.cidade = entrada.cidade;
+  if (entrada.estado) endereco.estado = entrada.estado;
+  if (entrada.cep) endereco.cep = entrada.cep;
+
+  const partes = [
+    [endereco.logradouro, endereco.numero].filter(Boolean).join(", "),
+    endereco.bairro,
+    [endereco.cidade, endereco.estado].filter(Boolean).join(" - "),
+  ].filter(Boolean);
+  if (partes.length) endereco.completo = partes.join(" — ");
+  empresa.endereco = endereco;
+
+  const logo = { ...((empresa.logo as Record<string, unknown>) || {}) };
+  logo.alt = entrada.nome;
+  empresa.logo = logo;
+  site.empresa = empresa;
+
+  const cidade = String(endereco.cidade || entrada.cidade || "");
+  const seo = { ...(site.seo as Record<string, unknown>) };
+  seo.title = cidade ? `${entrada.nome} | ${cidade}` : entrada.nome;
+  seo.og_title = seo.title;
+  if (!seo.description) {
+    seo.description = `Site de ${entrada.nome}${cidade ? ` em ${cidade}` : ""}. Agende pelo WhatsApp.`;
+  }
+  site.seo = seo;
+
+  return site;
+}

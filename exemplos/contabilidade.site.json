@@ -1,0 +1,505 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "contabilidade",
+    "template_id": "contabilidade-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Lima Contabilidade",
+    "slogan": "Reunião marcada com o contador.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Lima Contabilidade",
+      "categoria": "logo"
+    },
+    "telefone": "7930000005",
+    "telefone_label": "(79) 3000-0005",
+    "whatsapp": "5579999990005",
+    "whatsapp_label": "(79) 99999-0005",
+    "whatsapp_mensagem": "Olá, vim pelo site da Lima Contabilidade e quero agendar uma reunião.",
+    "whatsapp_aria": "Chamar a Lima Contabilidade no WhatsApp",
+    "email": "contato@limacontabilidade.com.br",
+    "endereco": {
+      "logradouro": "Rua João Pessoa",
+      "numero": "400",
+      "complemento": "sala 3",
+      "bairro": "Centro",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49010-130",
+      "completo": "Rua João Pessoa, 400, sala 3 — Centro, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      { "id": "instagram", "label": "Instagram", "url": "https://instagram.com/limacontabilidade" },
+      { "id": "facebook", "label": "Facebook", "url": "" },
+      { "id": "tiktok", "label": "TikTok", "url": "" }
+    ],
+    "expediente": [
+      { "dia": "seg", "label": "Segunda", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "ter", "label": "Terça", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "qua", "label": "Quarta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "qui", "label": "Quinta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] },
+      { "dia": "sex", "label": "Sexta", "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] }
+    ],
+    "horario_resumo": "Segunda a sexta, 8h às 17h"
+  },
+  "tema": {
+    "color_primary": "#1A3654",
+    "color_secondary": "#8A6A3B",
+    "color_accent": "#1A3654",
+    "color_background": "#F4F6F8",
+    "color_surface": "#FFFFFF",
+    "color_text": "#1A2332",
+    "color_text_muted": "#5C6B7A",
+    "font_heading": "Source Serif 4",
+    "font_body": "Source Sans 3",
+    "radius": "sm"
+  },
+  "seo": {
+    "title": "Lima Contabilidade | Escritório no Centro de Aracaju",
+    "description": "Agende reunião na Lima Contabilidade, no Centro de Aracaju. Abertura de empresa, imposto de renda e folha, de segunda a sexta.",
+    "keywords": ["contabilidade em Aracaju", "contador no Centro", "imposto de renda", "abertura de empresa", "agendamento"],
+    "og_title": "Lima Contabilidade | Reunião no Centro",
+    "og_description": "Reunião marcada com o contador no Centro de Aracaju. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Mesa de trabalho com documentos e computador",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar reunião",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "O escritório", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Equipe", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Condições", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "A reunião com o contador tem hora.",
+    "subtitulo": "Abertura de empresa, imposto de renda e folha no Centro. Você escolhe o assunto e chega no horário. Segunda a sexta.",
+    "botao_principal": "Agendar reunião",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Pessoa analisando documentos em uma mesa de escritório",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Escritório de hora marcada",
+    "paragrafos": [
+      "A Lima atende com reunião marcada, no Centro de Aracaju. A primeira conversa serve para entender a empresa ou a declaração, sem compromisso de contrato.",
+      "O escritório cuida de abertura, imposto de renda de pessoa física, folha e regularização de pendências. O preço da tela é o da reunião ou do serviço indicado.",
+      "A abertura do MEI no portal do governo é gratuita. Aqui, quando há cobrança, ela é pela orientação e pelo acompanhamento do escritório, e isso é dito antes de começar."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Documentos e caneta sobre a mesa",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Cada item é um horário com o escritório. O contrato mensal, se fizer sentido, é combinado depois da primeira reunião.",
+    "itens": [
+      {
+        "id": "srv_conversa",
+        "nome": "Primeira conversa",
+        "descricao": "Trinta minutos para contar a situação da empresa ou da declaração. Não gera contrato.",
+        "preco": 0,
+        "preco_label": "Sem custo",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_conversa",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Calculadora e papéis em uma reunião",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_irpf",
+        "nome": "Imposto de renda",
+        "descricao": "Declaração de pessoa física, com os informes em mãos. Empresa tem outro serviço.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_irpf",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
+          "alt": "Pessoa assinando documentos",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_abertura",
+        "nome": "Abertura de empresa",
+        "descricao": "Orientação e protocolo de abertura. O custo do órgão público, quando existir, é à parte e informado antes.",
+        "preco": 400,
+        "preco_label": "R$ 400",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_abertura",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Tela com números em uma mesa de trabalho",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_mei",
+        "nome": "Orientação de MEI",
+        "descricao": "A inscrição do MEI no governo não é cobrada por nós. Este horário é a explicação do que muda na prática.",
+        "preco": 150,
+        "preco_label": "R$ 150",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_mei",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80",
+          "alt": "Reunião de orientação com notebook",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_folha",
+        "nome": "Folha e pró-labore",
+        "descricao": "Conversa para implantar ou revisar folha e pró-labore. A mensalidade do escritório vem depois, por escrito.",
+        "preco": 150,
+        "preco_label": "R$ 150",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_folha",
+          "src": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
+          "alt": "Planilha e cálculos sobre a mesa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_pendencia",
+        "nome": "Regularização",
+        "descricao": "Olhada inicial em pendência fiscal. O orçamento do restante sai depois de ver os documentos.",
+        "preco": 250,
+        "preco_label": "R$ 250",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_pendencia",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
+          "alt": "Pasta de documentos aberta",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Equipe",
+    "subtitulo": "Escolha com quem falar ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_clara",
+        "nome": "Clara Lima",
+        "cargo": "Contadora",
+        "descricao": "Abertura de empresa e primeira conversa. Explica o que é do escritório e o que é taxa de órgão.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_clara",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Clara Lima",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_eduardo",
+        "nome": "Eduardo Vargas",
+        "cargo": "Contador",
+        "descricao": "Imposto de renda e regularização. Pede a lista de documentos antes da reunião.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_eduardo",
+          "src": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Eduardo Vargas",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_renata",
+        "nome": "Renata Pires",
+        "cargo": "Analista fiscal",
+        "descricao": "Folha e pró-labore. Confere o que a empresa já envia hoje antes de propor mudança.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_renata",
+          "src": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Renata Pires",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_conversa",
+        "titulo": "Primeira conversa sem custo",
+        "descricao": "Meia hora para ver se o escritório serve. Sem contrato nessa reunião.",
+        "icone": "check"
+      },
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "A sala fica reservada. Você não espera no corredor do prédio.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_taxa",
+        "titulo": "Taxa de órgão à parte",
+        "descricao": "O que for de junta, prefeitura ou Receita é dito antes, separado do honorário.",
+        "icone": "shield"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do escritório",
+        "descricao": "A confirmação sai do mesmo número da Lima.",
+        "icone": "message-circle"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Condições",
+    "itens": [
+      {
+        "id": "prm_irpf",
+        "titulo": "IRPF com antecedência",
+        "descricao": "Declaração de pessoa física por R$ 150 para quem marcar até 31/03/2027.",
+        "validade": "2027-03-31",
+        "validade_label": "Até 31/03/2027",
+        "imagem": {
+          "id": "img_prm_irpf",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Documentos preparados para a declaração",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_quinta",
+        "titulo": "Quinta da abertura",
+        "descricao": "A reunião de abertura de empresa não tem honorário nas quintas de manhã. Taxas de órgão continuam à parte.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_quinta",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Mesa do escritório em dia de reunião",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Encontros",
+    "itens": [
+      {
+        "id": "evt_irpf",
+        "titulo": "Manhã de imposto de renda",
+        "descricao": "Plantão de dúvidas sobre documentos da declaração. Vagas limitadas. Não substitui a entrega.",
+        "data": "2027-03-12",
+        "data_label": "12 de março",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_irpf",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Sala preparada para o encontro",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_mei",
+        "titulo": "Conversa sobre MEI",
+        "descricao": "Uma hora para quem pensa em abrir MEI e quer saber o que muda no dia a dia. Vagas limitadas.",
+        "data": "2026-11-26",
+        "data_label": "26 de novembro",
+        "horario": "18:00",
+        "imagem": {
+          "id": "img_evt_mei",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Encontro no escritório",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O escritório",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Reunião",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80",
+          "alt": "Reunião com notebook e papéis",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Documentos",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=900&q=80",
+          "alt": "Documentos assinados na mesa",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Números",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cálculos e calculadora",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Mesa",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Tela de trabalho no escritório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Sala",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80",
+          "alt": "Sala de reunião clara",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=900&q=80",
+          "alt": "Profissional em atendimento",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_conversa",
+        "pergunta": "A primeira conversa é paga?",
+        "resposta": "Não. São 30 minutos, sem contrato. Os outros serviços têm o preço escrito no card."
+      },
+      {
+        "id": "faq_mei",
+        "pergunta": "Vocês cobram para abrir MEI?",
+        "resposta": "A inscrição no portal do governo é gratuita. Os R$ 150 são da orientação do escritório, se você quiser esse horário."
+      },
+      {
+        "id": "faq_nota",
+        "pergunta": "Vocês emitem nota para quem não é cliente?",
+        "resposta": "Não. O escritório não vende nota fiscal. Atendemos empresas com contrato ou pessoas na declaração."
+      },
+      {
+        "id": "faq_documentos",
+        "pergunta": "O que levo na reunião?",
+        "resposta": "Documento com foto e o que tiver do assunto: informes, CNPJ ou guias. Se faltar papel, a reunião ainda serve para listar o que buscar."
+      },
+      {
+        "id": "faq_sabado",
+        "pergunta": "Atendem no sábado?",
+        "resposta": "Não. A agenda é de segunda a sexta, das 8h às 17h."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo uma reunião?",
+        "resposta": "Chame no WhatsApp com pelo menos 4 horas de antecedência e peça para liberar o horário."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Centro",
+    "subtitulo": "Agende a reunião pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar reunião",
+    "subtitulo": "Escolha o assunto, o profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Assunto",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: MEI aberto em 2024, quero saber da declaração",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O escritório atende de segunda a sexta.",
+    "erro_campos": "Preencha assunto, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Sua reunião está separada nesta tela. Chame no WhatsApp para o escritório confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao escritório."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "A Lima Contabilidade usa os dados que você informa no site para responder seu contato e confirmar a reunião.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o escritório falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do escritório e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Lima Contabilidade · Centro, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar reunião", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}

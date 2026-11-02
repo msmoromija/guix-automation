@@ -1,0 +1,11 @@
+Não recrie o site. Não troque os textos. Não renomeie chaves. Não adicione seção, página, banco, login ou Supabase. Corrija só o que está ilegível ou faltando.
+
+1. O cabeçalho precisa aparecer no topo, com o menu já definido e o botão de agendar. No celular, o menu abre e fecha. Se o cabeçalho sumiu, reconstrua só ele, lendo os rótulos que já existem.
+
+2. Texto em cima de fotografia fica sobre uma camada escura semitransparente. Título, subtítulo e os dois botões precisam ser lidos sem esforço. Texto escuro em foto escura é erro. Botão da mesma cor do fundo da foto é erro. O botão principal mantém a cor de destaque do tema, com texto que contraste com essa cor.
+
+3. Apague faixa preta vazia entre seções. Se uma imagem não carregar, não deixe um retângulo preto no lugar: esconda essa imagem.
+
+4. A grade de horários não é uma régua do primeiro número ao último. Se o expediente pula o meio do dia, mostre a manhã e a tarde separadas. Exemplo que não pode aparecer: "06:00–20:00" quando os horários reais são 06:00–09:00 e 17:00–20:00.
+
+Não altere mais nada.

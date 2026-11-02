@@ -1,0 +1,814 @@
+Você vai criar um protótipo de site profissional para um estúdio de estética. Faça tudo nesta resposta. Não divida em etapas, não faça perguntas e não proponha um painel administrativo.
+
+Este projeto é uma vitrine de um sistema que depois será automatizado. A liberdade criativa existe só no desenho visual, dentro da direção indicada abaixo. Estrutura, nomes de arquivo, chaves do JSON, rotas, ordem das seções e atributos de dados são especificação. Desviar isso é erro.
+
+Se alguma ideia visual conflitar com o contrato de dados, o contrato vence.
+
+Não conecte banco, Supabase, autenticação, login, pagamento ou armazenamento externo. Não crie painel, blog, loja, área do cliente nem página além das quatro rotas. Não instale biblioteca nova se o starter já resolver o caso. Pode usar React Router se o starter for Vite e ainda não tiver rota. Se o starter for Next.js, use o App Router e não migre para Vite. Não troque de framework.
+
+Não escreva a palavra Guix em lugar nenhum. Este site é o Estúdio Serra Clara, não o site da empresa que vende o sistema.
+
+Não crie seção de antes e depois. Não cite procedimento médico. Não use as palavras botox, preenchimento, harmonização, diagnóstico ou dermatologista. As profissionais são esteticistas e massoterapeuta.
+
+Interface em português do Brasil. Identificadores de código em inglês, como estão neste prompt. html lang="pt-BR".
+
+---
+
+DIREÇÃO VISUAL, SOMENTE DESTE ESTÚDIO
+
+Fundo muito claro, levemente esverdeado, com bastante área em branco. Superfície branca. Texto verde bem escuro. Detalhe em sálvia e areia. Título com a fonte de heading. Corpo com a fonte de body. Hero com fotografia grande, silenciosa, e o título sobre a imagem, legível no celular. Cantos médios, pouca sombra, muito respiro entre as seções.
+
+O botão principal usa fundo color_accent e texto color_primary. Não use color_background no texto do botão: o fundo da página é claro e o texto sumiria. O botão secundário é transparente, com borda color_secondary e texto color_primary.
+
+Proibido: visual escuro de barbearia, rosa choque, gradiente roxo, visual de software genérico, ilustração cartoon, ícone 3D, vídeo, carrossel automático, texto em inglês, lorem ipsum e frase vazia do tipo "líder de mercado", "excelência", "rejuvenescimento garantido" ou "resultado clínico".
+
+O celular é a tela principal. A demonstração será aberta num telefone.
+
+---
+
+FONTE ÚNICA DE CONTEÚDO
+
+Crie src/content/site.json com o JSON integral que está no final deste prompt, entre as marcas SITE_JSON_START e SITE_JSON_END. Não traduza chaves. Não renomeie chaves. Não simplifique o formato. Não mova telefone, endereço ou expediente para outro lugar. Não invente campo. Não apague campo com string vazia: string vazia é um estado válido.
+
+Todo texto visível ao usuário sai desse JSON. O JSX não contém frase de marketing, rótulo de botão, nome de serviço, preço, endereço ou horário escritos à mão.
+
+Também crie src/content/site.types.ts com tipos que espelham esse JSON. Não use any. Não torne opcional um campo que existe no arquivo.
+
+Importe o JSON num módulo único e use esse objeto nas páginas. Alterar hero.titulo no JSON precisa mudar o título da home sem editar o componente.
+
+---
+
+TEMA
+
+Crie src/theme/applyTheme.ts. Ele recebe o objeto do site e define no documentElement, antes do primeiro render:
+
+--color-primary
+--color-secondary
+--color-accent
+--color-background
+--color-surface
+--color-text
+--color-text-muted
+--font-heading
+--font-body
+--radius
+
+Os valores saem de site.tema. Carregue apenas as duas famílias Google Fonts citadas em font_heading e font_body.
+
+Nenhum componente declara cor hexadecimal. Borda e superfície usam essas variáveis. radius none = 0, sm = 2px a 4px, md = 8px, lg = 16px. Use o valor de site.tema.radius.
+
+---
+
+ROTAS
+
+Exatamente estas:
+
+/                  home
+/agendar           agenda
+/privacidade       privacidade
+/obrigado          confirmação
+
+/agendar lê os parâmetros de busca servico e profissional. Quando o id existir, o campo correspondente já vem selecionado.
+
+As quatro páginas usam o mesmo cabeçalho, o mesmo rodapé e o botão flutuante de WhatsApp.
+
+---
+
+ORDEM DA HOME
+
+A home só compõe seções, nesta ordem, sem seção extra:
+
+1. Header
+2. Hero, com id="inicio" e data-section="hero"
+3. Sobre, id="sobre"
+4. Serviços, id="servicos"
+5. Profissionais, id="profissionais"
+6. Diferenciais, id="diferenciais"
+7. Promoções, id="promocoes"
+8. Eventos, id="eventos"
+9. Galeria, id="galeria"
+10. FAQ, id="faq"
+11. Contato, id="contato"
+12. Rodapé
+
+Promoções, eventos e galeria não renderizam quando itens estiver vazio. As demais seções da home renderizam.
+
+O menu do cabeçalho sai só de header.menu. Não acrescente diferenciais, eventos ou galeria no menu. O botão do cabeçalho usa header.botao_agendar, leva a /agendar e tem data-action="agendar".
+
+No celular o menu vira um botão que abre e fecha. Itens são links âncora.
+
+---
+
+ARQUIVOS
+
+src/content/site.json
+src/content/site.types.ts
+src/theme/applyTheme.ts
+src/lib/whatsapp.ts
+src/lib/expediente.ts
+src/lib/lead.ts
+src/components/icons.tsx
+src/components/Header.tsx
+src/components/HeroSection.tsx
+src/components/SobreSection.tsx
+src/components/ServicosSection.tsx
+src/components/ProfissionaisSection.tsx
+src/components/DiferenciaisSection.tsx
+src/components/PromocoesSection.tsx
+src/components/EventosSection.tsx
+src/components/GaleriaSection.tsx
+src/components/FaqSection.tsx
+src/components/ContatoSection.tsx
+src/components/Rodape.tsx
+src/components/WhatsappFlutuante.tsx
+src/components/Seo.tsx
+src/pages/HomePage.tsx
+src/pages/AgendarPage.tsx
+src/pages/PrivacidadePage.tsx
+src/pages/ObrigadoPage.tsx
+
+Seo.tsx define document.title com seo.title na home e com o título da página nas internas, e a meta description com seo.description. Se canonical_url vier vazio, não crie tag canonical.
+
+---
+
+ATRIBUTOS OBRIGATÓRIOS
+
+data-section em cada bloco: header, hero, sobre, servicos, profissionais, diferenciais, promocoes, eventos, galeria, faq, contato, rodape.
+
+data-field no elemento que exibe o texto, com o caminho: hero.titulo, hero.subtitulo, empresa.nome, servicos.titulo, contato.titulo, e o equivalente para os outros textos.
+
+data-component e data-item-id nos repetíveis:
+
+card_servico
+card_profissional
+card_diferencial
+card_promocao
+card_evento
+card_galeria
+item_faq
+
+data-action:
+
+agendar
+whatsapp
+enviar_contato
+confirmar_agendamento
+
+---
+
+DADOS NA TELA
+
+Telefone, WhatsApp, e-mail, endereço, horário e redes vêm de empresa. A seção contato não tem cópia desses dados. O rodapé mostra empresa.nome, empresa.cnpj, empresa.telefone_label, empresa.email, empresa.horario_resumo e rodape.texto. Redes com url vazia não aparecem. Ícone ou imagem de logo com src vazio não quebra: mostre empresa.nome como wordmark.
+
+Preço na tela é preco_label. Duração na tela é duracao_label. Não formate o número por conta própria.
+
+Imagem usa sempre o objeto, com src e alt. Sem alt vazio. Sem imagem de enfeite fora do JSON.
+
+Mapa: só renderize iframe se empresa.endereco.mapa_embed_url não for vazio.
+
+Ícones dos diferenciais: um único mapa em icons.tsx, da lista calendar, clock, map-pin, phone, message-circle, scissors, sparkles, star, shield, users, award, heart, leaf, paw-print, scale, dumbbell, home, check, para ícones Lucide. Ícone fora da lista vira star.
+
+---
+
+CARDS
+
+Serviço: foto, nome, descrição, preço, duração e um botão Agendar. O botão vai para /agendar?servico={id} e tem data-action="agendar".
+
+Profissional: foto, nome, cargo, descrição e um botão Agendar para /agendar?profissional={id}. Um botão só. Sem segundo botão de WhatsApp no card.
+
+Promoção: imagem, título, descrição e validade_label.
+
+Evento: imagem, título, descrição, data_label e horario.
+
+Galeria: grade de imagens com legenda. Clique abre um dialog simples com a imagem e a legenda, fechável por botão e por Escape.
+
+FAQ: perguntas abrem e fecham a resposta. Pode haver mais de uma aberta.
+
+---
+
+WHATSAPP
+
+src/lib/whatsapp.ts exporta uma função que recebe número e texto e devolve https://wa.me/{somente digitos}?text={texto codificado}.
+
+Botões genéricos usam empresa.whatsapp e empresa.whatsapp_mensagem. São o botão secundário do hero, o botão flutuante e qualquer chamada solta. O flutuante tem aria-label = empresa.whatsapp_aria, fica fixo no canto inferior direito e não cobre o menu.
+
+---
+
+AGENDA
+
+Página única, sem wizard. Grupos nesta ordem: serviço, profissional, dia, horário, dados.
+
+Campos com name exatamente:
+
+servico_id
+profissional_id
+data
+horario
+nome
+telefone
+observacao
+
+Serviço é um select ou uma lista de botões com os itens de servicos. Profissional inclui primeiro a opção de id qualquer e rótulo agendamento.sem_preferencia, depois os profissionais do JSON. O id qualquer não entra na lista de profissionais da home.
+
+Data é input type="date", mínimo hoje no fuso local. Ao ler o valor YYYY-MM-DD, construa a data com new Date(ano, mes - 1, dia). Não use new Date("YYYY-MM-DD"), porque isso desloca o dia.
+
+src/lib/expediente.ts descobre o dia da semana nessa data local e procura empresa.expediente. A chave dia usa dom, seg, ter, qua, qui, sex, sab. Se o dia não existir no expediente, mostre agendamento.fechado e não mostre horários. Se existir, mostre os intervalos desse dia, e só esses.
+
+Nome e telefone são obrigatórios. Observação não é. Se faltar campo obrigatório, mostre agendamento.erro_campos e não navegue.
+
+No envio válido, grave em sessionStorage na chave presenca.lead um objeto com tipo "agendamento", servico_id, profissional_id, data, horario, nome, telefone, email vazio e mensagem igual à observação. Depois navegue para /obrigado.
+
+A mensagem de WhatsApp desse pedido é:
+
+Olá, quero agendar: {nome do serviço} com {nome do profissional, ou agendamento.sem_preferencia} em {dd/mm/aaaa} às {hh:mm}. Meu nome é {nome}. WhatsApp: {telefone}. {observação, só se houver}
+
+---
+
+CONTATO
+
+Formulário com name: nome, telefone, email, mensagem. Nome, telefone e mensagem são obrigatórios. E-mail não é.
+
+data-action do botão: enviar_contato.
+
+No envio, grave presenca.lead com tipo "contato", ids e data e horario vazios, mais nome, telefone, email e mensagem. Navegue para /obrigado.
+
+Mensagem de WhatsApp:
+
+Olá, meu nome é {nome}. WhatsApp: {telefone}. {mensagem}
+
+---
+
+PÁGINA OBRIGADO
+
+Leia presenca.lead. Se o tipo for agendamento, use obrigado.agendamento. Se for contato, use obrigado.contato. Se não houver lead, mostre o texto de contato e esconda o botão de WhatsApp.
+
+O botão principal abre a URL do WhatsApp já com a mensagem do tipo correspondente e tem data-action="whatsapp". O outro botão volta para / e usa obrigado.botao_inicio.
+
+---
+
+PRIVACIDADE
+
+Título e parágrafos saem de privacidade. Sem texto jurídico extra escrito no componente.
+
+---
+
+CRITÉRIO DE PRONTO
+
+O projeto abre na home do Estúdio Serra Clara, em português, sem login.
+Existem só as quatro rotas.
+site.json conserva as chaves do JSON abaixo.
+Trocar um texto no JSON troca a tela.
+Não há cor hexadecimal em componente.
+O botão principal tem texto escuro sobre o fundo areia.
+Agendar a partir de um serviço já traz esse serviço selecionado.
+Segunda-feira não oferece horário. Terça-feira oferece os horários do JSON.
+Confirmar o agendamento leva a /obrigado e o WhatsApp abre com serviço, data e nome.
+A página funciona no celular.
+A palavra Guix não aparece.
+Não existe menção a botox, preenchimento ou procedimento médico.
+
+SITE_JSON_START
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "estetica",
+    "template_id": "estetica-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Estúdio Serra Clara",
+    "slogan": "Pele, corpo e horário marcado.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Estúdio Serra Clara",
+      "categoria": "logo"
+    },
+    "telefone": "7930000002",
+    "telefone_label": "(79) 3000-0002",
+    "whatsapp": "5579999990002",
+    "whatsapp_label": "(79) 99999-0002",
+    "whatsapp_mensagem": "Olá, vim pelo site do Estúdio Serra Clara e quero agendar um horário.",
+    "whatsapp_aria": "Chamar o Estúdio Serra Clara no WhatsApp",
+    "email": "contato@estudioserraclara.com.br",
+    "endereco": {
+      "logradouro": "Rua São Cristóvão",
+      "numero": "210",
+      "complemento": "sala 2",
+      "bairro": "Treze de Julho",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49020-000",
+      "completo": "Rua São Cristóvão, 210, sala 2 — Treze de Julho, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/estudioserraclara"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": ["10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
+      },
+      {
+        "dia": "sab",
+        "label": "Sábado",
+        "intervalos": ["09:00", "10:00", "11:00", "12:00"]
+      }
+    ],
+    "horario_resumo": "Terça a sexta, 10h às 18h · Sábado, 9h às 13h"
+  },
+  "tema": {
+    "color_primary": "#1E3330",
+    "color_secondary": "#6E8B82",
+    "color_accent": "#D7C4A3",
+    "color_background": "#F4F6F3",
+    "color_surface": "#FFFFFF",
+    "color_text": "#1C2826",
+    "color_text_muted": "#5C6B66",
+    "font_heading": "Fraunces",
+    "font_body": "Outfit",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Estúdio Serra Clara | Estética no Treze de Julho, Aracaju",
+    "description": "Agende limpeza de pele, massagem e sobrancelha no Estúdio Serra Clara, no Treze de Julho, em Aracaju. Sala reservada e horário marcado, de terça a sábado.",
+    "keywords": [
+      "estética em Aracaju",
+      "limpeza de pele",
+      "massagem em Aracaju",
+      "design de sobrancelhas",
+      "agendamento"
+    ],
+    "og_title": "Estúdio Serra Clara | Estética no Treze de Julho",
+    "og_description": "Limpeza de pele, massagem e sobrancelha com hora marcada no Treze de Julho. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Atendimento de cuidado facial em ambiente claro",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "O estúdio", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Profissionais", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Promoções", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "Um horário só seu, do começo ao fim.",
+    "subtitulo": "Limpeza de pele, massagem e sobrancelha no Treze de Julho. A sala fica reservada para você. Terça a sábado.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Profissional cuidando da pele do rosto de uma cliente",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Estética com sala reservada",
+    "paragrafos": [
+      "No Serra Clara, cada horário ocupa a sala. Você não atravessa um atendimento no meio do outro e não espera num corredor cheio.",
+      "O estúdio fica no Treze de Julho, em Aracaju, e abre de terça a sábado. Os serviços são de pele, corpo e sobrancelha, feitos por esteticistas e massoterapeuta.",
+      "A confirmação do horário chega pelo WhatsApp do estúdio. Se tiver alguma observação sobre a pele, escreva no agendamento."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Toalhas e ambiente de estética em tons claros",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Tempo reservado na sala. Escolha um serviço e siga para o horário.",
+    "itens": [
+      {
+        "id": "srv_limpeza",
+        "nome": "Limpeza de pele",
+        "descricao": "Higienização, extração e máscara. A pele fica sensível no dia. Evite sol forte depois.",
+        "preco": 140,
+        "preco_label": "R$ 140",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_limpeza",
+          "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=800&q=80",
+          "alt": "Limpeza de pele em andamento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_drenagem",
+        "nome": "Drenagem linfática",
+        "descricao": "Massagem leve no corpo, em ritmo lento. Beba água no restante do dia.",
+        "preco": 120,
+        "preco_label": "R$ 120",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_drenagem",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80",
+          "alt": "Massagem corporal em maca",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_massagem",
+        "nome": "Massagem relaxante",
+        "descricao": "Massagem no corpo para aliviar o cansaço do dia. A sala fica só com você.",
+        "preco": 130,
+        "preco_label": "R$ 130",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_massagem",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=800&q=80",
+          "alt": "Ambiente de massagem com luz baixa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_sobrancelha",
+        "nome": "Design de sobrancelhas",
+        "descricao": "Desenho e limpeza da sobrancelha, sem tinta e sem procedimento invasivo.",
+        "preco": 40,
+        "preco_label": "R$ 40",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_sobrancelha",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cuidado próximo do rosto durante o atendimento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_facial",
+        "nome": "Hidratação facial",
+        "descricao": "Limpeza superficial e máscara hidratante. Não substitui acompanhamento dermatológico.",
+        "preco": 110,
+        "preco_label": "R$ 110",
+        "duracao_minutos": 45,
+        "duracao_label": "45 min",
+        "imagem": {
+          "id": "img_srv_facial",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=800&q=80",
+          "alt": "Produtos de cuidado facial organizados na bancada",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_depilacao",
+        "nome": "Depilação de pernas",
+        "descricao": "Depilação com cera das pernas. Avise se a pele estiver irritada ou queimada de sol.",
+        "preco": 70,
+        "preco_label": "R$ 70",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_depilacao",
+          "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sala de atendimento com toalhas claras",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Profissionais",
+    "subtitulo": "Escolha quem atende ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_ana",
+        "nome": "Ana Luiza Pires",
+        "cargo": "Esteticista",
+        "descricao": "Limpeza de pele e hidratação facial. Explica o que será feito antes de começar.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_ana",
+          "src": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Ana Luiza Pires",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_beatriz",
+        "nome": "Beatriz Moura",
+        "cargo": "Esteticista",
+        "descricao": "Sobrancelha e depilação. Trabalha com horário curto e sala individual.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_beatriz",
+          "src": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Beatriz Moura",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_camila",
+        "nome": "Camila Rocha",
+        "cargo": "Massoterapeuta",
+        "descricao": "Drenagem e massagem relaxante. Ajusta a pressão no começo da sessão.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_camila",
+          "src": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Camila Rocha",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_sala",
+        "titulo": "Sala só sua",
+        "descricao": "O horário reserva a sala. O atendimento não acontece na frente de outras pessoas.",
+        "icone": "home"
+      },
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "Você chega e entra. Não há lista de espera no corredor.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do estúdio",
+        "descricao": "A confirmação sai do mesmo número da casa.",
+        "icone": "message-circle"
+      },
+      {
+        "id": "dif_explicacao",
+        "titulo": "Explicação antes",
+        "descricao": "A profissional diz o que vai fazer e o que evitar no resto do dia.",
+        "icone": "shield"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Promoções",
+    "itens": [
+      {
+        "id": "prm_terca",
+        "titulo": "Terça da pele",
+        "descricao": "Limpeza de pele e design de sobrancelhas por R$ 160 nas terças.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_terca",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Atendimento facial no estúdio",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_dupla",
+        "titulo": "Massagem em dupla de horários",
+        "descricao": "Duas sessões de massagem relaxante, marcadas no mesmo mês, por R$ 220.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_dupla",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Sala de massagem preparada",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Eventos",
+    "itens": [
+      {
+        "id": "evt_pele",
+        "titulo": "Noite de cuidado da pele",
+        "descricao": "Rotina simples de limpeza em casa, com vagas limitadas. Reserve pelo WhatsApp.",
+        "data": "2026-11-25",
+        "data_label": "25 de novembro",
+        "horario": "19:00",
+        "imagem": {
+          "id": "img_evt_pele",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Produtos de pele dispostos para o encontro",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_massagem",
+        "titulo": "Manhã de alongamento e massagem",
+        "descricao": "Uma sessão curta de massagem relaxante para quem nunca fez. Vagas limitadas.",
+        "data": "2026-12-06",
+        "data_label": "6 de dezembro",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_massagem",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Maca preparada para massagem",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O estúdio",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Sala",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=900&q=80",
+          "alt": "Sala clara com toalhas dobradas",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Rosto",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cuidado facial em andamento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Massagem",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80",
+          "alt": "Massagem em maca no estúdio",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Detalhe",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&q=80",
+          "alt": "Bancada com produtos de estética",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Ambiente",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80",
+          "alt": "Ambiente calmo preparado para atendimento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=900&q=80",
+          "alt": "Profissional em atendimento de perto",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_agendar",
+        "pergunta": "Preciso agendar?",
+        "resposta": "Sim. A sala é reservada por horário, então não atendemos por ordem de chegada."
+      },
+      {
+        "id": "faq_medico",
+        "pergunta": "Vocês fazem procedimento médico?",
+        "resposta": "Não. O estúdio faz estética: pele, massagem, sobrancelha e depilação. Não há consulta médica, botox nem preenchimento."
+      },
+      {
+        "id": "faq_pele",
+        "pergunta": "Posso fazer limpeza de pele se estiver com o rosto irritado?",
+        "resposta": "Não. Se a pele estiver queimada de sol, ferida ou muito irritada, chame no WhatsApp antes e remarque."
+      },
+      {
+        "id": "faq_pagamento",
+        "pergunta": "Quais formas de pagamento?",
+        "resposta": "Dinheiro, PIX e cartão de débito ou crédito."
+      },
+      {
+        "id": "faq_atraso",
+        "pergunta": "E se eu atrasar?",
+        "resposta": "Chegue no horário. Com mais de 10 minutos de atraso, a sessão pode ser encurtada para não invadir o horário seguinte."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 4 horas de antecedência e peça para liberar a sala."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Treze de Julho",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, a profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Profissional",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: pele sensível, prefiro pressão leve",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O estúdio atende de terça a sábado.",
+    "erro_campos": "Preencha serviço, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para o estúdio confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao estúdio."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Estúdio Serra Clara usa os dados que você informa no site para responder seu contato e confirmar horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o estúdio falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do estúdio e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Estúdio Serra Clara · Treze de Julho, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar horário", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}
+SITE_JSON_END

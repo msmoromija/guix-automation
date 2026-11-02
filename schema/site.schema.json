@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://guix.local/schema/site.schema.json",
+  "title": "SiteContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "meta",
+    "empresa",
+    "tema",
+    "seo",
+    "header",
+    "hero",
+    "sobre",
+    "servicos",
+    "profissionais",
+    "diferenciais",
+    "promocoes",
+    "eventos",
+    "galeria",
+    "faq",
+    "contato",
+    "agendamento",
+    "obrigado",
+    "privacidade",
+    "rodape"
+  ],
+  "$defs": {
+    "imagem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "src", "alt", "categoria"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^img_[a-z0-9_]+$" },
+        "src": { "type": "string" },
+        "alt": { "type": "string", "minLength": 1 },
+        "categoria": {
+          "enum": [
+            "logo",
+            "hero",
+            "sobre",
+            "servico",
+            "profissional",
+            "promocao",
+            "evento",
+            "galeria",
+            "og"
+          ]
+        },
+        "origem": {
+          "enum": ["biblioteca", "unsplash", "upload"]
+        },
+        "credito": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fotografo", "perfil_url", "texto"],
+          "properties": {
+            "fotografo": { "type": "string", "minLength": 1 },
+            "perfil_url": { "type": "string", "minLength": 1 },
+            "unsplash_url": { "type": "string" },
+            "texto": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "icone": {
+      "enum": [
+        "calendar",
+        "clock",
+        "map-pin",
+        "phone",
+        "message-circle",
+        "scissors",
+        "sparkles",
+        "star",
+        "shield",
+        "users",
+        "award",
+        "heart",
+        "leaf",
+        "paw-print",
+        "scale",
+        "dumbbell",
+        "home",
+        "check"
+      ]
+    }
+  },
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "nicho", "template_id", "locale"],
+      "properties": {
+        "schema_version": { "const": "1.0.0" },
+        "nicho": {
+          "enum": [
+            "barbearia",
+            "salao",
+            "estetica",
+            "petshop",
+            "academia",
+            "contabilidade",
+            "advocacia",
+            "clinica",
+            "generico"
+          ]
+        },
+        "template_id": { "type": "string", "minLength": 1 },
+        "locale": { "const": "pt-BR" }
+      }
+    },
+    "empresa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "slogan",
+        "cnpj",
+        "logo",
+        "telefone",
+        "telefone_label",
+        "whatsapp",
+        "whatsapp_label",
+        "whatsapp_mensagem",
+        "whatsapp_aria",
+        "email",
+        "endereco",
+        "redes",
+        "expediente",
+        "horario_resumo"
+      ],
+      "properties": {
+        "nome": { "type": "string", "minLength": 1 },
+        "slogan": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "logo": { "$ref": "#/$defs/imagem" },
+        "telefone": { "type": "string", "pattern": "^[0-9]{10,13}$" },
+        "telefone_label": { "type": "string", "minLength": 1 },
+        "whatsapp": { "type": "string", "pattern": "^55[0-9]{10,11}$" },
+        "whatsapp_label": { "type": "string", "minLength": 1 },
+        "whatsapp_mensagem": { "type": "string", "minLength": 1 },
+        "whatsapp_aria": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "minLength": 3 },
+        "endereco": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "logradouro",
+            "numero",
+            "complemento",
+            "bairro",
+            "cidade",
+            "estado",
+            "cep",
+            "completo",
+            "mapa_embed_url"
+          ],
+          "properties": {
+            "logradouro": { "type": "string" },
+            "numero": { "type": "string" },
+            "complemento": { "type": "string" },
+            "bairro": { "type": "string" },
+            "cidade": { "type": "string" },
+            "estado": { "type": "string", "minLength": 2, "maxLength": 2 },
+            "cep": { "type": "string" },
+            "completo": { "type": "string", "minLength": 1 },
+            "mapa_embed_url": { "type": "string" }
+          }
+        },
+        "redes": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "url"],
+            "properties": {
+              "id": { "enum": ["instagram", "facebook", "tiktok", "youtube"] },
+              "label": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "expediente": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dia", "label", "intervalos"],
+            "properties": {
+              "dia": { "enum": ["dom", "seg", "ter", "qua", "qui", "sex", "sab"] },
+              "label": { "type": "string", "minLength": 1 },
+              "intervalos": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+              }
+            }
+          }
+        },
+        "horario_resumo": { "type": "string", "minLength": 1 }
+      }
+    },
+    "tema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color_primary",
+        "color_secondary",
+        "color_accent",
+        "color_background",
+        "color_surface",
+        "color_text",
+        "color_text_muted",
+        "font_heading",
+        "font_body",
+        "radius"
+      ],
+      "properties": {
+        "color_primary": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_secondary": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_accent": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_background": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_surface": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_text": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "color_text_muted": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "font_heading": { "type": "string", "minLength": 1 },
+        "font_body": { "type": "string", "minLength": 1 },
+        "radius": { "enum": ["none", "sm", "md", "lg"] }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "description",
+        "keywords",
+        "og_title",
+        "og_description",
+        "og_image",
+        "canonical_url"
+      ],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "keywords": { "type": "array", "items": { "type": "string" } },
+        "og_title": { "type": "string" },
+        "og_description": { "type": "string" },
+        "og_image": { "$ref": "#/$defs/imagem" },
+        "canonical_url": { "type": "string" }
+      }
+    },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["botao_agendar", "menu"],
+      "properties": {
+        "botao_agendar": { "type": "string", "minLength": 1 },
+        "menu": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "href"],
+            "properties": {
+              "id": {
+                "enum": [
+                  "inicio",
+                  "sobre",
+                  "servicos",
+                  "profissionais",
+                  "promocoes",
+                  "faq",
+                  "contato"
+                ]
+              },
+              "label": { "type": "string", "minLength": 1 },
+              "href": { "type": "string", "pattern": "^#[a-z]+$" }
+            }
+          }
+        }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "titulo",
+        "subtitulo",
+        "botao_principal",
+        "botao_secundario",
+        "imagem"
+      ],
+      "properties": {
+        "titulo": { "type": "string", "minLength": 1 },
+        "subtitulo": { "type": "string", "minLength": 1 },
+        "botao_principal": { "type": "string", "minLength": 1 },
+        "botao_secundario": { "type": "string", "minLength": 1 },
+        "imagem": { "$ref": "#/$defs/imagem" }
+      }
+    },
+    "sobre": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "paragrafos", "imagem"],
+      "properties": {
+        "titulo": { "type": "string", "minLength": 1 },
+        "paragrafos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "imagem": { "$ref": "#/$defs/imagem" }
+      }
+    },
+    "servicos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "subtitulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "subtitulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "nome",
+              "descricao",
+              "preco",
+              "preco_label",
+              "duracao_minutos",
+              "duracao_label",
+              "imagem"
+            ],
+            "properties": {
+              "id": { "type": "string", "pattern": "^srv_[a-z0-9_]+$" },
+              "nome": { "type": "string", "minLength": 1 },
+              "descricao": { "type": "string" },
+              "preco": { "type": "number", "minimum": 0 },
+              "preco_label": { "type": "string", "minLength": 1 },
+              "duracao_minutos": { "type": "integer", "minimum": 1 },
+              "duracao_label": { "type": "string", "minLength": 1 },
+              "imagem": { "$ref": "#/$defs/imagem" }
+            }
+          }
+        }
+      }
+    },
+    "profissionais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "subtitulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "subtitulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "nome", "cargo", "descricao", "whatsapp", "foto"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^pro_[a-z0-9_]+$" },
+              "nome": { "type": "string", "minLength": 1 },
+              "cargo": { "type": "string" },
+              "descricao": { "type": "string" },
+              "whatsapp": { "type": "string", "pattern": "^$|^55[0-9]{10,11}$" },
+              "foto": { "$ref": "#/$defs/imagem" }
+            }
+          }
+        }
+      }
+    },
+    "diferenciais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "titulo", "descricao", "icone"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^dif_[a-z0-9_]+$" },
+              "titulo": { "type": "string", "minLength": 1 },
+              "descricao": { "type": "string" },
+              "icone": { "$ref": "#/$defs/icone" }
+            }
+          }
+        }
+      }
+    },
+    "promocoes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "titulo",
+              "descricao",
+              "validade",
+              "validade_label",
+              "imagem"
+            ],
+            "properties": {
+              "id": { "type": "string", "pattern": "^prm_[a-z0-9_]+$" },
+              "titulo": { "type": "string" },
+              "descricao": { "type": "string" },
+              "validade": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "validade_label": { "type": "string" },
+              "imagem": { "$ref": "#/$defs/imagem" }
+            }
+          }
+        }
+      }
+    },
+    "eventos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "titulo",
+              "descricao",
+              "data",
+              "data_label",
+              "horario",
+              "imagem"
+            ],
+            "properties": {
+              "id": { "type": "string", "pattern": "^evt_[a-z0-9_]+$" },
+              "titulo": { "type": "string" },
+              "descricao": { "type": "string" },
+              "data": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "data_label": { "type": "string" },
+              "horario": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+              "imagem": { "$ref": "#/$defs/imagem" }
+            }
+          }
+        }
+      }
+    },
+    "galeria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "legenda", "imagem"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^gal_[a-z0-9_]+$" },
+              "legenda": { "type": "string" },
+              "imagem": { "$ref": "#/$defs/imagem" }
+            }
+          }
+        }
+      }
+    },
+    "faq": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "itens"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "itens": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "pergunta", "resposta"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^faq_[a-z0-9_]+$" },
+              "pergunta": { "type": "string", "minLength": 1 },
+              "resposta": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "contato": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "subtitulo", "formulario"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "subtitulo": { "type": "string" },
+        "formulario": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "titulo",
+            "label_nome",
+            "label_telefone",
+            "label_email",
+            "label_mensagem",
+            "botao"
+          ],
+          "properties": {
+            "titulo": { "type": "string" },
+            "label_nome": { "type": "string" },
+            "label_telefone": { "type": "string" },
+            "label_email": { "type": "string" },
+            "label_mensagem": { "type": "string" },
+            "botao": { "type": "string" }
+          }
+        }
+      }
+    },
+    "agendamento": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "titulo",
+        "subtitulo",
+        "passo_servico",
+        "passo_profissional",
+        "passo_data",
+        "passo_horario",
+        "passo_dados",
+        "sem_preferencia",
+        "label_nome",
+        "label_telefone",
+        "label_observacao",
+        "placeholder_observacao",
+        "botao_confirmar",
+        "fechado",
+        "erro_campos"
+      ],
+      "properties": {
+        "titulo": { "type": "string" },
+        "subtitulo": { "type": "string" },
+        "passo_servico": { "type": "string" },
+        "passo_profissional": { "type": "string" },
+        "passo_data": { "type": "string" },
+        "passo_horario": { "type": "string" },
+        "passo_dados": { "type": "string" },
+        "sem_preferencia": { "type": "string" },
+        "label_nome": { "type": "string" },
+        "label_telefone": { "type": "string" },
+        "label_observacao": { "type": "string" },
+        "placeholder_observacao": { "type": "string" },
+        "botao_confirmar": { "type": "string" },
+        "fechado": { "type": "string" },
+        "erro_campos": { "type": "string" }
+      }
+    },
+    "obrigado": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agendamento", "contato", "botao_whatsapp", "botao_inicio"],
+      "properties": {
+        "agendamento": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["titulo", "texto"],
+          "properties": {
+            "titulo": { "type": "string" },
+            "texto": { "type": "string" }
+          }
+        },
+        "contato": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["titulo", "texto"],
+          "properties": {
+            "titulo": { "type": "string" },
+            "texto": { "type": "string" }
+          }
+        },
+        "botao_whatsapp": { "type": "string" },
+        "botao_inicio": { "type": "string" }
+      }
+    },
+    "privacidade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["titulo", "paragrafos"],
+      "properties": {
+        "titulo": { "type": "string" },
+        "paragrafos": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "rodape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["texto", "links"],
+      "properties": {
+        "texto": { "type": "string" },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "href"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

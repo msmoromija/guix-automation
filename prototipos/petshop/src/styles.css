@@ -1,0 +1,43 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/* Theme values come from site.json via applyTheme (--color-*, --font-*, --radius). */
+@theme inline {
+  --color-brand: var(--color-primary);
+  --color-terra: var(--color-secondary);
+  --color-sand: var(--color-accent);
+  --color-page: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-ink: var(--color-text);
+  --color-ink-muted: var(--color-text-muted);
+  --font-display: var(--font-heading);
+  --font-sans: var(--font-body);
+  --radius-site: var(--radius);
+}
+
+@layer base {
+  * { border-color: color-mix(in oklab, var(--color-text) 14%, transparent); }
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-heading); letter-spacing: -0.01em; }
+  dialog::backdrop { background: color-mix(in oklab, var(--color-primary) 70%, transparent); }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-site bg-sand px-6 font-bold text-brand transition hover:brightness-95 active:scale-[.98];
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-site border-2 border-terra bg-transparent px-6 font-bold text-brand transition hover:bg-terra/10;
+  }
+  .card { @apply overflow-hidden rounded-site border bg-surface; }
+  .eyebrow-line { @apply mb-3 block h-1 w-10 rounded-full bg-terra; }
+  .field { @apply w-full rounded-site border bg-surface px-4 py-3 text-ink outline-none focus:border-terra focus:ring-2 focus:ring-terra/30; }
+  .section { @apply mx-auto max-w-6xl px-5 py-16 md:py-24; }
+}

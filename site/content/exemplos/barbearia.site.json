@@ -1,0 +1,543 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "barbearia",
+    "template_id": "barbearia-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Barbearia Vila Norte",
+    "slogan": "Corte e barba com hora marcada.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Barbearia Vila Norte",
+      "categoria": "logo"
+    },
+    "telefone": "7930000000",
+    "telefone_label": "(79) 3000-0000",
+    "whatsapp": "5579999990000",
+    "whatsapp_label": "(79) 99999-0000",
+    "whatsapp_mensagem": "Olá, vim pelo site da Barbearia Vila Norte e quero agendar um horário.",
+    "whatsapp_aria": "Chamar a Barbearia Vila Norte no WhatsApp",
+    "email": "contato@barbeariavilanorte.com.br",
+    "endereco": {
+      "logradouro": "Rua José de Alencar",
+      "numero": "120",
+      "complemento": "",
+      "bairro": "Jardins",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49025-000",
+      "completo": "Rua José de Alencar, 120 — Jardins, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/barbeariavilanorte"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+      },
+      {
+        "dia": "sab",
+        "label": "Sábado",
+        "intervalos": ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
+      }
+    ],
+    "horario_resumo": "Terça a sexta, 9h às 19h · Sábado, 8h às 17h"
+  },
+  "tema": {
+    "color_primary": "#111111",
+    "color_secondary": "#C6A15B",
+    "color_accent": "#D4B483",
+    "color_background": "#0C0C0C",
+    "color_surface": "#171717",
+    "color_text": "#F4F0E6",
+    "color_text_muted": "#C8C2B4",
+    "font_heading": "Oswald",
+    "font_body": "Manrope",
+    "radius": "sm"
+  },
+  "seo": {
+    "title": "Barbearia Vila Norte | Corte e barba no Jardins, Aracaju",
+    "description": "Agende corte, barba e acabamento na Barbearia Vila Norte, no Jardins, em Aracaju. Hora marcada e atendimento pelo WhatsApp, de terça a sábado.",
+    "keywords": [
+      "barbearia em Aracaju",
+      "barbearia no Jardins",
+      "corte masculino",
+      "barba",
+      "agendamento"
+    ],
+    "og_title": "Barbearia Vila Norte | Corte e barba no Jardins",
+    "og_description": "Hora marcada para corte e barba no Jardins, em Aracaju. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Barbeiro aparando a barba de um cliente",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      { "id": "inicio", "label": "Início", "href": "#inicio" },
+      { "id": "sobre", "label": "A barbearia", "href": "#sobre" },
+      { "id": "servicos", "label": "Serviços", "href": "#servicos" },
+      { "id": "profissionais", "label": "Barbeiros", "href": "#profissionais" },
+      { "id": "promocoes", "label": "Promoções", "href": "#promocoes" },
+      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
+      { "id": "contato", "label": "Contato", "href": "#contato" }
+    ]
+  },
+  "hero": {
+    "titulo": "A cadeira é sua no horário marcado.",
+    "subtitulo": "Corte, barba e acabamento no Jardins. Você escolhe o serviço e o barbeiro, e chega na hora. Terça a sábado.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Barbeiro aparando a barba de um cliente na cadeira",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Uma barbearia de horário marcado",
+    "paragrafos": [
+      "A Vila Norte trabalha com hora marcada para você não esperar em pé. Dá para escolher o serviço, o barbeiro e o horário antes de sair de casa.",
+      "O espaço fica no Jardins, em Aracaju, e atende de terça a sábado. O corte vai do clássico ao degradê, e a barba é feita com toalha quente.",
+      "Se preferir falar com alguém, chame no WhatsApp. A confirmação do horário acontece por lá, no mesmo número da barbearia."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Interior de barbearia com cadeiras e espelhos",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Preço fechado e tempo reservado na agenda. Escolha um e siga para o horário.",
+    "itens": [
+      {
+        "id": "srv_corte",
+        "nome": "Corte masculino",
+        "descricao": "Tesoura ou máquina, do clássico ao degradê, com acabamento no contorno.",
+        "preco": 50,
+        "preco_label": "R$ 50",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_corte",
+          "src": "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=800&q=80",
+          "alt": "Corte masculino degradê sendo feito com máquina",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_barba",
+        "nome": "Barba",
+        "descricao": "Toalha quente, navalha e alinhamento do contorno.",
+        "preco": 35,
+        "preco_label": "R$ 35",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_barba",
+          "src": "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cliente de barba feita durante o atendimento",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_combo",
+        "nome": "Corte e barba",
+        "descricao": "Os dois serviços no mesmo horário, com um barbeiro só.",
+        "preco": 80,
+        "preco_label": "R$ 80",
+        "duracao_minutos": 70,
+        "duracao_label": "1 h 10 min",
+        "imagem": {
+          "id": "img_srv_combo",
+          "src": "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=800&q=80",
+          "alt": "Barbeiro trabalhando no cabelo e na barba do cliente",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_acabamento",
+        "nome": "Acabamento",
+        "descricao": "Contorno do corte e da barba entre uma visita e outra.",
+        "preco": 25,
+        "preco_label": "R$ 25",
+        "duracao_minutos": 20,
+        "duracao_label": "20 min",
+        "imagem": {
+          "id": "img_srv_acabamento",
+          "src": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=80",
+          "alt": "Detalhe do ambiente da barbearia",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_sobrancelha",
+        "nome": "Sobrancelha",
+        "descricao": "Limpeza e alinhamento para fechar o visual do corte.",
+        "preco": 20,
+        "preco_label": "R$ 20",
+        "duracao_minutos": 15,
+        "duracao_label": "15 min",
+        "imagem": {
+          "id": "img_srv_sobrancelha",
+          "src": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80",
+          "alt": "Atendimento de perto na cadeira da barbearia",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_hidratacao",
+        "nome": "Hidratação",
+        "descricao": "Tratamento rápido no couro e no fio, feito no horário do corte ou à parte.",
+        "preco": 40,
+        "preco_label": "R$ 40",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_hidratacao",
+          "src": "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cabelo masculino curto em atendimento",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Barbeiros",
+    "subtitulo": "Escolha com quem cortar ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_caio",
+        "nome": "Caio Mendes",
+        "cargo": "Barbeiro",
+        "descricao": "Corte clássico e barba tradicional. Prefere tesoura e contorno baixo.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_caio",
+          "src": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Caio Mendes",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_diego",
+        "nome": "Diego Alves",
+        "cargo": "Barbeiro",
+        "descricao": "Degradê e acabamento. Bom caminho para quem corta a cada duas semanas.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_diego",
+          "src": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Diego Alves",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_renan",
+        "nome": "Renan Porto",
+        "cargo": "Barbeiro",
+        "descricao": "Barba e sobrancelha. Trabalha com toalha quente em todo serviço de barba.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_renan",
+          "src": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Renan Porto",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Por que marcar aqui",
+    "itens": [
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "A agenda é a fila. Você chega e senta.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp da casa",
+        "descricao": "A confirmação sai do mesmo número da barbearia.",
+        "icone": "message-circle"
+      },
+      {
+        "id": "dif_toalha",
+        "titulo": "Toalha quente",
+        "descricao": "Faz parte do serviço de barba, do começo ao acabamento.",
+        "icone": "sparkles"
+      },
+      {
+        "id": "dif_equipe",
+        "titulo": "Três barbeiros",
+        "descricao": "Dá para escolher quem corta ou vir sem preferência.",
+        "icone": "users"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Promoções",
+    "itens": [
+      {
+        "id": "prm_terca",
+        "titulo": "Terça do combo",
+        "descricao": "Corte e barba por R$ 70 nas terças, no horário das 9h às 14h.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_terca",
+          "src": "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Atendimento de corte e barba",
+          "categoria": "promocao"
+        }
+      },
+      {
+        "id": "prm_retorno",
+        "titulo": "Volta em 15 dias",
+        "descricao": "Acabamento por R$ 20 para quem retorna em até 15 dias depois do corte.",
+        "validade": "2026-12-31",
+        "validade_label": "Até 31/12/2026",
+        "imagem": {
+          "id": "img_prm_retorno",
+          "src": "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Cliente depois do corte e da barba",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Eventos",
+    "itens": [
+      {
+        "id": "evt_classica",
+        "titulo": "Noite clássica",
+        "descricao": "Cortes à tesoura e barba tradicional, com vagas limitadas. Reserve pelo WhatsApp.",
+        "data": "2026-11-21",
+        "data_label": "21 de novembro",
+        "horario": "19:00",
+        "imagem": {
+          "id": "img_evt_classica",
+          "src": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Barbeiro em atendimento clássico",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_barba",
+        "titulo": "Manhã de barba",
+        "descricao": "Demonstração de cuidado de barba em casa. As vagas são limitadas.",
+        "data": "2026-12-05",
+        "data_label": "5 de dezembro",
+        "horario": "10:00",
+        "imagem": {
+          "id": "img_evt_barba",
+          "src": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Ambiente da barbearia preparado para o evento",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "A casa",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Cadeira e espelho",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=900&q=80",
+          "alt": "Cadeiras de barbearia alinhadas diante do espelho",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Degradê",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=900&q=80",
+          "alt": "Corte degradê em andamento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Barba",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=900&q=80",
+          "alt": "Resultado de barba aparada",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=900&q=80",
+          "alt": "Barbeiro atendendo um cliente",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Detalhe",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=900&q=80",
+          "alt": "Navalha e toalha durante a barba",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Ambiente",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=900&h=900&q=80",
+          "alt": "Salão da barbearia visto de frente",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_agendar",
+        "pergunta": "Preciso agendar?",
+        "resposta": "Sim. O atendimento é com hora marcada, para não formar fila na porta."
+      },
+      {
+        "id": "faq_preferencia",
+        "pergunta": "Posso ir sem escolher o barbeiro?",
+        "resposta": "Pode. Na agenda existe a opção sem preferência, e a casa encaixa você com quem estiver livre."
+      },
+      {
+        "id": "faq_atraso",
+        "pergunta": "E se eu atrasar?",
+        "resposta": "Chegue no horário marcado. Com mais de 10 minutos de atraso, o horário pode passar para outra pessoa."
+      },
+      {
+        "id": "faq_pagamento",
+        "pergunta": "Quais formas de pagamento?",
+        "resposta": "Dinheiro, PIX e cartão de débito ou crédito."
+      },
+      {
+        "id": "faq_crianca",
+        "pergunta": "Atendem criança?",
+        "resposta": "Sim, no corte masculino. Avise a idade na observação do agendamento."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 2 horas de antecedência e peça para liberar o horário."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha ao Jardins",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, o barbeiro e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Barbeiro",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: degradê baixo, barba fechada",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. A barbearia atende de terça a sábado.",
+    "erro_campos": "Preencha serviço, barbeiro, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para a barbearia confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar à barbearia."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "A Barbearia Vila Norte usa os dados que você informa no site para responder seu contato e confirmar horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para a barbearia falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp da barbearia e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Barbearia Vila Norte · Jardins, Aracaju - SE",
+    "links": [
+      { "id": "agendar", "label": "Agendar horário", "href": "/agendar" },
+      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+    ]
+  }
+}
