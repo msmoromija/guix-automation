@@ -179,6 +179,9 @@ export function EstudioForm() {
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
   const [pros, setPros] = useState<ProForm[]>([]);
+  /** Aba ativa por profissional: identidade | grade | ausencias */
+  const [proAba, setProAba] = useState<Record<number, "identidade" | "grade" | "ausencias">>({});
+  const [proAberto, setProAberto] = useState(0);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
@@ -1843,237 +1846,390 @@ export function EstudioForm() {
               </section>
 
               <section id="estudio-equipe" className="gx-step gx-form-card p-5 sm:p-6">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold">Equipe e agenda</h2>
-                    <p className="mt-1 text-sm text-muted">
-                      Horário por dia e ausências de cada pessoa. O site só oferece horários em que ela está disponível.
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 max-w-xl">
+                    <h2 className="text-base font-semibold tracking-tight">Equipe e agenda</h2>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                      Cadastre quem atende, o horário de cada um e as ausências. O site só libera horários em que a pessoa está disponível.
                     </p>
                   </div>
-                  <button type="button" className="rounded-full bg-ink px-4 py-2 text-sm text-white" onClick={() => setPros((p) => [...p, proVazio()])}>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-sm"
+                    onClick={() => {
+                      setPros((p) => {
+                        const prox = [...p, proVazio()];
+                        setProAberto(prox.length - 1);
+                        setProAba((m) => ({ ...m, [prox.length - 1]: "identidade" }));
+                        return prox;
+                      });
+                    }}
+                  >
                     Incluir profissional
                   </button>
                 </div>
-                {pros.length === 0 ? (
-                  <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
-                    Ninguém cadastrado ainda. O cliente pode agendar com “Sem preferência”, usando o horário da casa.
-                  </p>
-                ) : (
-                  <div className="mt-4 space-y-5">
-                    {pros.map((p, i) => (
-                      <article key={`pro-${i}`} className="gx-card-in overflow-hidden rounded-2xl border border-line shadow-[0_10px_28px_-18px_rgba(15,23,42,0.4)]">
-                        <div className="border-b border-line bg-canvas/60 px-4 py-3 sm:px-5">
-                          <p className="text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
-                          <p className="text-xs text-muted">{p.cargo.trim() || "Preencha identidade, grade e ausências"}</p>
-                        </div>
 
-                        <div className="space-y-5 p-4 sm:p-5">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Identidade</p>
-                            <div className="mt-3 flex gap-4">
-                              <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-line bg-canvas text-2xl font-semibold text-ink/40">
+                {pros.length === 0 ? (
+                  <div className="gx-pro-empty mt-6">
+                    <p className="text-sm font-medium text-ink">Ninguém na equipe ainda</p>
+                    <p className="mt-1 text-sm text-muted">
+                      Sem profissionais, o cliente agenda com “Sem preferência” no horário da casa. Inclua alguém para personalizar a agenda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-6 space-y-4">
+                    {pros.length > 1 ? (
+                      <div className="gx-pro-tabs" role="tablist" aria-label="Profissionais">
+                        {pros.map((p, i) => (
+                          <button
+                            key={`pro-tab-${i}`}
+                            type="button"
+                            role="tab"
+                            aria-selected={proAberto === i}
+                            className={`gx-pro-tab ${proAberto === i ? "is-on" : ""}`}
+                            onClick={() => setProAberto(i)}
+                          >
+                            <span className="gx-pro-tab__avatar" aria-hidden>
+                              {p.fotoSrc ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={p.fotoSrc} alt="" />
+                              ) : (
+                                (p.nome.trim() || `P${i + 1}`).slice(0, 1).toUpperCase()
+                              )}
+                            </span>
+                            <span className="min-w-0 truncate">{p.nome.trim() || `Profissional ${i + 1}`}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {pros.map((p, i) => {
+                      if (pros.length > 1 && i !== proAberto) return null;
+                      const aba = proAba[i] || "identidade";
+                      const diasAbertos = p.expediente.filter((d) => d.aberto).length;
+                      return (
+                        <article key={`pro-${i}`} className="gx-pro-card">
+                          <header className="gx-pro-card__head">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="gx-pro-avatar" aria-hidden>
                                 {p.fotoSrc ? (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
+                                  <img src={p.fotoSrc} alt="" />
                                 ) : (
-                                  <>
-                                    <span>+</span>
-                                    <span className="mt-1 text-[10px] font-medium">Foto</span>
-                                  </>
+                                  <span>{(p.nome.trim() || `${i + 1}`).slice(0, 1).toUpperCase()}</span>
                                 )}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(ev) => {
-                                    const f = ev.target.files?.[0];
-                                    if (!f) return;
-                                    void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
-                                  }}
-                                />
-                              </label>
-                              <div className="min-w-0 flex-1 space-y-2">
-                                <label className="block text-xs font-medium text-muted">
-                                  Nome
-                                  <input className={campo} value={p.nome} placeholder="Quem atende" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
-                                </label>
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                  <label className="block text-xs font-medium text-muted">
-                                    Função
-                                    <input className={campo} value={p.cargo} placeholder={dicas.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
-                                  </label>
-                                  <label className="block text-xs font-medium text-muted">
-                                    <span className="inline-flex items-center gap-1.5">
-                                      <IconeRede id="whatsapp" className="h-3.5 w-3.5 text-[#128C7E]" />
-                                      WhatsApp desta pessoa
-                                    </span>
-                                    <input className={campo} value={p.whatsapp} placeholder="79 99999-0000" inputMode="tel" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))} />
-                                  </label>
-                                </div>
-                                <label className="block text-xs font-medium text-muted">
-                                  Sobre o atendimento
-                                  <textarea className={campo} rows={2} value={p.descricao} placeholder="Especialidade, estilo, experiência…" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
-                                </label>
                               </div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex flex-wrap items-end justify-between gap-2">
-                              <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Grade desta pessoa</p>
-                                <p className="mt-1 text-xs text-muted">
-                                  Dias, turno e almoço próprios — independentes do horário da casa. Depois você também altera isso na área do cliente.
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
+                                <p className="truncate text-xs text-muted">
+                                  {p.cargo.trim() || "Sem função"} · {diasAbertos} dia{diasAbertos === 1 ? "" : "s"} ·{" "}
+                                  {p.ausencias.length} ausência{p.ausencias.length === 1 ? "" : "s"}
                                 </p>
                               </div>
-                              <button
-                                type="button"
-                                className="text-xs font-medium text-accent underline"
-                                onClick={() =>
-                                  setPros((rows) =>
-                                    rows.map((r, j) =>
-                                      j === i
-                                        ? {
-                                            ...r,
-                                            expediente: expediente.map((d) => normalizarDiaExpediente(d)),
-                                          }
-                                        : r,
-                                    ),
-                                  )
-                                }
-                              >
-                                Copiar horário da casa
-                              </button>
                             </div>
-                            <div className="mt-3">
-                              <GradeExpediente
-                                atalhos
-                                detalheAberto
-                                vazio="Marque os dias em que esta pessoa atende."
-                                value={p.expediente}
-                                onChange={(prox) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, expediente: prox } : r)))}
-                              />
-                            </div>
-                            <p className="mt-2 text-[11px] text-muted">{resumoDoExpediente(p.expediente)}</p>
-                          </div>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
+                              onClick={() => {
+                                setPros((rows) => {
+                                  const prox = rows.filter((_, j) => j !== i);
+                                  setProAberto(Math.max(0, Math.min(proAberto, prox.length - 1)));
+                                  return prox;
+                                });
+                              }}
+                            >
+                              Remover
+                            </button>
+                          </header>
 
-                          <div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Ausências</p>
-                                <p className="mt-1 text-xs text-muted">Férias, folga, consulta — nesses dias o site não oferece esta pessoa.</p>
-                              </div>
+                          <nav className="gx-pro-nav" aria-label="Seções do profissional">
+                            {(
+                              [
+                                ["identidade", "1 · Identidade"],
+                                ["grade", "2 · Horários"],
+                                ["ausencias", "3 · Ausências"],
+                              ] as const
+                            ).map(([id, label]) => (
                               <button
+                                key={id}
                                 type="button"
-                                className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
-                                onClick={() =>
-                                  setPros((rows) =>
-                                    rows.map((r, j) =>
-                                      j === i
-                                        ? {
-                                            ...r,
-                                            ausencias:
-                                              r.ausencias.length >= 24
-                                                ? r.ausencias
-                                                : [...r.ausencias, { de: "", ate: "", motivo: "Ausente" }],
-                                          }
-                                        : r,
-                                    ),
-                                  )
-                                }
+                                className={`gx-pro-nav__btn ${aba === id ? "is-on" : ""}`}
+                                onClick={() => setProAba((m) => ({ ...m, [i]: id }))}
                               >
-                                Incluir ausência
+                                {label}
                               </button>
-                            </div>
-                            <div className="mt-3 space-y-3">
-                              {p.ausencias.length === 0 ? (
-                                <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">Nenhuma ausência cadastrada.</p>
-                              ) : null}
-                              {p.ausencias.map((a, ai) => (
-                                <div key={`aus-${i}-${ai}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
-                                  <label className="block text-xs font-medium text-muted">
-                                    De
-                                    <input
-                                      type="date"
-                                      className={campo}
-                                      value={a.de}
-                                      onChange={(e) =>
-                                        setPros((rows) =>
-                                          rows.map((r, j) =>
-                                            j === i
-                                              ? {
-                                                  ...r,
-                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, de: e.target.value, ate: x.ate || e.target.value } : x)),
-                                                }
-                                              : r,
-                                          ),
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className="block text-xs font-medium text-muted">
-                                    Até
-                                    <input
-                                      type="date"
-                                      className={campo}
-                                      value={a.ate || a.de}
-                                      min={a.de || undefined}
-                                      onChange={(e) =>
-                                        setPros((rows) =>
-                                          rows.map((r, j) =>
-                                            j === i
-                                              ? {
-                                                  ...r,
-                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, ate: e.target.value } : x)),
-                                                }
-                                              : r,
-                                          ),
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className="block text-xs font-medium text-muted sm:col-span-2">
-                                    Motivo (aparece se o cliente escolher este dia)
+                            ))}
+                          </nav>
+
+                          <div className="gx-pro-card__body">
+                            {aba === "identidade" ? (
+                              <div className="gx-pro-identidade">
+                                <label className="gx-pro-foto">
+                                  {p.fotoSrc ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={p.fotoSrc} alt="" />
+                                  ) : (
+                                    <span className="gx-pro-foto__placeholder">
+                                      <span className="text-xl font-semibold">+</span>
+                                      <span>Foto</span>
+                                    </span>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(ev) => {
+                                      const f = ev.target.files?.[0];
+                                      if (!f) return;
+                                      void arquivoParaDataUrl(f, 360).then((src) =>
+                                        setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))),
+                                      );
+                                    }}
+                                  />
+                                </label>
+                                <div className="gx-pro-campos">
+                                  <label className="gx-pro-label">
+                                    Nome
                                     <input
                                       className={campo}
-                                      value={a.motivo}
-                                      placeholder="Ex.: férias · folga · consulta médica"
-                                      onChange={(e) =>
-                                        setPros((rows) =>
-                                          rows.map((r, j) =>
-                                            j === i
-                                              ? {
-                                                  ...r,
-                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, motivo: e.target.value } : x)),
-                                                }
-                                              : r,
-                                          ),
-                                        )
-                                      }
+                                      value={p.nome}
+                                      placeholder="Quem atende"
+                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
                                     />
                                   </label>
+                                  <label className="gx-pro-label">
+                                    Função
+                                    <input
+                                      className={campo}
+                                      value={p.cargo}
+                                      placeholder={dicas.cargo}
+                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
+                                    />
+                                  </label>
+                                  <label className="gx-pro-label">
+                                    WhatsApp
+                                    <span className="relative block">
+                                      <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 pt-0.5">
+                                        <IconeRede id="whatsapp" className="h-4 w-4 text-[#128C7E]" />
+                                      </span>
+                                      <input
+                                        className={`${campo} !pl-10`}
+                                        value={p.whatsapp}
+                                        placeholder="79 99999-0000"
+                                        inputMode="tel"
+                                        onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))}
+                                      />
+                                    </span>
+                                  </label>
+                                  <label className="gx-pro-label gx-pro-label--full">
+                                    Sobre o atendimento
+                                    <textarea
+                                      className={`${campo} min-h-[4.5rem] resize-y`}
+                                      rows={3}
+                                      value={p.descricao}
+                                      placeholder="Especialidade, estilo, experiência…"
+                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
+                                    />
+                                  </label>
+                                </div>
+                                <div className="gx-pro-next">
                                   <button
                                     type="button"
-                                    className="text-xs text-muted"
+                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white"
+                                    onClick={() => setProAba((m) => ({ ...m, [i]: "grade" }))}
+                                  >
+                                    Continuar para horários
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {aba === "grade" ? (
+                              <div className="space-y-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="min-w-0 max-w-md">
+                                    <p className="text-sm font-medium text-ink">Horário desta pessoa</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                                      Independente do horário da casa. Use os atalhos ou ajuste dia a dia.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink"
                                     onClick={() =>
                                       setPros((rows) =>
-                                        rows.map((r, j) => (j === i ? { ...r, ausencias: r.ausencias.filter((_, k) => k !== ai) } : r)),
+                                        rows.map((r, j) =>
+                                          j === i ? { ...r, expediente: expediente.map((d) => normalizarDiaExpediente(d)) } : r,
+                                        ),
                                       )
                                     }
                                   >
-                                    Remover ausência
+                                    Copiar horário da casa
                                   </button>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
+                                <GradeExpediente
+                                  atalhos
+                                  compacto
+                                  vazio="Marque os dias em que esta pessoa atende."
+                                  value={p.expediente}
+                                  onChange={(prox) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, expediente: prox } : r)))}
+                                />
+                                <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">{resumoDoExpediente(p.expediente)}</p>
+                                <div className="gx-pro-next">
+                                  <button
+                                    type="button"
+                                    className="rounded-full border border-line px-4 py-2 text-sm font-medium"
+                                    onClick={() => setProAba((m) => ({ ...m, [i]: "identidade" }))}
+                                  >
+                                    Voltar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white"
+                                    onClick={() => setProAba((m) => ({ ...m, [i]: "ausencias" }))}
+                                  >
+                                    Continuar para ausências
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
 
-                          <button type="button" className="text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
-                            Remover profissional
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                            {aba === "ausencias" ? (
+                              <div className="space-y-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="min-w-0 max-w-md">
+                                    <p className="text-sm font-medium text-ink">Ausências</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-muted">
+                                      Férias, folga ou consulta — nesses dias o site não oferece esta pessoa.
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium"
+                                    disabled={p.ausencias.length >= 24}
+                                    onClick={() =>
+                                      setPros((rows) =>
+                                        rows.map((r, j) =>
+                                          j === i
+                                            ? {
+                                                ...r,
+                                                ausencias: [...r.ausencias, { de: "", ate: "", motivo: "Ausente" }],
+                                              }
+                                            : r,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    Incluir ausência
+                                  </button>
+                                </div>
+                                {p.ausencias.length === 0 ? (
+                                  <p className="rounded-xl border border-dashed border-line bg-canvas px-4 py-6 text-center text-sm text-muted">
+                                    Nenhuma ausência. Pode seguir — você altera depois na área do cliente.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {p.ausencias.map((a, ai) => (
+                                      <div key={`aus-${i}-${ai}`} className="gx-pro-ausencia">
+                                        <label className="gx-pro-label">
+                                          De
+                                          <input
+                                            type="date"
+                                            className={campo}
+                                            value={a.de}
+                                            onChange={(e) =>
+                                              setPros((rows) =>
+                                                rows.map((r, j) =>
+                                                  j === i
+                                                    ? {
+                                                        ...r,
+                                                        ausencias: r.ausencias.map((x, k) =>
+                                                          k === ai ? { ...x, de: e.target.value, ate: x.ate || e.target.value } : x,
+                                                        ),
+                                                      }
+                                                    : r,
+                                                ),
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        <label className="gx-pro-label">
+                                          Até
+                                          <input
+                                            type="date"
+                                            className={campo}
+                                            value={a.ate || a.de}
+                                            min={a.de || undefined}
+                                            onChange={(e) =>
+                                              setPros((rows) =>
+                                                rows.map((r, j) =>
+                                                  j === i
+                                                    ? {
+                                                        ...r,
+                                                        ausencias: r.ausencias.map((x, k) =>
+                                                          k === ai ? { ...x, ate: e.target.value } : x,
+                                                        ),
+                                                      }
+                                                    : r,
+                                                ),
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        <label className="gx-pro-label gx-pro-label--full">
+                                          Motivo
+                                          <input
+                                            className={campo}
+                                            value={a.motivo}
+                                            placeholder="Ex.: férias · folga · consulta"
+                                            onChange={(e) =>
+                                              setPros((rows) =>
+                                                rows.map((r, j) =>
+                                                  j === i
+                                                    ? {
+                                                        ...r,
+                                                        ausencias: r.ausencias.map((x, k) =>
+                                                          k === ai ? { ...x, motivo: e.target.value } : x,
+                                                        ),
+                                                      }
+                                                    : r,
+                                                ),
+                                              )
+                                            }
+                                          />
+                                        </label>
+                                        <button
+                                          type="button"
+                                          className="justify-self-start text-xs text-muted underline"
+                                          onClick={() =>
+                                            setPros((rows) =>
+                                              rows.map((r, j) =>
+                                                j === i ? { ...r, ausencias: r.ausencias.filter((_, k) => k !== ai) } : r,
+                                              ),
+                                            )
+                                          }
+                                        >
+                                          Remover
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="gx-pro-next">
+                                  <button
+                                    type="button"
+                                    className="rounded-full border border-line px-4 py-2 text-sm font-medium"
+                                    onClick={() => setProAba((m) => ({ ...m, [i]: "grade" }))}
+                                  >
+                                    Voltar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </section>
