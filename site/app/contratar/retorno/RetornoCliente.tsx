@@ -6,10 +6,13 @@ import { PainelCobranca } from "@/components/PainelCobranca";
 import { pagamentoConfirmado, type Cobranca } from "@/lib/cobranca";
 import { linkWhatsapp } from "@/lib/contato";
 
+type PreviewLinks = { url?: string; downloadUrl?: string };
+
 export function RetornoCliente() {
   const params = useSearchParams();
   const id = params.get("cobranca");
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
+  const [preview, setPreview] = useState<PreviewLinks | null>(null);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
@@ -34,6 +37,7 @@ export function RetornoCliente() {
         if (!resposta.ok) throw new Error(json.erro || "Não foi possível consultar a cobrança.");
         if (!ativo) return;
         setCobranca(json.cobranca);
+        if (json.preview) setPreview(json.preview);
         setErro("");
         if (!pagamentoConfirmado(json.cobranca.status)) {
           timer = window.setTimeout(ler, 8000);
@@ -57,7 +61,11 @@ export function RetornoCliente() {
 
   return (
     <div className="mt-8 max-w-xl">
-      {cobranca ? <PainelCobranca cobranca={cobranca} /> : <p className="text-muted">Consultando o pagamento…</p>}
+      {cobranca ? (
+        <PainelCobranca cobranca={cobranca} preview={preview} />
+      ) : (
+        <p className="text-muted">Consultando o pagamento…</p>
+      )}
       {erro ? (
         <p className="mt-4 text-sm leading-6 text-muted" role="alert">
           {erro}{" "}

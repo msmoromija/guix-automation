@@ -50,6 +50,21 @@ export async function POST(requisicao: Request) {
   const centavos = calcularTotal(plano, configuracao);
   const descricao = `GuiX.net ${planoNome} — ${nichoNome}. ${configuracao === "equipe" ? "Configuração pela equipe." : "Configuração com IA."}`;
   const previewId = texto(corpo.previewId, 32);
+  const previewToken = texto(corpo.previewToken, 80);
+  if (previewId && !previewToken) {
+    return Response.json({ erro: "Token do protótipo ausente." }, { status: 400 });
+  }
+  if (previewId && previewToken) {
+    try {
+      const { autenticarPreview } = await import("@/lib/previews/store");
+      const meta = await autenticarPreview(previewId, previewToken);
+      if (!meta) {
+        return Response.json({ erro: "Protótipo inválido para esta cobrança." }, { status: 403 });
+      }
+    } catch {
+      return Response.json({ erro: "Não foi possível validar o protótipo." }, { status: 503 });
+    }
+  }
 
   try {
     const cobranca = await criarCobranca({
@@ -66,15 +81,25 @@ export async function POST(requisicao: Request) {
         : `guix-${plano}-${nichoId}-${Date.now().toString(36)}`
       ).slice(0, 50),
     });
-    if (previewId) {
+    if (previewId && previewToken) {
       try {
         const { vincularCobranca } = await import("@/lib/previews/store");
         await vincularCobranca(previewId, cobranca.id);
       } catch {
-        /* preview opcional */
+        /* cobrança já existe; o webhook ainda consegue marcar pelo externalReference */
       }
     }
-    return Response.json({ cobranca, previewId: previewId || null });
+    return Response.json({
+      cobranca,
+      previewId: previewId || null,
+      preview: previewId && previewToken
+        ? {
+            id: previewId,
+            url: `/p/${previewId}?t=${previewToken}`,
+            downloadUrl: `/api/prototipo/${previewId}/site.json?t=${previewToken}`,
+          }
+        : null,
+    });
   } catch (erro) {
     if (erro instanceof AsaasIndisponivel) {
       return Response.json(

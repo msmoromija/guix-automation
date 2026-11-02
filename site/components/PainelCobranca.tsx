@@ -15,12 +15,18 @@ function imagemPix(valor: string) {
   return valor.startsWith("data:") ? valor : `data:image/png;base64,${valor}`;
 }
 
-export function PainelCobranca({ cobranca }: { cobranca: Cobranca }) {
+export function PainelCobranca({
+  cobranca,
+  preview,
+}: {
+  cobranca: Cobranca;
+  preview?: { url?: string; downloadUrl?: string } | null;
+}) {
   const [copiado, setCopiado] = useState<"pix" | "boleto" | null>(null);
   const pago = pagamentoConfirmado(cobranca.status);
-  let previewHref = "";
-  let downloadHref = "";
-  if (typeof window !== "undefined") {
+  let previewHref = preview?.url || "";
+  let downloadHref = preview?.downloadUrl || "";
+  if (!previewHref && typeof window !== "undefined") {
     try {
       const raw = sessionStorage.getItem("guix.preview");
       if (raw) {

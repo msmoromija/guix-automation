@@ -1,6 +1,6 @@
 "use client";
 
-type Img = { src?: string; alt?: string };
+type Img = { src?: string; alt?: string; origem?: string; credito?: { texto?: string; perfil_url?: string; fotografo?: string } };
 type ItemServico = {
   id?: string;
   nome?: string;
@@ -45,10 +45,50 @@ type Site = {
   profissionais?: { titulo?: string; subtitulo?: string; itens?: ItemPro[] };
   faq?: { titulo?: string; itens?: ItemFaq[] };
   contato?: { titulo?: string; subtitulo?: string };
+  galeria?: { titulo?: string; itens?: { id?: string; legenda?: string; imagem?: Img }[] };
   rodape?: { texto?: string };
 };
 
 const raio: Record<string, string> = { none: "0px", sm: "8px", md: "14px", lg: "22px" };
+
+function coletarCreditos(site: Site) {
+  const imgs: Img[] = [];
+  if (site.hero?.imagem) imgs.push(site.hero.imagem);
+  if (site.sobre?.imagem) imgs.push(site.sobre.imagem);
+  for (const s of site.servicos?.itens || []) if (s.imagem) imgs.push(s.imagem);
+  for (const p of site.profissionais?.itens || []) if (p.foto) imgs.push(p.foto);
+  for (const g of site.galeria?.itens || []) if (g.imagem) imgs.push(g.imagem);
+  const vistos = new Set<string>();
+  return imgs
+    .filter((i) => i.origem === "unsplash" && i.credito?.texto)
+    .filter((i) => {
+      const k = i.credito!.texto!;
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
+}
+
+function CreditosDoSite({ site }: { site: Site }) {
+  const creditos = coletarCreditos(site);
+  if (!creditos.length) return null;
+  return (
+    <p className="mx-auto mt-3 max-w-2xl opacity-55">
+      {creditos.map((c, i) => (
+        <span key={c.credito?.texto}>
+          {i > 0 ? " · " : null}
+          {c.credito?.perfil_url ? (
+            <a href={c.credito.perfil_url} target="_blank" rel="noreferrer">
+              {c.credito.texto}
+            </a>
+          ) : (
+            c.credito?.texto
+          )}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 function wa(digitos?: string, msg?: string) {
   if (!digitos) return "#contato";
@@ -85,7 +125,13 @@ export function SiteLivePreview({ site }: { site: Site }) {
         }}
       >
         <header className="flex items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <strong className="truncate text-sm tracking-wide">{e.nome}</strong>
+          <span className="flex min-w-0 items-center gap-2">
+            {e.logo?.src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={e.logo.src} alt={e.logo.alt || e.nome || ""} className="h-8 w-8 object-contain" />
+            ) : null}
+            <strong className="truncate text-sm tracking-wide">{e.nome}</strong>
+          </span>
           <nav className="hidden gap-4 text-xs opacity-80 md:flex">
             {(site.header?.menu || []).slice(0, 6).map((m) => (
               <a key={m.id} href={m.href} className="hover:opacity-100">
@@ -231,6 +277,32 @@ export function SiteLivePreview({ site }: { site: Site }) {
           </div>
         </section>
 
+        {(site.galeria?.itens?.length ?? 0) > 0 ? (
+          <section id="galeria" className="mx-auto max-w-5xl px-4 py-12 md:px-8">
+            <h2 className="text-3xl font-bold">{site.galeria?.titulo || "Galeria"}</h2>
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+              {(site.galeria?.itens || []).slice(0, 6).map((g) => (
+                <figure key={g.id || g.legenda}>
+                  {g.imagem?.src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={g.imagem.src}
+                      alt={g.imagem.alt || g.legenda || ""}
+                      className="aspect-square w-full object-cover"
+                      style={{ borderRadius: "var(--r)" }}
+                    />
+                  ) : null}
+                  {g.legenda ? (
+                    <figcaption className="mt-1 text-xs" style={{ color: "var(--mt)" }}>
+                      {g.legenda}
+                    </figcaption>
+                  ) : null}
+                </figure>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {(site.faq?.itens?.length ?? 0) > 0 ? (
           <section id="faq" className="mx-auto max-w-3xl px-4 py-12 md:px-8">
             <h2 className="text-3xl font-bold">{site.faq?.titulo}</h2>
@@ -268,7 +340,8 @@ export function SiteLivePreview({ site }: { site: Site }) {
         </section>
 
         <footer className="px-4 py-8 text-center text-xs md:px-8" style={{ color: "var(--mt)" }}>
-          {site.rodape?.texto || e.nome}
+          <p>{site.rodape?.texto || e.nome}</p>
+          <CreditosDoSite site={site} />
         </footer>
       </div>
     </div>

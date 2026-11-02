@@ -19,7 +19,10 @@ export async function gerarTextosSite(entrada: {
     "Você escreve conteúdo comercial em português do Brasil para sites de presença digital.",
     "Responda SOMENTE com JSON válido, sem markdown.",
     "Use o modelo de campos pedido. Textos curtos, concretos, sem citar GuiX nem GNU Guix.",
-    "Em imagens_sugeridas, escolha tags da lista fornecida.",
+    "Não invente endereço, CNPJ, telefone ou nomes de pessoas reais de outras cidades.",
+    "Profissionais: 2 a 3 nomes brasileiros fictícios adequados ao nicho.",
+    "FAQ: 4 perguntas úteis de cliente (agendar, preço, horário, o que levar).",
+    "Em imagens_sugeridas, escolha tags da lista fornecida (hero, sobre, servico, galeria).",
   ].join(" ");
 
   const user = {
@@ -32,7 +35,21 @@ export async function gerarTextosSite(entrada: {
     schema: {
       hero: { titulo: "string", subtitulo: "string" },
       sobre: { titulo: "string", paragrafos: ["string"] },
-      servicos: { titulo: "string", subtitulo: "string", sugestoes: ["string"] },
+      servicos: {
+        titulo: "string",
+        subtitulo: "string",
+        itens: [{ nome: "string", descricao: "string" }],
+      },
+      seo: { title: "string", description: "string", keywords: ["string"] },
+      faq: { titulo: "string", itens: [{ pergunta: "string", resposta: "string" }] },
+      profissionais: {
+        titulo: "string",
+        subtitulo: "string",
+        itens: [{ nome: "string", cargo: "string", descricao: "string" }],
+      },
+      contato: { titulo: "string", subtitulo: "string" },
+      galeria: { titulo: "string", legendas: ["string"] },
+      rodape: { texto: "string" },
       imagens_sugeridas: [
         { categoria: "hero|servico|sobre|galeria", tags: ["string"], motivo: "string" },
       ],

@@ -71,7 +71,22 @@ export interface UnsplashFoto {
 export interface GeracaoSiteJson {
   hero: { titulo: string; subtitulo: string };
   sobre: { titulo: string; paragrafos: string[] };
-  servicos: { titulo: string; subtitulo: string; sugestoes: string[] };
+  servicos: {
+    titulo: string;
+    subtitulo: string;
+    sugestoes?: string[];
+    itens?: { nome: string; descricao?: string }[];
+  };
+  seo?: { title?: string; description?: string; keywords?: string[] };
+  faq?: { titulo?: string; itens?: { pergunta: string; resposta: string }[] };
+  profissionais?: {
+    titulo?: string;
+    subtitulo?: string;
+    itens?: { nome: string; cargo?: string; descricao?: string }[];
+  };
+  contato?: { titulo?: string; subtitulo?: string };
+  galeria?: { titulo?: string; legendas?: string[] };
+  rodape?: { texto?: string };
   imagens_sugeridas: {
     categoria: CategoriaImagem;
     tags: string[];

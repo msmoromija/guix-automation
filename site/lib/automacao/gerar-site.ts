@@ -9,6 +9,7 @@ import { aplicarConteudoGerado } from "./aplicar-conteudo";
 import { carregarExemplo } from "./carregar-exemplo";
 import type { EntradaAutomacao, ResultadoAutomacao } from "./tipos";
 import { validarSiteJson } from "./validar-site";
+import { salvarSitePreview } from "@/lib/previews/store";
 
 function raizRepo() {
   return path.resolve(process.cwd(), process.cwd().endsWith(`${path.sep}site`) ? ".." : ".");
@@ -43,7 +44,7 @@ export async function gerarSiteCliente(
   }));
 
   // Garante pelo menos hero/sobre/servico na resolução
-  for (const cat of ["hero", "sobre", "servico"] as CategoriaImagem[]) {
+  for (const cat of ["hero", "sobre", "servico", "galeria", "profissional"] as CategoriaImagem[]) {
     if (!sugestoes.some((s) => s.categoria === cat)) {
       sugestoes.push({ categoria: cat, tags: [], motivo: "fallback automação" });
     }
@@ -61,6 +62,12 @@ export async function gerarSiteCliente(
   const validacao = await validarSiteJson(site);
   if (!validacao.ok) {
     throw new Error(`site.json inválido: ${validacao.erros.slice(0, 8).join("; ")}`);
+  }
+
+  try {
+    await salvarSitePreview(clienteId, site);
+  } catch {
+    avisos.push("site.json não persistiu no R2 — preview pode falhar em produção");
   }
 
   if (opts?.gravarPacote) {

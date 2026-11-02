@@ -5,6 +5,7 @@ import {
   reservarSlot,
   salvarSitePreview,
   slotsLivres,
+  soltarSlot,
   urlConta,
   urlPreview,
 } from "@/lib/previews/store";
@@ -78,30 +79,35 @@ export async function POST(req: NextRequest) {
 
     const meta = await reservarSlot({ nicho, nome, cidade, whatsapp, email });
 
-    const gerado = await gerarSiteCliente({
-      clienteId: meta.clienteId,
-      nicho,
-      nome,
-      cidade,
-      whatsapp,
-      email,
-      tom: "profissional e acolhedor",
-    });
+    try {
+      const gerado = await gerarSiteCliente({
+        clienteId: meta.clienteId,
+        nicho,
+        nome,
+        cidade,
+        whatsapp,
+        email,
+        tom: "profissional e acolhedor",
+      });
 
-    await salvarSitePreview(meta.clienteId, gerado.site);
+      await salvarSitePreview(meta.clienteId, gerado.site);
 
-    return NextResponse.json({
-      ok: true,
-      id: meta.id,
-      token: meta.token,
-      clienteId: meta.clienteId,
-      expiraEm: meta.expiraEm,
-      slotsLivres: livres - 1,
-      previewUrl: urlPreview(meta.id, meta.token),
-      contaUrl: urlConta(meta.id, meta.token),
-      downloadUrl: `/api/prototipo/${meta.id}/site.json?t=${meta.token}`,
-      avisos: gerado.avisos,
-    });
+      return NextResponse.json({
+        ok: true,
+        id: meta.id,
+        token: meta.token,
+        clienteId: meta.clienteId,
+        expiraEm: meta.expiraEm,
+        slotsLivres: Math.max(0, livres - 1),
+        previewUrl: urlPreview(meta.id, meta.token),
+        contaUrl: urlConta(meta.id, meta.token),
+        downloadUrl: `/api/prototipo/${meta.id}/site.json?t=${meta.token}`,
+        avisos: gerado.avisos,
+      });
+    } catch (inner) {
+      await soltarSlot(meta.id);
+      throw inner;
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
     return NextResponse.json({ erro: msg }, { status: 500 });

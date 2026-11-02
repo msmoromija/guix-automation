@@ -16,7 +16,7 @@ function patchImagem(
   if (opts.src) next.src = opts.src;
   if (opts.alt) next.alt = opts.alt;
   if (opts.origem) next.origem = opts.origem;
-  if (opts.credito) next.credito = opts.credito;
+  if (opts.origem === "unsplash" && opts.credito) next.credito = opts.credito;
   else if (opts.origem && opts.origem !== "unsplash") delete next.credito;
   return next;
 }
@@ -29,6 +29,28 @@ function imagemResolvidaPorCategoria(resolvidas: ImagemResolvida[], categoria: s
   return resolvidas.find((i) => i.categoria === categoria && i.src);
 }
 
+function aplicarFoto(
+  img: Record<string, unknown> | undefined,
+  categoria: string,
+  entrada: EntradaAutomacao,
+  resolvidas: ImagemResolvida[],
+) {
+  const doCliente = imagemClientePorCategoria(entrada, categoria);
+  const daLib = imagemResolvidaPorCategoria(resolvidas, categoria);
+  if (doCliente) {
+    return patchImagem(img, {
+      src: doCliente.src,
+      alt: doCliente.alt,
+      origem: doCliente.origem,
+      credito: doCliente.credito as unknown as Record<string, unknown> | undefined,
+    });
+  }
+  if (daLib?.src) {
+    return patchImagem(img, { src: daLib.src, origem: "biblioteca" });
+  }
+  return img;
+}
+
 /** Aplica textos da IA e imagens (cliente tem prioridade; senão biblioteca). */
 export function aplicarConteudoGerado(
   site: Record<string, unknown>,
@@ -37,28 +59,18 @@ export function aplicarConteudoGerado(
   entrada: EntradaAutomacao,
 ) {
   const avisos: string[] = [];
+  const cidade = entrada.cidade || "";
 
   if (textos.hero) {
     const hero = { ...(site.hero as Record<string, unknown>) };
     if (textos.hero.titulo) hero.titulo = textos.hero.titulo;
     if (textos.hero.subtitulo) hero.subtitulo = textos.hero.subtitulo;
-
-    const doCliente = imagemClientePorCategoria(entrada, "hero");
-    const daLib = imagemResolvidaPorCategoria(resolvidas, "hero");
-    if (doCliente) {
-      hero.imagem = patchImagem(hero.imagem as Record<string, unknown>, {
-        src: doCliente.src,
-        alt: doCliente.alt,
-        origem: doCliente.origem,
-        credito: doCliente.credito as unknown as Record<string, unknown> | undefined,
-      });
-    } else if (daLib?.src) {
-      hero.imagem = patchImagem(hero.imagem as Record<string, unknown>, {
-        src: daLib.src,
-        origem: "biblioteca",
-      });
-    } else {
-      avisos.push("hero sem imagem da biblioteca — mantida do exemplo");
+    const antes = (hero.imagem as Record<string, unknown>)?.src;
+    hero.imagem = aplicarFoto(hero.imagem as Record<string, unknown>, "hero", entrada, resolvidas);
+    if (antes && antes === (hero.imagem as Record<string, unknown>)?.src) {
+      if (!imagemClientePorCategoria(entrada, "hero") && !imagemResolvidaPorCategoria(resolvidas, "hero")) {
+        avisos.push("hero sem imagem da biblioteca — mantida do exemplo");
+      }
     }
     site.hero = hero;
   }
@@ -67,22 +79,7 @@ export function aplicarConteudoGerado(
     const sobre = { ...(site.sobre as Record<string, unknown>) };
     if (textos.sobre.titulo) sobre.titulo = textos.sobre.titulo;
     if (textos.sobre.paragrafos?.length) sobre.paragrafos = textos.sobre.paragrafos;
-
-    const doCliente = imagemClientePorCategoria(entrada, "sobre");
-    const daLib = imagemResolvidaPorCategoria(resolvidas, "sobre");
-    if (doCliente) {
-      sobre.imagem = patchImagem(sobre.imagem as Record<string, unknown>, {
-        src: doCliente.src,
-        alt: doCliente.alt,
-        origem: doCliente.origem,
-        credito: doCliente.credito as unknown as Record<string, unknown> | undefined,
-      });
-    } else if (daLib?.src) {
-      sobre.imagem = patchImagem(sobre.imagem as Record<string, unknown>, {
-        src: daLib.src,
-        origem: "biblioteca",
-      });
-    }
+    sobre.imagem = aplicarFoto(sobre.imagem as Record<string, unknown>, "sobre", entrada, resolvidas);
     site.sobre = sobre;
   }
 
@@ -92,32 +89,97 @@ export function aplicarConteudoGerado(
     if (textos.servicos.subtitulo) servicos.subtitulo = textos.servicos.subtitulo;
 
     const itens = Array.isArray(servicos.itens) ? [...(servicos.itens as Record<string, unknown>[])] : [];
-    const sugestoes = textos.servicos.sugestoes || [];
-    for (let i = 0; i < Math.min(itens.length, sugestoes.length); i++) {
-      itens[i] = { ...itens[i], nome: sugestoes[i] };
+    const nomes = (textos.servicos.itens || []).map((i) => i.nome).filter(Boolean);
+    const fallbackNomes = textos.servicos.sugestoes || [];
+    const lista = nomes.length ? nomes : fallbackNomes;
+    for (let i = 0; i < Math.min(itens.length, lista.length); i++) {
+      const extra = textos.servicos.itens?.[i];
+      itens[i] = {
+        ...itens[i],
+        nome: lista[i],
+        ...(extra?.descricao ? { descricao: extra.descricao } : {}),
+      };
     }
 
-    const doCliente = imagemClientePorCategoria(entrada, "servico");
-    const daLib = imagemResolvidaPorCategoria(resolvidas, "servico");
-    if (itens[0] && (doCliente || daLib?.src)) {
-      const img = itens[0].imagem as Record<string, unknown>;
-      itens[0] = {
-        ...itens[0],
-        imagem: doCliente
-          ? patchImagem(img, {
-              src: doCliente.src,
-              alt: doCliente.alt,
-              origem: doCliente.origem,
-              credito: doCliente.credito as unknown as Record<string, unknown> | undefined,
-            })
-          : patchImagem(img, { src: daLib!.src, origem: "biblioteca" }),
-      };
+    const fotoServico = imagemClientePorCategoria(entrada, "servico") || imagemResolvidaPorCategoria(resolvidas, "servico");
+    if (fotoServico) {
+      for (let i = 0; i < itens.length; i++) {
+        itens[i] = {
+          ...itens[i],
+          imagem: aplicarFoto(itens[i].imagem as Record<string, unknown>, "servico", entrada, resolvidas),
+        };
+      }
     }
     servicos.itens = itens;
     site.servicos = servicos;
   }
 
-  // SEO og a partir do hero se biblioteca resolveu
+  if (textos.profissionais?.itens?.length) {
+    const bloco = { ...(site.profissionais as Record<string, unknown>) };
+    if (textos.profissionais.titulo) bloco.titulo = textos.profissionais.titulo;
+    if (textos.profissionais.subtitulo) bloco.subtitulo = textos.profissionais.subtitulo;
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    for (let i = 0; i < Math.min(itens.length, textos.profissionais.itens.length); i++) {
+      const p = textos.profissionais.itens[i];
+      itens[i] = {
+        ...itens[i],
+        nome: p.nome,
+        ...(p.cargo ? { cargo: p.cargo } : {}),
+        ...(p.descricao ? { descricao: p.descricao } : {}),
+        foto: aplicarFoto(itens[i].foto as Record<string, unknown>, "profissional", entrada, resolvidas),
+      };
+    }
+    bloco.itens = itens;
+    site.profissionais = bloco;
+  }
+
+  if (textos.faq?.itens?.length) {
+    const faq = { ...(site.faq as Record<string, unknown>) };
+    if (textos.faq.titulo) faq.titulo = textos.faq.titulo;
+    const atuais = Array.isArray(faq.itens) ? [...(faq.itens as Record<string, unknown>[])] : [];
+    faq.itens = textos.faq.itens.map((f, i) => ({
+      id: String(atuais[i]?.id || `faq_${String(i + 1).padStart(2, "0")}`),
+      pergunta: f.pergunta,
+      resposta: f.resposta,
+    }));
+    site.faq = faq;
+  }
+
+  if (textos.contato) {
+    const contato = { ...(site.contato as Record<string, unknown>) };
+    if (textos.contato.titulo) contato.titulo = textos.contato.titulo;
+    if (textos.contato.subtitulo) contato.subtitulo = textos.contato.subtitulo;
+    site.contato = contato;
+  }
+
+  if (textos.galeria) {
+    const galeria = { ...(site.galeria as Record<string, unknown>) };
+    if (textos.galeria.titulo) galeria.titulo = textos.galeria.titulo;
+    const itens = Array.isArray(galeria.itens) ? [...(galeria.itens as Record<string, unknown>[])] : [];
+    const foto = aplicarFoto(
+      (itens[0] as { imagem?: Record<string, unknown> } | undefined)?.imagem,
+      "galeria",
+      entrada,
+      resolvidas,
+    );
+    for (let i = 0; i < itens.length; i++) {
+      const cap = textos.galeria.legendas?.[i];
+      itens[i] = {
+        ...itens[i],
+        ...(cap ? { legenda: cap } : {}),
+        imagem: foto || (itens[i] as { imagem?: Record<string, unknown> }).imagem,
+      };
+    }
+    galeria.itens = itens;
+    site.galeria = galeria;
+  }
+
+  if (textos.rodape?.texto) {
+    const rodape = { ...(site.rodape as Record<string, unknown>) };
+    rodape.texto = textos.rodape.texto;
+    site.rodape = rodape;
+  }
+
   const seo = { ...(site.seo as Record<string, unknown>) };
   const heroImg = (site.hero as Record<string, unknown>)?.imagem as Record<string, unknown> | undefined;
   if (heroImg?.src && seo.og_image) {
@@ -127,11 +189,28 @@ export function aplicarConteudoGerado(
       credito: heroImg.credito as Record<string, unknown> | undefined,
     });
   }
-  if (textos.hero?.titulo) {
-    seo.description = textos.hero.subtitulo || seo.description;
-    seo.og_description = textos.hero.subtitulo || seo.og_description;
+  if (textos.seo?.title) {
+    seo.title = textos.seo.title;
+    seo.og_title = textos.seo.title;
+  } else if (entrada.nome) {
+    seo.title = cidade ? `${entrada.nome} | ${cidade}` : entrada.nome;
+    seo.og_title = seo.title;
   }
+  if (textos.seo?.description) {
+    seo.description = textos.seo.description;
+    seo.og_description = textos.seo.description;
+  } else if (textos.sobre?.paragrafos?.[0]) {
+    seo.description = textos.sobre.paragrafos[0];
+    seo.og_description = textos.sobre.paragrafos[0];
+  }
+  if (textos.seo?.keywords?.length) seo.keywords = textos.seo.keywords;
   site.seo = seo;
+
+  const empresa = { ...(site.empresa as Record<string, unknown>) };
+  if (empresa.logo) {
+    empresa.logo = aplicarFoto(empresa.logo as Record<string, unknown>, "logo", entrada, resolvidas);
+  }
+  site.empresa = empresa;
 
   return { site, avisos };
 }
