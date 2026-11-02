@@ -162,15 +162,16 @@ export function construirAoVivo(
   site.promocoes = promocoes;
   const eventos = { ...((site.eventos as Record<string, unknown>) || {}) };
   if (opts.eventos) {
-    eventos.titulo = opts.eventos.length ? "Agenda" : String(eventos.titulo || "Agenda");
+    const soAvisos = opts.eventos.every((item) => /recesso|natal|aviso|aten[cç][aã]o|fechado|n[aã]o atender/i.test(`${item.titulo} ${item.descricao}`));
+    eventos.titulo = opts.eventos.length ? (soAvisos ? "Avisos" : "Agenda") : String(eventos.titulo || "Agenda");
     eventos.itens = opts.eventos.slice(0, 4).map((item, i) => ({
       id: `evt_cliente_${i + 1}`,
-      titulo: item.titulo.trim() || "Evento",
+      titulo: item.titulo.trim() || "Aviso",
       descricao: item.descricao.trim(),
       data: "2026-12-01",
       data_label: item.dataLabel.trim() || "A definir",
-      horario: /^\d{2}:\d{2}$/.test(item.horario) ? item.horario : "19:00",
-      imagem: { id: `img_evt_cliente_${i + 1}`, src: "", alt: item.titulo || "Evento", categoria: "evento" },
+      horario: /^\d{2}:\d{2}$/.test(item.horario) ? item.horario : "09:00",
+      imagem: { id: `img_evt_cliente_${i + 1}`, src: "", alt: item.titulo || "Aviso", categoria: "evento" },
     }));
   } else {
     eventos.itens = [];

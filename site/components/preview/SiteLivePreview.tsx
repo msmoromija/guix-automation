@@ -29,6 +29,7 @@ type Site = {
     whatsapp_label?: string;
     telefone_label?: string;
     whatsapp_mensagem?: string;
+    email?: string;
     horario_resumo?: string;
     expediente?: { dia: string; label?: string; intervalos: string[] }[];
     endereco?: { completo?: string };
@@ -506,16 +507,15 @@ export function SiteLivePreview({
             ) : null}
             <div className="mt-6 flex flex-wrap gap-3">
               <a
-                id="agendar"
-                href={wa(e.whatsapp, e.whatsapp_mensagem)}
+                href={vis.agendamento !== false ? "#agendar" : wa(e.whatsapp, e.whatsapp_mensagem)}
                 className="rounded-full px-5 py-2.5 text-sm font-semibold"
                 style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
                 onClickCapture={aoAncora}
               >
-                <TextoEditavel as="span" valor={site.hero?.botao_principal || "Agendar"} campo="hero.botao" onTexto={onTexto} />
+                <TextoEditavel as="span" valor={site.hero?.botao_principal || "Agendar horário"} campo="hero.botao" onTexto={onTexto} />
               </a>
               <a
-                href="#contato"
+                href={dadoVisivel(e.whatsapp_label || e.telefone_label) ? wa(e.whatsapp, e.whatsapp_mensagem) : "#contato"}
                 className="rounded-full border px-5 py-2.5 text-sm font-semibold"
                 style={{ borderColor: "var(--s)", color: "var(--tx)", borderRadius: "var(--r)" }}
                 onClickCapture={aoAncora}
@@ -525,7 +525,9 @@ export function SiteLivePreview({
                   valor={
                     site.hero?.botao_secundario && (!textosIguais(site.hero.botao_secundario, site.hero.botao_principal) || onTexto)
                       ? site.hero.botao_secundario
-                      : "Ver contato"
+                      : dadoVisivel(e.whatsapp_label || e.telefone_label)
+                        ? "Chamar no WhatsApp"
+                        : "Ver contato"
                   }
                   campo="hero.botao2"
                   onTexto={onTexto}
@@ -774,10 +776,10 @@ export function SiteLivePreview({
                   <div className="p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
                       <TextoEditavel as="span" valor={ev.data_label || "Data"} campo={`evt.${i}.data`} onTexto={onTexto} />
-                      {ev.horario || onTexto ? (
+                      {ev.horario && !/recesso|natal|aviso|aten[cç][aã]o|fechado|n[aã]o atender/i.test(`${ev.titulo || ""} ${ev.descricao || ""}`) ? (
                         <>
                           <span className="mx-1 opacity-60">·</span>
-                          <TextoEditavel as="span" valor={ev.horario || "19:00"} campo={`evt.${i}.horario`} onTexto={onTexto} corretor={false} />
+                          <TextoEditavel as="span" valor={ev.horario} campo={`evt.${i}.horario`} onTexto={onTexto} corretor={false} />
                         </>
                       ) : null}
                     </p>
@@ -904,21 +906,78 @@ export function SiteLivePreview({
               className="mt-2 max-w-xl text-sm"
               style={{ color: "var(--mt)" }}
             />
-            {onTexto || dadoVisivel(e.endereco?.completo) ? (
-              <TextoEditavel valor={dadoVisivel(e.endereco?.completo) || "Escreva o endereço"} campo="endereco" onTexto={onTexto} className="mt-6 text-base" />
-            ) : null}
-            {onTexto || dadoVisivel(e.horario_resumo) ? (
-              <TextoEditavel valor={dadoVisivel(e.horario_resumo) || "Horário de funcionamento"} campo="horario" onTexto={onTexto} className="mt-1 text-sm" style={{ color: "var(--mt)" }} />
-            ) : null}
-            {onTexto || dadoVisivel(e.whatsapp_label || e.telefone_label) ? (
-              <TextoEditavel as="span" valor={dadoVisivel(e.whatsapp_label || e.telefone_label) || "Telefone com DDD"} campo="telefone" onTexto={onTexto} corretor={false} className="mt-2 block text-sm" />
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              {onTexto || dadoVisivel(e.endereco?.completo) ? (
+                <div className="flex gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--a) 18%, transparent)", color: "var(--a)" }} aria-hidden>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>Endereço</p>
+                    <TextoEditavel valor={dadoVisivel(e.endereco?.completo) || "Escreva o endereço"} campo="endereco" onTexto={onTexto} className="mt-1 text-sm" />
+                  </div>
+                </div>
+              ) : null}
+              {onTexto || dadoVisivel(e.horario_resumo) ? (
+                <div className="flex gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--a) 18%, transparent)", color: "var(--a)" }} aria-hidden>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 11H7v-2h4V6h2z"/></svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>Horário</p>
+                    <TextoEditavel valor={dadoVisivel(e.horario_resumo) || "Horário de funcionamento"} campo="horario" onTexto={onTexto} className="mt-1 text-sm" />
+                  </div>
+                </div>
+              ) : null}
+              {onTexto || dadoVisivel(e.whatsapp_label || e.telefone_label) ? (
+                <div className="flex gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#25D366]/20 text-[#128C7E]" aria-hidden>
+                    <IconeRede id="whatsapp" className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>WhatsApp</p>
+                    <TextoEditavel as="span" valor={dadoVisivel(e.whatsapp_label || e.telefone_label) || "Telefone com DDD"} campo="telefone" onTexto={onTexto} corretor={false} className="mt-1 block text-sm" />
+                  </div>
+                </div>
+              ) : null}
+              {onTexto || (e.email && !/nao-informado@guix\.invalid/i.test(e.email)) ? (
+                <div className="flex gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "color-mix(in srgb, var(--a) 18%, transparent)", color: "var(--a)" }} aria-hidden>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5L4 8V6l8 5 8-5z"/></svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>E-mail</p>
+                    <p className="mt-1 break-all text-sm">{e.email && !/nao-informado@guix\.invalid/i.test(e.email) ? e.email : "contato@seunegocio.com.br"}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            {redes.length ? (
+              <div className="mt-6 flex flex-wrap gap-3">
+                {redes.map((r) => (
+                  <a
+                    key={`contato-${r.id}`}
+                    href={r.url}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border"
+                    style={{ borderColor: "color-mix(in srgb, var(--tx) 18%, transparent)", color: "var(--tx)" }}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={vis.rotulosRede?.[r.id || ""] || r.label || r.id}
+                    onClickCapture={aoAncora}
+                    title={vis.rotulosRede?.[r.id || ""] || r.label || r.id}
+                  >
+                    <IconeRede id={String(r.id || "")} className="h-5 w-5" />
+                  </a>
+                ))}
+              </div>
             ) : null}
             <a
               href={wa(e.whatsapp, e.whatsapp_mensagem)}
-              className="mt-8 inline-flex rounded-full px-6 py-3 text-sm font-semibold"
+              className="mt-8 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
               style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
               onClickCapture={aoAncora}
             >
+              <IconeRede id="whatsapp" className="h-4 w-4" />
               <TextoEditavel as="span" valor={textoOuPadrao(site.contato?.formulario?.botao, "Chamar no WhatsApp", "Enviar pelo WhatsApp")} campo="cta.contato" onTexto={onTexto} />
             </a>
           </div>

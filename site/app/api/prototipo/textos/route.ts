@@ -41,6 +41,97 @@ function listaServicos(raw: unknown) {
     .slice(0, 12);
 }
 
+function falaTexto(pedido: string) {
+  return /\b(texto|t[ií]tulos?|subt[ií]tulo|refa[cç]|reescrev|linguajar|tom|animad|cordial|capa|sobre|faq|d[uú]vida|slogan|frase)\b/i.test(pedido);
+}
+
+function falaFoto(pedido: string) {
+  return /\b(foto|fotos|imagem|imagens|galeria|unsplash|capa|banner|troque as imagens|mude as imagens|midia)\b/i.test(pedido);
+}
+
+function patchTemConteudo(patch: PatchPedido | null | undefined) {
+  if (!patch || typeof patch !== "object") return false;
+  return Boolean(
+    patch.resumo ||
+      patch.hero ||
+      patch.sobre ||
+      patch.contato ||
+      patch.servicos ||
+      patch.faq ||
+      patch.visual ||
+      patch.empresa ||
+      patch.diferenciais ||
+      patch.header ||
+      patch.rodape ||
+      patch.profissionais ||
+      patch.midia?.foto?.src ||
+      (Array.isArray(patch.midia?.fotos) && patch.midia.fotos.some((f) => f?.src)) ||
+      patch.midia?.logo?.src,
+  );
+}
+
+function mesclarPatches(a: PatchPedido, b: PatchPedido): PatchPedido {
+  const midia = {
+    ...(a.midia || {}),
+    ...(b.midia || {}),
+    foto: b.midia?.foto || a.midia?.foto,
+    fotos: [...(Array.isArray(a.midia?.fotos) ? a.midia!.fotos! : []), ...(Array.isArray(b.midia?.fotos) ? b.midia!.fotos! : [])].slice(0, 4),
+    logo: b.midia?.logo || a.midia?.logo,
+  };
+  return {
+    ...a,
+    ...b,
+    resumo: [a.resumo, b.resumo].filter(Boolean).join(" ").slice(0, 220),
+    aviso_estrutura: [a.aviso_estrutura, b.aviso_estrutura].filter(Boolean).join(" ").slice(0, 280),
+    hero: b.hero || a.hero,
+    sobre: b.sobre || a.sobre,
+    contato: b.contato || a.contato,
+    empresa: { ...(a.empresa || {}), ...(b.empresa || {}) },
+    servicos: b.servicos || a.servicos,
+    faq: b.faq || a.faq,
+    visual: { ...(a.visual || {}), ...(b.visual || {}) },
+    midia,
+    abrir: b.abrir || a.abrir,
+  };
+}
+
+async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
+  const composto = falaTexto(pedido) && falaFoto(pedido);
+  if (!composto) {
+    const bruto = (await executarPedido({ nicho, pedido, contexto })) as PatchPedido;
+    return resolverMidia(bruto, nicho);
+  }
+
+  // Pedidos compostos (texto + foto) em duas passagens — evita timeout e JSON vazio.
+  let textos: PatchPedido = {};
+  try {
+    textos = (await executarPedido({
+      nicho,
+      pedido: `${pedido}\n\nNesta resposta: só textos (hero, sobre, serviços, contato, FAQ). NÃO preencha midia.`,
+      contexto,
+      timeoutMs: 22000,
+    })) as PatchPedido;
+  } catch {
+    textos = {};
+  }
+
+  let fotos: PatchPedido = {};
+  try {
+    fotos = (await executarPedido({
+      nicho,
+      pedido: `Ofício do contexto. Troque as fotos: preencha midia.fotos com hero, sobre e galeria (busca em inglês curto). Sem textos.`,
+      contexto,
+      timeoutMs: 18000,
+    })) as PatchPedido;
+  } catch {
+    fotos = {};
+  }
+
+  const bruto = mesclarPatches(textos || {}, fotos || {});
+  if (!bruto.resumo) bruto.resumo = "Atualizei textos e fotos do ofício.";
+  return resolverMidia(bruto, nicho);
+}
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!rateLimit(ip)) {
@@ -64,32 +155,11 @@ export async function POST(req: NextRequest) {
       const rapido = patchRapido(pedido);
       if (rapido) return NextResponse.json({ patch: rapido, aviso: "", resumo: rapido.resumo || "" });
       try {
-        const bruto = (await executarPedido({ nicho, pedido, contexto: body.contexto })) as PatchPedido;
-        if (!bruto || typeof bruto !== "object") {
-          return NextResponse.json({ patch: null, aviso: "A IA não devolveu alteração. Tente de novo." });
-        }
-        const patch = await resolverMidia(bruto, nicho);
-        const temAlgo = Boolean(
-          patch.resumo ||
-            patch.hero ||
-            patch.sobre ||
-            patch.contato ||
-            patch.servicos ||
-            patch.faq ||
-            patch.visual ||
-            patch.empresa ||
-            patch.diferenciais ||
-            patch.header ||
-            patch.rodape ||
-            patch.profissionais ||
-            patch.midia?.foto?.src ||
-            (Array.isArray(patch.midia?.fotos) && patch.midia.fotos.some((f) => f?.src)) ||
-            patch.midia?.logo?.src,
-        );
-        if (!temAlgo) {
+        const patch = await montarPatch(nicho, pedido, body.contexto);
+        if (!patchTemConteudo(patch)) {
           return NextResponse.json({
             patch: null,
-            aviso: "Não consegui montar a alteração. Peça textos e fotos em mensagens separadas.",
+            aviso: "Não consegui montar a alteração. Peça de novo em uma frase objetiva.",
           });
         }
         return NextResponse.json({
@@ -100,24 +170,24 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         const msg = e instanceof Error ? e.message : "";
         const aviso = /abort/i.test(msg)
-          ? "Demorou demais. Peça de novo em partes: primeiro os textos, depois as fotos."
-          : "Não consegui aplicar agora. Tente de novo — se for texto e foto juntos, peça em duas mensagens.";
+          ? "Demorou demais. Peça textos primeiro; depois as fotos."
+          : "Não consegui aplicar agora. Tente de novo em uma frase.";
         return NextResponse.json({ patch: null, aviso });
       }
     }
 
     const gerado = await escreverCopiaSimulacao({
-            nicho,
-            nome,
-            cidade,
-            bairro,
-            slogan: String(body.slogan || "").trim(),
-            tom: String(body.tom || "").trim(),
-            destaque: String(body.destaque || "").trim(),
-            horario: String(body.horario || "").trim(),
-            servicos,
-            profissionais: Array.isArray(body.profissionais) ? body.profissionais : [],
-          });
+      nicho,
+      nome,
+      cidade,
+      bairro,
+      slogan: String(body.slogan || "").trim(),
+      tom: String(body.tom || "").trim(),
+      destaque: String(body.destaque || "").trim(),
+      horario: String(body.horario || "").trim(),
+      servicos,
+      profissionais: Array.isArray(body.profissionais) ? body.profissionais : [],
+    });
 
     const copia = normalizarCopia(gerado.copia);
     if ((bairro || cidade) && copia.contato && !copia.contato.titulo) {

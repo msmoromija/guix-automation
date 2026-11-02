@@ -172,19 +172,21 @@ export async function ajustarBloco(entrada: {
   }
 }
 
-export async function executarPedido(entrada: { nicho: Nicho; pedido: string; contexto: unknown }) {
+export async function executarPedido(entrada: {
+  nicho: Nicho;
+  pedido: string;
+  contexto: unknown;
+  /** Timeout por tentativa (ms). Em pedidos compostos use ~22000. */
+  timeoutMs?: number;
+}) {
   const sistema = [
     "Você edita o conteúdo e a aparência de um site local já montado. Responda só JSON válido.",
-    "Pedidos longos ou com várias partes: aplique TUDO o que couber no formato. Nunca responda vazio. Sempre preencha resumo.",
+    "Pedidos longos ou com várias partes: aplique o que couber. Nunca responda vazio. Sempre preencha resumo.",
     "Pode alterar telefone, WhatsApp, e-mail, endereço, horário, textos (hero, sobre, contato, FAQ), serviços, diferenciais, tema, fonte, cores, menu, rodapé e fotos.",
     "Se pedirem 'refaça os textos' ou tom novo (animado, cordial, luxo): reescreva hero.titulo, hero.subtitulo, sobre (2 parágrafos), servicos.itens[].descricao, contato e faq.itens (até 4).",
-    "Se pedirem mudar imagens/fotos: preencha midia.fotos com até 4 itens (hero, sobre, galeria indice 0 e 1, ou servico). Cada um com slot e busca em inglês curto do ofício. O sistema busca no Unsplash.",
-    "FAQ: no máximo 10. faq.limpar true apaga todas. faq.remover é trecho da pergunta. faq.acrescentar precisa pergunta+resposta. faq.itens.de é trecho da pergunta atual.",
-    "Visual: paletaId, tipografiaId, aparencia, estilo, cabecalho, rodapeLayout, logoTamanho, banner, botao, animacao.",
-    "Cabeçalho: logo-esquerda, centralizado, logo-slogan, logo-direita, menu-abaixo, compacto. Rodapé: centralizado, dividido, empilhado, minimo.",
-    "Não invente telefone, CNPJ nem endereço. Não invente URL de foto — só busca.",
+    "Se pedirem mudar imagens/fotos: preencha midia.fotos com até 4 itens (hero, sobre, galeria indice 0 e 1). Cada um com slot e busca em inglês curto do ofício.",
+    "Não invente telefone, CNPJ, endereço nem URL de foto — só busca.",
     "Não crie página, loja, blog, login ou função nova. Se pedirem isso, aviso_estrutura e aplique o resto.",
-    "Logo: midia.logo.arquivo em dois dígitos ou buscar true.",
     "Paletas: latao-escuro, papel-quente, spa, limão-escuro, marinho, bordô. Fontes: editorial, luxo, limpo, urbano, suave.",
     "Omita só o que não muda. Português do Brasil.",
     REGRA_NICHO[entrada.nicho] || "",
@@ -198,38 +200,34 @@ export async function executarPedido(entrada: { nicho: Nicho; pedido: string; co
       resumo: "",
       aviso_estrutura: "",
       abrir: "",
-      empresa: { whatsapp: "", email: "", slogan: "", horario_resumo: "", endereco: { logradouro: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" } },
+      empresa: { whatsapp: "", email: "", slogan: "", horario_resumo: "" },
       hero: { titulo: "", subtitulo: "" },
       sobre: { titulo: "", paragrafos: ["", ""] },
       contato: { titulo: "", subtitulo: "" },
-      faq: { titulo: "", limpar: false, remover: [], acrescentar: [{ pergunta: "", resposta: "" }], itens: [{ de: "", pergunta: "", resposta: "" }] },
-      diferenciais: { atualizar: [{ de: "", titulo: "", descricao: "" }], remover: [], acrescentar: [] },
-      servicos: { sem_preco: false, remover: [], atualizar: [{ nome: "", novo_nome: "", descricao: "", preco_label: "", duracao_label: "" }], acrescentar: [] },
-      visual: { paletaId: "", tipografiaId: "", cabecalho: "", rodapeLayout: "", logoTamanho: "", banner: "", botao: "", animacao: "", aparencia: "", estilo: "", agendamento: false, cor_accent: "", cor_fundo: "" },
-      header: { botao_agendar: "", ocultar: [], mostrar: [], renomear: [{ id: "", label: "" }] },
-      rodape: { texto: "", remover: [], acrescentar: [{ label: "", href: "" }] },
+      faq: { titulo: "", itens: [{ de: "", pergunta: "", resposta: "" }] },
+      servicos: { atualizar: [{ nome: "", descricao: "", preco_label: "", duracao_label: "" }] },
+      visual: { paletaId: "", tipografiaId: "", cabecalho: "", estilo: "" },
       midia: {
-        foto: { slot: "hero", indice: 0, busca: "" },
         fotos: [{ slot: "hero", indice: 0, busca: "" }, { slot: "sobre", indice: 0, busca: "" }],
-        logo: { arquivo: "", buscar: false },
       },
     },
   };
 
+  const prim = entrada.timeoutMs || 35000;
   async function umaVez(ms: number) {
     const ctrl = new AbortController();
     const prazo = setTimeout(() => ctrl.abort(), ms);
     try {
-      return await completarJson(sistema, user, 0.45, ctrl.signal);
+      return await completarJson(sistema, user, 0.4, ctrl.signal);
     } finally {
       clearTimeout(prazo);
     }
   }
 
   try {
-    return await umaVez(40000);
+    return await umaVez(prim);
   } catch {
-    return await umaVez(25000);
+    return await umaVez(Math.min(20000, prim));
   }
 }
 
