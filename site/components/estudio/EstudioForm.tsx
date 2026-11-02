@@ -1482,23 +1482,31 @@ export function EstudioForm() {
                   </div>
                 </div>
 
-                <div className="gx-form-card p-5 sm:p-6">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-base font-semibold tracking-tight">Horário de trabalho</h3>
-                      <p className="mt-1 text-sm text-muted">Toque nos dias, defina o expediente uma vez e, se quiser, a pausa de almoço.</p>
-                    </div>
-                    <p className="max-w-[14rem] rounded-full bg-slate-50 px-3 py-1.5 text-right text-[11px] font-medium text-muted shadow-sm ring-1 ring-line/70">
-                      {horario}
+                <div className="gx-form-card gx-horario-card p-5 sm:p-6">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold tracking-tight">Horário de trabalho</h3>
+                    <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
+                      Escolha os dias, o expediente e, se quiser, a pausa de almoço. O site usa isso no agendamento.
                     </p>
                   </div>
+
                   <div className="mt-5">
-                    <GradeExpediente value={expediente} onChange={setExpediente} />
+                    <GradeExpediente atalhos value={expediente} onChange={setExpediente} />
                   </div>
-                  <label className="mt-5 block text-xs font-medium text-muted">
-                    Texto no site (opcional)
-                    <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 9h às 18h (almoço 12h–13h)" />
-                  </label>
+
+                  <div className="gx-horario-resumo mt-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Resumo no site</p>
+                    <p className="mt-1 text-sm font-medium text-ink">{horario || "Horário a combinar"}</p>
+                    <label className="mt-3 block text-xs font-medium text-muted">
+                      Editar texto (opcional)
+                      <input
+                        className={campo}
+                        value={horario}
+                        onChange={(e) => setHorario(e.target.value.slice(0, 160))}
+                        placeholder="Segunda a sexta, 9h às 18h (almoço 12h–13h)"
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 <div className="gx-form-card p-5 sm:p-6">

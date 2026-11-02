@@ -10,7 +10,7 @@ import {
 } from "@/lib/estudio/expediente";
 
 const hora =
-  "h-9 w-[6.4rem] rounded-lg border border-line bg-white px-2 text-sm tabular-nums shadow-sm outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-45";
+  "h-10 w-full min-w-[5.5rem] max-w-[7.5rem] rounded-xl border border-line bg-white px-2.5 text-sm tabular-nums shadow-sm outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-45";
 
 export function GradeExpediente({
   value,
@@ -53,49 +53,58 @@ export function GradeExpediente({
 
   return (
     <div className={`gx-grade-exp ${compacto ? "gx-grade-exp--compacto" : ""}`}>
-      <div className="gx-grade-dias" role="group" aria-label="Dias da semana">
-        {value.map((dia, i) => (
-          <button
-            key={dia.dia}
-            type="button"
-            className={`gx-dia-chip ${dia.aberto ? "is-on" : ""}`}
-            style={{ animationDelay: `${0.03 + i * 0.035}s` }}
-            aria-pressed={dia.aberto}
-            onClick={() => toggleDia(dia)}
-          >
-            <span className="gx-dia-chip__dot" aria-hidden />
-            {compacto ? dia.label.slice(0, 3) : dia.label}
-          </button>
-        ))}
+      <div className="gx-grade-bloco">
+        <div className="gx-grade-bloco__head">
+          <p className="gx-grade-bloco__titulo">Dias da semana</p>
+          <p className="gx-grade-bloco__hint">Toque para abrir ou fechar</p>
+        </div>
+        <div className="gx-grade-semana" role="group" aria-label="Dias da semana">
+          {value.map((dia) => (
+            <button
+              key={dia.dia}
+              type="button"
+              className={`gx-dia-chip ${dia.aberto ? "is-on" : ""}`}
+              aria-pressed={dia.aberto}
+              onClick={() => toggleDia(dia)}
+            >
+              <span className="gx-dia-chip__curto">{dia.label.slice(0, 3)}</span>
+              <span className="gx-dia-chip__longo">{dia.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {algumAberto ? (
-        <div className="gx-grade-painel">
-          {atalhos ? (
-            <div className="gx-grade-atalhos" role="group" aria-label="Atalhos de turno">
-              {(
-                [
-                  ["manha", "Manhã"],
-                  ["tarde", "Tarde"],
-                  ["integral", "Integral"],
-                  ["noite", "Noite"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="gx-grade-atalho"
-                  onClick={() => onChange(aplicarTurnoNosAbertos(value, id))}
-                >
-                  {label}
-                </button>
-              ))}
+        <>
+          <div className="gx-grade-bloco">
+            <div className="gx-grade-bloco__head gx-grade-bloco__head--row">
+              <div>
+                <p className="gx-grade-bloco__titulo">Expediente</p>
+                <p className="gx-grade-bloco__hint">Vale para todos os dias abertos</p>
+              </div>
+              {atalhos ? (
+                <div className="gx-grade-atalhos" role="group" aria-label="Atalhos de turno">
+                  {(
+                    [
+                      ["manha", "Manhã"],
+                      ["tarde", "Tarde"],
+                      ["integral", "Integral"],
+                      ["noite", "Noite"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className="gx-grade-atalho"
+                      onClick={() => onChange(aplicarTurnoNosAbertos(value, id))}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
-          ) : null}
-
-          <div className="gx-grade-linha">
-            <span className="gx-grade-rotulo">Expediente</span>
-            <div className="gx-grade-horas">
+            <div className="gx-grade-horas gx-grade-horas--principal">
               <label className="gx-grade-campo">
                 <span>Abre</span>
                 <input
@@ -120,7 +129,7 @@ export function GradeExpediente({
             </div>
           </div>
 
-          <div className={`gx-grade-almoco ${compartilhado.pausa ? "is-on" : ""}`}>
+          <div className={`gx-grade-bloco gx-grade-bloco--almoco ${compartilhado.pausa ? "is-on" : ""}`}>
             <label className="gx-grade-toggle">
               <input
                 type="checkbox"
@@ -136,31 +145,31 @@ export function GradeExpediente({
                 <em>O agendar não oferece horários neste intervalo</em>
               </span>
             </label>
-            <div className={`gx-grade-horas gx-grade-horas--almoco ${compartilhado.pausa ? "is-visivel" : ""}`}>
-              <label className="gx-grade-campo">
-                <span>Início</span>
-                <input
-                  type="time"
-                  className={hora}
-                  value={compartilhado.pausaInicio}
-                  disabled={!compartilhado.pausa}
-                  onChange={(e) => onChange(aplicarAlmocoNosAbertos(value, true, e.target.value, compartilhado.pausaFim))}
-                />
-              </label>
-              <span className="gx-grade-sep" aria-hidden>
-                →
-              </span>
-              <label className="gx-grade-campo">
-                <span>Fim</span>
-                <input
-                  type="time"
-                  className={hora}
-                  value={compartilhado.pausaFim}
-                  disabled={!compartilhado.pausa}
-                  onChange={(e) => onChange(aplicarAlmocoNosAbertos(value, true, compartilhado.pausaInicio, e.target.value))}
-                />
-              </label>
-            </div>
+            {compartilhado.pausa ? (
+              <div className="gx-grade-horas gx-grade-horas--principal">
+                <label className="gx-grade-campo">
+                  <span>Início</span>
+                  <input
+                    type="time"
+                    className={hora}
+                    value={compartilhado.pausaInicio}
+                    onChange={(e) => onChange(aplicarAlmocoNosAbertos(value, true, e.target.value, compartilhado.pausaFim))}
+                  />
+                </label>
+                <span className="gx-grade-sep" aria-hidden>
+                  →
+                </span>
+                <label className="gx-grade-campo">
+                  <span>Fim</span>
+                  <input
+                    type="time"
+                    className={hora}
+                    value={compartilhado.pausaFim}
+                    onChange={(e) => onChange(aplicarAlmocoNosAbertos(value, true, compartilhado.pausaInicio, e.target.value))}
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
 
           <div className="gx-grade-detalhe">
@@ -251,7 +260,7 @@ export function GradeExpediente({
               </div>
             ) : null}
           </div>
-        </div>
+        </>
       ) : (
         <p className="gx-grade-vazio">{vazio}</p>
       )}
