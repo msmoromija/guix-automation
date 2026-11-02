@@ -102,7 +102,16 @@ function wa(digitos?: string, msg?: string) {
 }
 
 /** Vitrine ao vivo a partir do site.json do cliente. */
-export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualConfig }) {
+export function SiteLivePreview({
+  site,
+  visual,
+  modo = "pagina",
+}: {
+  site: Site;
+  visual?: VisualConfig;
+  modo?: "pagina" | "rascunho";
+}) {
+  const rascunho = modo === "rascunho";
   const vis = visual || visualPadrao();
   const t = site.tema || {};
   const e = site.empresa || {};
@@ -192,7 +201,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
           )}
         </header>
 
-        <section id="inicio" className="relative min-h-[70vh] overflow-hidden">
+        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[420px]" : "min-h-[70vh]"}`}>
           {vis.banner !== "solido" && vis.banner !== "degrade" && site.hero?.imagem?.src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -217,7 +226,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
               background: "linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 55%, transparent), transparent)",
             }}
           />
-          <div className="relative mx-auto flex min-h-[70vh] max-w-5xl flex-col justify-end px-4 pb-12 pt-24 md:px-8">
+          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-12 pt-24 md:px-8 ${rascunho ? "min-h-[420px]" : "min-h-[70vh]"}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
               {e.slogan}
             </p>
@@ -250,6 +259,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
           </div>
         </section>
 
+        {rascunho ? null : (
         <section id="sobre" className="mx-auto grid max-w-5xl gap-8 px-4 py-16 md:grid-cols-2 md:px-8">
           <div>
             <h2 className="text-3xl font-bold">{site.sobre?.titulo}</h2>
@@ -269,6 +279,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
             />
           ) : null}
         </section>
+        )}
 
         <section id="servicos" className="px-4 py-12 md:px-8" style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
@@ -334,7 +345,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
           </div>
         </section>
 
-        {(site.galeria?.itens?.length ?? 0) > 0 ? (
+        {!rascunho && (site.galeria?.itens?.length ?? 0) > 0 ? (
           <section id="galeria" className="mx-auto max-w-5xl px-4 py-12 md:px-8">
             <h2 className="text-3xl font-bold">{site.galeria?.titulo || "Galeria"}</h2>
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -360,7 +371,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
           </section>
         ) : null}
 
-        {(site.faq?.itens?.length ?? 0) > 0 ? (
+        {!rascunho && (site.faq?.itens?.length ?? 0) > 0 ? (
           <section id="faq" className="mx-auto max-w-3xl px-4 py-12 md:px-8">
             <h2 className="text-3xl font-bold">{site.faq?.titulo}</h2>
             <dl className="mt-6 space-y-4">
@@ -413,7 +424,7 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
         {vis.whatsappFlutuante && e.whatsapp ? (
           <a
             href={wa(e.whatsapp, e.whatsapp_mensagem)}
-            className="fixed bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg"
+            className={`${rascunho ? "absolute" : "fixed"} bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg`}
             style={{ background: "#25D366", color: "#052e16", borderRadius: "var(--r)" }}
           >
             WhatsApp

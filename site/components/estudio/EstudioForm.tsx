@@ -2,11 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { EstudioPreview } from "@/components/estudio/EstudioPreview";
 import { propostasEstudio } from "@/lib/estudio/marca";
+import { montarRascunho } from "@/lib/estudio/rascunho";
 import {
   PALETAS,
   PRESETS,
-  TIPOGRAFIAS,
   paletaPorId,
   visualPadrao,
   type VisualConfig,
@@ -17,6 +18,13 @@ const campo = "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 
 const chip = "rounded-xl border px-3 py-2.5 text-left text-sm leading-snug transition";
 const chipOn = "border-ink bg-ink text-white";
 const chipOff = "border-line bg-white text-ink hover:border-ink/30";
+
+const ETAPAS = [
+  { id: 1, titulo: "Negócio e aparência" },
+  { id: 2, titulo: "Marca" },
+  { id: 3, titulo: "Contato e serviços" },
+  { id: 4, titulo: "Gerar o site" },
+];
 
 type Proposta = { id: string; titulo: string; nota: string; src: string };
 
@@ -37,7 +45,9 @@ export function EstudioForm() {
   const sp = useSearchParams();
   const nichoInicial = sp.get("nicho") || "barbearia";
 
-  const [modo, setModo] = useState<"simples" | "avancado">("simples");
+  const [etapa, setEtapa] = useState(1);
+  const [previewAberta, setPreviewAberta] = useState(false);
+  const [avancado, setAvancado] = useState(false);
   const [nicho, setNicho] = useState(nichoInicial);
   const [nome, setNome] = useState("");
   const [slogan, setSlogan] = useState("");
@@ -66,6 +76,22 @@ export function EstudioForm() {
   const nomeMarca = nome.trim() || nichoAtual.negocio;
   const logoSrc = logoModo === "enviar" ? logoUpload : logoModo === "texto" ? "" : propostas.find((p) => p.id === propostaId)?.src || "";
 
+  const siteRascunho = useMemo(
+    () =>
+      montarRascunho({
+        nome: nome.trim() || nomeMarca,
+        slogan,
+        nichoNome: nichoAtual.nome,
+        cidade,
+        logoSrc,
+        visual: { ...visual, linkedinUrl: redes.linkedin || visual.linkedinUrl },
+        servicos,
+        profissionais: pros,
+        whatsapp,
+      }),
+    [nome, nomeMarca, slogan, nichoAtual.nome, cidade, logoSrc, visual, redes.linkedin, servicos, pros, whatsapp],
+  );
+
   useEffect(() => {
     const lista = propostasEstudio({
       nome: nomeMarca,
@@ -82,6 +108,12 @@ export function EstudioForm() {
     setPropostaId((id) => (id.startsWith("ia-") ? id : lista[1]?.id || lista[0].id));
   }, [nomeMarca, slogan, paleta.color_background, paleta.color_text, paleta.color_accent, nicho]);
 
+  function ir(n: number) {
+    setEtapa(n);
+    setErro("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function gerarComIa() {
     setErro("");
     setGerandoIa(true);
@@ -94,7 +126,7 @@ export function EstudioForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setErro(data.erro || "A IA não conseguiu gerar agora. Use um dos lockups do estúdio.");
+        setErro(data.erro || "A IA não conseguiu gerar agora. Escolha um dos modelos à direita.");
         return;
       }
       const p = data.proposta as Proposta;
@@ -109,6 +141,14 @@ export function EstudioForm() {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
+    if (etapa < 4) {
+      if (etapa === 1 && nome.trim().length < 2) {
+        setErro("Escreva o nome do negócio para seguir.");
+        return;
+      }
+      ir(etapa + 1);
+      return;
+    }
     setErro("");
     setLoading(true);
     try {
@@ -147,193 +187,194 @@ export function EstudioForm() {
     }
   }
 
+  const preview = (
+    <EstudioPreview
+      site={siteRascunho}
+      visual={{ ...visual, linkedinUrl: redes.linkedin || visual.linkedinUrl }}
+      aberto={previewAberta}
+      onToggle={() => setPreviewAberta((v) => !v)}
+    />
+  );
+
   return (
-    <main className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-      <p className="text-xs font-semibold tracking-[0.16em] text-accent">ESTÚDIO DO PROTÓTIPO</p>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl font-bold tracking-[-0.035em]">A cara do negócio, não uma planilha</h1>
-          <p className="mt-3 text-muted">
-            Aparência primeiro, depois a marca com nome por extenso — e IA para o emblema. O rascunho some em 72 horas.
-          </p>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:w-72">
-          <button type="button" className={`${chip} ${modo === "simples" ? chipOn : chipOff}`} onClick={() => setModo("simples")}>
-            Essencial
-          </button>
-          <button type="button" className={`${chip} ${modo === "avancado" ? chipOn : chipOff}`} onClick={() => setModo("avancado")}>
-            Estúdio completo
-          </button>
-        </div>
-      </div>
+    <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">
+      <p className="text-xs font-semibold tracking-[0.16em] text-accent">MONTAR MEU SITE</p>
+      <h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-[-0.035em] sm:text-4xl">
+        Veja o site nascer enquanto você preenche
+      </h1>
+      <p className="mt-3 max-w-xl text-sm text-muted sm:text-base">
+        Quatro passos. À direita, a prévia acompanha. No fim você ganha um <strong>link do site de teste</strong>,
+        válido por 3 dias — sem publicar de verdade e sem pagar ainda.
+      </p>
 
-      <form onSubmit={enviar} className="mt-10 space-y-6">
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <h2 className="text-base font-semibold">Negócio</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm">
-              Nicho
-              <select
-                className={campo}
-                value={nicho}
-                onChange={(e) => {
-                  setNicho(e.target.value);
-                  setVisual(visualPadrao(e.target.value));
-                }}
-              >
-                {nichos.map((n) => (
-                  <option key={n.slug} value={n.slug}>
-                    {n.nome}
-                  </option>
+      <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {ETAPAS.map((et) => (
+          <li key={et.id}>
+            <button
+              type="button"
+              onClick={() => ir(et.id)}
+              className={`w-full rounded-xl border px-3 py-2 text-left text-xs sm:text-sm ${
+                etapa === et.id ? chipOn : etapa > et.id ? "border-ink/20 bg-white" : chipOff
+              }`}
+            >
+              <span className="block text-[10px] opacity-70">Passo {et.id}</span>
+              {et.titulo}
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <form onSubmit={enviar} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="space-y-5">
+          {etapa === 1 ? (
+            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">Como se chama e que cara tem</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm">
+                  Tipo de negócio
+                  <select
+                    className={campo}
+                    value={nicho}
+                    onChange={(e) => {
+                      setNicho(e.target.value);
+                      setVisual(visualPadrao(e.target.value));
+                    }}
+                  >
+                    {nichos.map((n) => (
+                      <option key={n.slug} value={n.slug}>
+                        {n.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Nome
+                  <input required className={campo} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Paulinho Barbearia" />
+                </label>
+                <label className="block text-sm sm:col-span-2">
+                  Frase debaixo do nome
+                  <input
+                    className={campo}
+                    value={slogan}
+                    onChange={(e) => setSlogan(e.target.value)}
+                    placeholder="Estilo, tradição e confiança em cada corte"
+                  />
+                </label>
+              </div>
+
+              <p className="mt-6 text-sm font-semibold">Claro ou escuro</p>
+              <p className="text-xs text-muted">Escolha antes da marca: o logo precisa aparecer no banner.</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {(["claro", "escuro", "automatico"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    className={`${chip} ${visual.aparencia === a ? chipOn : chipOff}`}
+                    onClick={() => setVisual((v) => ({ ...v, aparencia: a }))}
+                  >
+                    {a === "automatico" ? "Do celular" : a === "claro" ? "Claro" : "Escuro"}
+                  </button>
                 ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              Nome
-              <input required className={campo} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Paulinho Barbearia" />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              Slogan
-              <input
-                className={campo}
-                value={slogan}
-                onChange={(e) => setSlogan(e.target.value)}
-                placeholder="Estilo, tradição e confiança em cada corte"
-              />
-            </label>
-          </div>
-        </section>
+              </div>
 
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <h2 className="text-base font-semibold">Aparência</h2>
-          <p className="mt-1 text-sm text-muted">Defina claro ou escuro antes da marca — o logo precisa contrastar com o banner.</p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {(["claro", "escuro", "automatico"] as const).map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={`${chip} ${visual.aparencia === a ? chipOn : chipOff}`}
-                onClick={() => setVisual((v) => ({ ...v, aparencia: a }))}
-              >
-                {a === "automatico" ? "Automático" : a === "claro" ? "Claro" : "Escuro"}
+              <p className="mt-6 text-sm font-semibold">Visual pronto</p>
+              <p className="text-xs text-muted">Um toque muda cores e letras. Olhe a prévia.</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {PRESETS.map((p) => {
+                  const pal = paletaPorId(p.visual.paletaId || visual.paletaId);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`overflow-hidden rounded-xl border text-left ${visual.presetId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                      onClick={() => setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }))}
+                    >
+                      <span className="flex h-10">
+                        <i className="flex-1" style={{ background: pal.color_background }} />
+                        <i className="flex-1" style={{ background: pal.color_surface }} />
+                        <i className="w-10" style={{ background: pal.color_accent }} />
+                      </span>
+                      <span className="block px-3 py-2">
+                        <span className="block text-sm font-medium">{p.nome}</span>
+                        <span className="text-xs text-muted">{p.desc}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => setAvancado((v) => !v)}>
+                {avancado ? "Esconder paleta e letras" : "Ajustar paleta e letras"}
               </button>
-            ))}
-          </div>
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`${chip} ${visual.presetId === p.id ? chipOn : chipOff}`}
-                onClick={() => setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }))}
-              >
-                <span className="block font-medium">{p.nome}</span>
-                <span className="mt-0.5 block text-xs opacity-75">{p.desc}</span>
-              </button>
-            ))}
-          </div>
-          {modo === "avancado" ? (
-            <div className="mt-6 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Paleta</p>
-                <div className="mt-2 grid gap-2">
+              {avancado ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {PALETAS.map((p) => (
                     <button
                       key={p.id}
                       type="button"
-                      className={`${chip} flex items-center gap-3 ${visual.paletaId === p.id ? chipOn : chipOff}`}
+                      className={`${chip} flex items-center gap-2 ${visual.paletaId === p.id ? chipOn : chipOff}`}
                       onClick={() => setVisual((v) => ({ ...v, paletaId: p.id }))}
                     >
-                      <span className="flex h-7 w-14 overflow-hidden rounded-md">
+                      <span className="flex h-6 w-10 overflow-hidden rounded">
                         <i className="flex-1" style={{ background: p.color_background }} />
                         <i className="flex-1" style={{ background: p.color_accent }} />
-                        <i className="flex-1" style={{ background: p.color_text }} />
                       </span>
                       {p.nome}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Tipografia</p>
-                  <div className="mt-2 grid gap-2">
-                    {TIPOGRAFIAS.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={`${chip} ${visual.tipografiaId === t.id ? chipOn : chipOff}`}
-                        onClick={() => setVisual((v) => ({ ...v, tipografiaId: t.id }))}
-                      >
-                        {t.nome}
-                        <span className="mt-0.5 block text-xs opacity-75">
-                          {t.font_heading} + {t.font_body}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <CampoEscolha
-                  label="Cabeçalho"
-                  valor={visual.cabecalho}
-                  opcoes={[
-                    ["logo-esquerda", "Logo à esquerda"],
-                    ["centralizado", "Centralizado"],
-                    ["logo-slogan", "Logo + slogan"],
-                  ]}
-                  onChange={(cabecalho) => setVisual((v) => ({ ...v, cabecalho: cabecalho as VisualConfig["cabecalho"] }))}
-                />
-              </div>
-            </div>
+              ) : null}
+            </section>
           ) : null}
-        </section>
 
-        <section className="overflow-hidden rounded-2xl border border-line bg-white">
-          <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="flex min-h-[280px] flex-col justify-between p-6" style={{ background: paleta.color_background, color: paleta.color_text }}>
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase" style={{ color: paleta.color_accent }}>
-                  Marca · {gerandoIa ? "IA desenhando o emblema" : "estúdio"}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">Logomarca</h2>
-                <p className="mt-2 max-w-md text-sm opacity-80">
-                  O nome entra tipografado — a IA desenha o símbolo. Assim o texto não sai torto, que é o erro clássico de gerador de logo.
-                </p>
+          {etapa === 2 ? (
+            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">Como a marca entra no site</h2>
+              <p className="mt-1 text-sm text-muted">Três caminhos. A prévia mostra o resultado no cabeçalho.</p>
+              <div className="mt-4 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLogoModo("gerar")}
+                  className={`rounded-2xl border p-4 text-left ${logoModo === "gerar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                >
+                  <p className="text-sm font-semibold">Montar no estúdio</p>
+                  <p className="mt-1 text-xs text-muted">
+                    Modelos com o nome escrito certo. Opcional: a IA desenha só o símbolo, sem estragar o texto.
+                  </p>
+                  <div className="mt-3 overflow-hidden rounded-lg" style={{ background: paleta.color_background }}>
+                    {propostas[1]?.src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={propostas[1].src} alt="" className="h-16 w-full object-contain" />
+                    ) : null}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogoModo("enviar")}
+                  className={`rounded-2xl border p-4 text-left ${logoModo === "enviar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                >
+                  <p className="text-sm font-semibold">Já tenho um arquivo</p>
+                  <p className="mt-1 text-xs text-muted">PNG, JPG, SVG ou WebP. Aparece no lugar do nome desenhado.</p>
+                  <div className="mt-3 flex h-16 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted">
+                    {logoUpload ? "Arquivo carregado" : "Solte o arquivo depois de escolher esta opção"}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogoModo("texto")}
+                  className={`rounded-2xl border p-4 text-left ${logoModo === "texto" ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                >
+                  <p className="text-sm font-semibold">Só o nome escrito</p>
+                  <p className="mt-1 text-xs text-muted">Sem imagem. O cabeçalho usa o nome em letra, como um jornal.</p>
+                  <div className="mt-3 flex h-16 items-center justify-center rounded-lg" style={{ background: paleta.color_background, color: paleta.color_text }}>
+                    <span className="text-sm font-semibold tracking-wide">{nomeMarca}</span>
+                  </div>
+                </button>
               </div>
-              <div className="mt-8 flex min-h-[140px] items-center justify-center rounded-xl px-4" style={{ background: paleta.color_surface }}>
-                {logoSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoSrc} alt="Prévia da marca" className="max-h-36 w-full object-contain" />
-                ) : (
-                  <p className="text-sm opacity-60">O nome aparece só em texto no cabeçalho</p>
-                )}
-              </div>
-            </div>
-            <div className="border-t border-line p-6 lg:border-t-0 lg:border-l">
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["gerar", "Estúdio + IA"],
-                    ["enviar", "Enviar arquivo"],
-                    ["texto", "Só o nome"],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button key={id} type="button" className={`${chip} text-center text-xs ${logoModo === id ? chipOn : chipOff}`} onClick={() => setLogoModo(id)}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                disabled={gerandoIa || nomeMarca.length < 2}
-                onClick={() => void gerarComIa()}
-                className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
-              >
-                {gerandoIa ? "Gerando emblema com IA…" : "Gerar emblema com IA"}
-              </button>
+
               {logoModo === "enviar" ? (
                 <label className="mt-4 block text-sm">
-                  PNG, JPG, SVG ou WebP
+                  Enviar arquivo
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -347,287 +388,213 @@ export function EstudioForm() {
                     }}
                   />
                 </label>
-              ) : (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  {propostas.slice(0, 6).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setLogoModo("gerar");
-                        setPropostaId(p.id);
-                      }}
-                      className={`overflow-hidden rounded-xl border text-left ${propostaId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
-                    >
-                      <div className="flex h-16 items-center justify-center px-2" style={{ background: paleta.color_background }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.src} alt="" className="h-12 w-full object-contain" />
-                      </div>
-                      <span className="block px-2 py-1.5 text-[11px] font-medium">{p.titulo}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+              ) : null}
 
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <h2 className="text-base font-semibold">Presença e contato</h2>
-          <p className="mt-1 text-sm text-muted">Ligue o que entra no site e cole o endereço real — perfil ou URL completa.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <CartaoCanal
-              titulo="WhatsApp flutuante"
-              dica="Botão fixo no canto da página"
-              on={visual.whatsappFlutuante}
-              onChange={(whatsappFlutuante) => setVisual((v) => ({ ...v, whatsappFlutuante }))}
-            >
-              <input className={campo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" />
-            </CartaoCanal>
-            <CartaoCanal
-              titulo="Agendamento"
-              dica="Botão de hora marcada no cabeçalho"
-              on={visual.agendamento}
-              onChange={(agendamento) => setVisual((v) => ({ ...v, agendamento }))}
-            >
-              <p className="mt-2 text-sm text-muted">Usa o mesmo WhatsApp até o painel de agenda estar ativo.</p>
-            </CartaoCanal>
-            <CartaoCanal
-              titulo="Instagram"
-              on={visual.instagram}
-              onChange={(instagram) => setVisual((v) => ({ ...v, instagram }))}
-            >
-              <input
-                className={campo}
-                value={redes.instagram}
-                onChange={(e) => setRedes((r) => ({ ...r, instagram: e.target.value }))}
-                placeholder="@paulinho.barbearia ou URL"
-              />
-            </CartaoCanal>
-            <CartaoCanal titulo="Facebook" on={visual.facebook} onChange={(facebook) => setVisual((v) => ({ ...v, facebook }))}>
-              <input
-                className={campo}
-                value={redes.facebook}
-                onChange={(e) => setRedes((r) => ({ ...r, facebook: e.target.value }))}
-                placeholder="facebook.com/paulinho"
-              />
-            </CartaoCanal>
-            <CartaoCanal titulo="LinkedIn" on={visual.linkedin} onChange={(linkedin) => setVisual((v) => ({ ...v, linkedin }))}>
-              <input
-                className={campo}
-                value={redes.linkedin}
-                onChange={(e) => setRedes((r) => ({ ...r, linkedin: e.target.value }))}
-                placeholder="linkedin.com/company/..."
-              />
-            </CartaoCanal>
-            <CartaoCanal titulo="E-mail" on={Boolean(email)} onChange={() => undefined} semSwitch>
-              <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@negocio.com" />
-            </CartaoCanal>
-          </div>
-          {modo === "avancado" ? (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <CartaoCanal titulo="TikTok" on={visual.tiktok} onChange={(tiktok) => setVisual((v) => ({ ...v, tiktok }))}>
-                <input className={campo} value={redes.tiktok} onChange={(e) => setRedes((r) => ({ ...r, tiktok: e.target.value }))} placeholder="@usuario" />
-              </CartaoCanal>
-              <CartaoCanal titulo="YouTube" on={visual.youtube} onChange={(youtube) => setVisual((v) => ({ ...v, youtube }))}>
-                <input className={campo} value={redes.youtube} onChange={(e) => setRedes((r) => ({ ...r, youtube: e.target.value }))} placeholder="youtube.com/@" />
-              </CartaoCanal>
-            </div>
+              {logoModo === "gerar" ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={gerandoIa || nomeMarca.length < 2}
+                    onClick={() => void gerarComIa()}
+                    className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
+                  >
+                    {gerandoIa ? "A IA está desenhando o símbolo…" : "Pedir um símbolo à IA"}
+                  </button>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {propostas.slice(0, 6).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPropostaId(p.id)}
+                        className={`overflow-hidden rounded-xl border text-left ${propostaId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                      >
+                        <div className="flex h-16 items-center px-2" style={{ background: paleta.color_background }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.src} alt="" className="h-12 w-full object-contain" />
+                        </div>
+                        <span className="block px-2 py-1.5 text-[11px] font-medium">{p.titulo}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </section>
           ) : null}
 
-          <div className="mt-6 rounded-2xl bg-canvas p-5">
-            <p className="text-sm font-semibold">Endereço</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-6">
-              <label className="block text-sm sm:col-span-4">
-                Rua
-                <input className={campo} value={logradouro} onChange={(e) => setLogradouro(e.target.value)} placeholder="Rua da Palmeira" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                Número
-                <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="120" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                Bairro
-                <input className={campo} value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Centro" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                Cidade
-                <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Aracaju" />
-              </label>
-              <label className="block text-sm">
-                UF
-                <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} placeholder="SE" />
-              </label>
-              <label className="block text-sm">
-                CEP
-                <input className={campo} value={cep} onChange={(e) => setCep(e.target.value)} placeholder="49000-000" />
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold">Serviços e preços</h2>
-              <p className="mt-1 text-sm text-muted">Um cartão por serviço. Vazio usa o modelo do nicho.</p>
-            </div>
-            <button
-              type="button"
-              className="rounded-full border border-line px-4 py-2 text-sm"
-              onClick={() => setServicos((s) => [...s, { nome: "", preco: "", duracao: "", descricao: "" }])}
-            >
-              Adicionar serviço
-            </button>
-          </div>
-          <div className={`mt-5 grid gap-4 ${servicos.length > 1 ? "md:grid-cols-2" : ""}`}>
-            {servicos.map((s, i) => (
-              <article key={i} className="flex flex-col rounded-2xl border border-line p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Serviço {i + 1}</p>
-                  {servicos.length > 1 ? (
-                    <button
-                      type="button"
-                      className="text-xs text-muted hover:text-ink"
-                      onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
-                    >
-                      Remover
-                    </button>
-                  ) : null}
+          {etapa === 3 ? (
+            <>
+              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <h2 className="text-base font-semibold">Como o cliente te acha</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <CartaoCanal titulo="WhatsApp" dica="Botão no canto da página" on={visual.whatsappFlutuante} onChange={(whatsappFlutuante) => setVisual((v) => ({ ...v, whatsappFlutuante }))}>
+                    <input className={campo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" />
+                  </CartaoCanal>
+                  <CartaoCanal titulo="Agendar" dica="Botão no topo do site" on={visual.agendamento} onChange={(agendamento) => setVisual((v) => ({ ...v, agendamento }))}>
+                    <p className="mt-2 text-xs text-muted">Usa o mesmo WhatsApp neste teste.</p>
+                  </CartaoCanal>
+                  <CartaoCanal titulo="Instagram" on={visual.instagram} onChange={(instagram) => setVisual((v) => ({ ...v, instagram }))}>
+                    <input className={campo} value={redes.instagram} onChange={(e) => setRedes((r) => ({ ...r, instagram: e.target.value }))} placeholder="@paulinho.barbearia" />
+                  </CartaoCanal>
+                  <CartaoCanal titulo="Facebook" on={visual.facebook} onChange={(facebook) => setVisual((v) => ({ ...v, facebook }))}>
+                    <input className={campo} value={redes.facebook} onChange={(e) => setRedes((r) => ({ ...r, facebook: e.target.value }))} placeholder="facebook.com/..." />
+                  </CartaoCanal>
+                  <CartaoCanal titulo="LinkedIn" on={visual.linkedin} onChange={(linkedin) => setVisual((v) => ({ ...v, linkedin }))}>
+                    <input className={campo} value={redes.linkedin} onChange={(e) => setRedes((r) => ({ ...r, linkedin: e.target.value }))} placeholder="linkedin.com/company/..." />
+                  </CartaoCanal>
+                  <CartaoCanal titulo="E-mail" on={Boolean(email)} onChange={() => undefined} semSwitch>
+                    <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@negocio.com" />
+                  </CartaoCanal>
                 </div>
-                <label className="mt-3 block text-sm">
-                  Nome
-                  <input
-                    className={campo}
-                    value={s.nome}
-                    placeholder="Corte clássico"
-                    onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                  />
-                </label>
-                <label className="mt-3 block text-sm">
-                  O que inclui
-                  <textarea
-                    rows={2}
-                    className={`${campo} resize-none`}
-                    value={s.descricao}
-                    placeholder="Máquina + tesoura, finalização com toalha quente."
-                    onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                  />
-                </label>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <label className="block text-sm">
-                    Preço
-                    <input
-                      className={campo}
-                      value={s.preco}
-                      placeholder="R$ 45"
-                      onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Duração
-                    <input
-                      className={campo}
-                      value={s.duracao}
-                      placeholder="40 min"
-                      onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
-                    />
-                  </label>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-line bg-white p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold">Equipe</h2>
-              <p className="mt-1 text-sm text-muted">Foto opcional. Sem foto, o site usa a inicial.</p>
-            </div>
-            <button
-              type="button"
-              className="rounded-full border border-line px-4 py-2 text-sm"
-              onClick={() => setPros((p) => [...p, { nome: "", cargo: "", descricao: "", fotoSrc: "" }])}
-            >
-              Adicionar profissional
-            </button>
-          </div>
-          <div className={`mt-5 grid gap-4 ${pros.length > 1 ? "md:grid-cols-2" : ""}`}>
-            {pros.map((p, i) => (
-              <article key={i} className="flex gap-4 rounded-2xl border border-line p-4">
-                <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-center text-[11px] text-muted">
-                  {p.fotoSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <>
-                      Foto
-                      <span className="mt-1 opacity-70">opcional</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(ev) => {
-                      const f = ev.target.files?.[0];
-                      if (!f) return;
-                      void arquivoParaDataUrl(f, 360).then((src) =>
-                        setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))),
-                      );
-                    }}
-                  />
-                </label>
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-end">
-                    {pros.length > 1 ? (
-                      <button
-                        type="button"
-                        className="text-xs text-muted"
-                        onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}
-                      >
-                        Remover
-                      </button>
-                    ) : null}
+                <div className="mt-5 rounded-2xl bg-canvas p-4">
+                  <p className="text-sm font-semibold">Endereço</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-6">
+                    <label className="block text-sm sm:col-span-4">
+                      Rua
+                      <input className={campo} value={logradouro} onChange={(e) => setLogradouro(e.target.value)} />
+                    </label>
+                    <label className="block text-sm sm:col-span-2">
+                      Número
+                      <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} />
+                    </label>
+                    <label className="block text-sm sm:col-span-2">
+                      Bairro
+                      <input className={campo} value={bairro} onChange={(e) => setBairro(e.target.value)} />
+                    </label>
+                    <label className="block text-sm sm:col-span-2">
+                      Cidade
+                      <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Aracaju" />
+                    </label>
+                    <label className="block text-sm">
+                      UF
+                      <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} />
+                    </label>
+                    <label className="block text-sm">
+                      CEP
+                      <input className={campo} value={cep} onChange={(e) => setCep(e.target.value)} />
+                    </label>
                   </div>
-                  <input
-                    className={campo}
-                    placeholder="Nome"
-                    value={p.nome}
-                    onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                  />
-                  <input
-                    className={campo}
-                    placeholder="Função — barbeiro, sócia, recepção"
-                    value={p.cargo}
-                    onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
-                  />
-                  <textarea
-                    rows={2}
-                    className={`${campo} resize-none`}
-                    placeholder="Uma linha sobre o trabalho da pessoa."
-                    value={p.descricao}
-                    onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                  />
                 </div>
-              </article>
-            ))}
+              </section>
+
+              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold">Serviços</h2>
+                    <p className="mt-1 text-sm text-muted">A prévia já mostra um exemplo. Preencha o seu para substituir.</p>
+                  </div>
+                  <button type="button" className="rounded-full border border-line px-4 py-2 text-sm" onClick={() => setServicos((s) => [...s, { nome: "", preco: "", duracao: "", descricao: "" }])}>
+                    Adicionar
+                  </button>
+                </div>
+                <div className={`mt-4 grid gap-4 ${servicos.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                  {servicos.map((s, i) => (
+                    <article key={i} className="rounded-2xl border border-line p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Serviço {i + 1}</p>
+                        {servicos.length > 1 ? (
+                          <button type="button" className="text-xs text-muted" onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}>
+                            Remover
+                          </button>
+                        ) : null}
+                      </div>
+                      <input className={campo} value={s.nome} placeholder="Ex.: Corte clássico" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
+                      <textarea rows={2} className={`${campo} resize-none`} value={s.descricao} placeholder="Ex.: Máquina + tesoura, toalha quente." onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input className={campo} value={s.preco} placeholder="Ex.: R$ 45" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))} />
+                        <input className={campo} value={s.duracao} placeholder="Ex.: 40 min" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))} />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold">Equipe</h2>
+                    <p className="mt-1 text-sm text-muted">Foto opcional. Sem foto, a prévia usa a inicial no círculo — como a Ana de exemplo.</p>
+                  </div>
+                  <button type="button" className="rounded-full border border-line px-4 py-2 text-sm" onClick={() => setPros((p) => [...p, { nome: "", cargo: "", descricao: "", fotoSrc: "" }])}>
+                    Adicionar
+                  </button>
+                </div>
+                <div className={`mt-4 grid gap-4 ${pros.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                  {pros.map((p, i) => (
+                    <article key={i} className="flex gap-4 rounded-2xl border border-line p-4">
+                      <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-center text-[11px] text-muted">
+                        {p.fotoSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-2xl font-semibold text-ink/40">{(p.nome || "A").slice(0, 1)}</span>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(ev) => {
+                            const f = ev.target.files?.[0];
+                            if (!f) return;
+                            void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
+                          }}
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <input className={campo} placeholder="Ex.: Ana Souza" value={p.nome} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
+                        <input className={campo} placeholder="Ex.: Barbeira" value={p.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
+                        <textarea rows={2} className={`${campo} resize-none`} placeholder="Uma linha sobre o trabalho." value={p.descricao} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {etapa === 4 ? (
+            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <h2 className="text-base font-semibold">O que acontece agora</h2>
+              <ol className="mt-4 space-y-3 text-sm leading-6">
+                <li>
+                  <strong>1.</strong> Você clica abaixo e abre o site de teste neste navegador.
+                </li>
+                <li>
+                  <strong>2.</strong> Guarda o link (ou o código curto). Dá para mandar no WhatsApp e mostrar a alguém.
+                </li>
+                <li>
+                  <strong>3.</strong> O teste fica no ar por <strong>3 dias</strong>. Depois some sozinho — não é o site publicado.
+                </li>
+                <li>
+                  <strong>4.</strong> Se gostar, contrata. Aí sim o site entra no seu domínio, de verdade.
+                </li>
+              </ol>
+              <div className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
+                {nome || "Seu negócio"} · {nichoAtual.nome}
+                {cidade ? ` · ${cidade}` : ""} · {logoModo === "texto" ? "nome escrito" : logoModo === "enviar" ? "logo enviado" : "marca do estúdio"}
+              </div>
+            </section>
+          ) : null}
+
+          {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
+
+          <div className="flex flex-wrap items-center gap-3 pb-24 lg:pb-4">
+            {etapa > 1 ? (
+              <button type="button" className="rounded-full border border-line px-5 py-3 text-sm" onClick={() => ir(etapa - 1)}>
+                Voltar
+              </button>
+            ) : null}
+            <button
+              type="submit"
+              disabled={loading || (etapa === 1 && !nome.trim()) || (etapa === 4 && !nome.trim())}
+              className="rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
+            >
+              {loading ? "Montando o site de teste…" : etapa === 4 ? "Ver meu site de teste" : "Continuar"}
+            </button>
+            {etapa === 4 ? <p className="text-xs text-muted">Link por 3 dias. Sem cartão, sem publicar.</p> : null}
           </div>
-        </section>
-
-        {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={loading || !nome}
-            className="rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
-          >
-            {loading ? "Gerando protótipo…" : "Gerar meu protótipo"}
-          </button>
-          <p className="text-xs text-muted">Nada fica no ar. Só o arquivo com token, 72 horas.</p>
         </div>
+
+        <aside className="lg:sticky lg:top-24">{preview}</aside>
       </form>
     </main>
   );
@@ -668,31 +635,6 @@ function CartaoCanal({
         )}
       </div>
       <div className={on || semSwitch ? "mt-1" : "pointer-events-none mt-1 opacity-40"}>{children}</div>
-    </div>
-  );
-}
-
-function CampoEscolha({
-  label,
-  valor,
-  opcoes,
-  onChange,
-}: {
-  label: string;
-  valor: string;
-  opcoes: Array<[string, string]>;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <div className="mt-2 grid grid-cols-1 gap-2">
-        {opcoes.map(([id, nome]) => (
-          <button key={id} type="button" className={`${chip} ${valor === id ? chipOn : chipOff}`} onClick={() => onChange(id)}>
-            {nome}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
