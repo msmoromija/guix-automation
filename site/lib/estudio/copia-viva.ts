@@ -182,7 +182,11 @@ export function aplicarCampoNoSite(site: Record<string, unknown>, campo: string,
   const valor = corta(valorBruto, 420);
   if (!valor) return site;
   const [a, b, c] = campo.split(".");
-  if (a === "hero" && (b === "titulo" || b === "subtitulo")) {
+  if (a === "horario") {
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    empresa.horario_resumo = valor.slice(0, 80);
+    site.empresa = empresa;
+  } else if (a === "hero" && (b === "titulo" || b === "subtitulo")) {
     const hero = { ...((site.hero as Record<string, unknown>) || {}) };
     hero[b] = valor;
     site.hero = hero;

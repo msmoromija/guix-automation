@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
+import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
 import { SeletorFoto } from "@/components/estudio/SeletorFoto";
 import { SiteLivePreview, type SlotFoto } from "@/components/preview/SiteLivePreview";
 import { aplicarSrcNoSlot } from "@/lib/estudio/aplicar";
@@ -26,6 +27,7 @@ export default function VisualizarRascunhoPage() {
   const [erro, setErro] = useState("");
   const [avisoFoto, setAvisoFoto] = useState("");
   const [pedido, setPedido] = useState("");
+  const [alvoPedido, setAlvoPedido] = useState<AlvoPedido | "">("");
   const [avisoIa, setAvisoIa] = useState("");
   const [ajustando, setAjustando] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -73,22 +75,50 @@ export default function VisualizarRascunhoPage() {
 
   async function pedirTexto() {
     const texto = pedido.trim();
-    if (texto.length < 3) return;
+    if (!alvoPedido) {
+      setAvisoIa("Escolha horário, capa, sobre ou serviços.");
+      return;
+    }
+    if (texto.length < 3) {
+      setAvisoIa("Escreva uma frase curta para esse bloco.");
+      return;
+    }
+    const fora = avisoFora(texto);
+    if (fora) {
+      setAvisoIa(fora);
+      return;
+    }
+    if (alvoPedido === "horario") {
+      const h = limparHorario(texto);
+      if (!h) {
+        setAvisoIa("Escreva os dias e as horas. Ex.: Segunda a sexta, 8h às 17h.");
+        return;
+      }
+      setAvisoIa("");
+      setSite((atual) => (atual ? aplicarCampoNoSite({ ...atual }, "horario", h) : atual));
+      setPedido("");
+      void gravarTexto("horario", h);
+      return;
+    }
     setAjustando(true);
     setAvisoIa("");
+    const ctrl = new AbortController();
+    const prazo = window.setTimeout(() => ctrl.abort(), 12000);
     try {
       const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
         method: "PATCH",
+        signal: ctrl.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedido: texto }),
+        body: JSON.stringify({ alvo: alvoPedido, pedido: texto }),
       });
       const data = await res.json();
       if (data.site) setSite(data.site);
-      setAvisoIa(data.aviso || data.erro || "");
-      if (data.site) setPedido("");
+      setAvisoIa(data.aviso || "");
+      if (data.site && !data.aviso) setPedido("");
     } catch {
-      setAvisoIa("Não deu para ajustar agora. O texto no quadro continua editável.");
+      setAvisoIa("Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.");
     } finally {
+      window.clearTimeout(prazo);
       setAjustando(false);
     }
   }
@@ -157,7 +187,7 @@ export default function VisualizarRascunhoPage() {
       />
 
       <div className="fixed inset-x-0 bottom-0 z-50">
-        <PedidoIa pedido={pedido} onPedido={setPedido} onEnviar={() => void pedirTexto()} aviso={avisoIa} ocupado={ajustando} />
+        <PedidoIa alvo={alvoPedido} onAlvo={setAlvoPedido} texto={pedido} onTexto={setPedido} onEnviar={() => void pedirTexto()} aviso={avisoIa} ocupado={ajustando} />
         <div className="border-t border-white/10 bg-slate-950/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="text-sm text-white/80">

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
 import { aplicarEstudio, aplicarSrcNoSlot, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { aplicarCampoNoSite, aplicarCopiaNoSite, normalizarCopia } from "@/lib/estudio/copia-viva";
-import { ajustarCopiaSimulacao } from "@/lib/media/openai";
+import { avisoFora, limparHorario } from "@/lib/estudio/pedido-fechado";
+import { ajustarBloco } from "@/lib/media/openai";
 import type { Nicho } from "@/lib/media/tipos";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
@@ -67,26 +68,38 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const pedido = String(body.pedido || "").trim().slice(0, 500);
-  if (pedido && body.nome == null && !body.visual) {
+  const pedido = String(body.pedido || "").trim().slice(0, 80);
+  const alvo = String(body.alvo || "");
+  if (alvo && body.nome == null && !body.visual) {
+    const fora = avisoFora(pedido);
+    if (fora) return NextResponse.json({ aviso: fora, site: pacote.site });
+    if (alvo === "horario") {
+      const horario = limparHorario(pedido);
+      if (!horario) return NextResponse.json({ aviso: "Escreva os dias e as horas." });
+      const site = aplicarCampoNoSite(structuredClone(pacote.site), "horario", horario);
+      await gravarPacote({ ...pacote, site });
+      return NextResponse.json({ ok: true, token, site, aviso: "", expiraEm: pacote.expiraEm });
+    }
+    if (alvo !== "capa" && alvo !== "sobre" && alvo !== "servicos") {
+      return NextResponse.json({ aviso: "Escolha horário, capa, sobre ou serviços." });
+    }
     try {
       const empresa = (pacote.site.empresa || {}) as { nome?: string; endereco?: { cidade?: string; bairro?: string } };
-      const servicos = Array.isArray((pacote.site.servicos as { itens?: { nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[] })?.itens)
-        ? ((pacote.site.servicos as { itens: { nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[] }).itens || []).map((s) => ({
-            nome: String(s.nome || ""),
-            descricao: String(s.descricao || ""),
-            preco: String(s.preco_label || ""),
-            duracao: String(s.duracao_label || ""),
-          }))
-        : [];
-      const gerado = await ajustarCopiaSimulacao({
-        nicho: pacote.nicho as Nicho,
+      const itens = ((pacote.site.servicos as { itens?: { nome?: string; descricao?: string }[] })?.itens || []).map((s) => ({
+        nome: String(s.nome || ""),
+        descricao: String(s.descricao || ""),
+      }));
+      const atual =
+        alvo === "capa" ? pacote.site.hero : alvo === "sobre" ? pacote.site.sobre : { itens: itens.map((s) => ({ descricao: s.descricao })) };
+      const gerado = await ajustarBloco({
+        alvo,
+        instrucao: pedido,
         nome: empresa.nome || pacote.nome,
+        nicho: pacote.nicho as Nicho,
         cidade: empresa.endereco?.cidade || pacote.cidade,
         bairro: empresa.endereco?.bairro,
-        pedido,
-        copia: pacote.site,
-        servicos,
+        servicos: itens,
+        atual,
       });
       const copia = normalizarCopia(gerado.copia);
       const site = aplicarCopiaNoSite(structuredClone(pacote.site), copia);
@@ -99,7 +112,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         expiraEm: pacote.expiraEm,
       });
     } catch {
-      return NextResponse.json({ erro: "Não deu para ajustar o texto agora.", aviso: "O quadro continua editável." }, { status: 200 });
+      return NextResponse.json({ aviso: "Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.", site: pacote.site });
     }
   }
 

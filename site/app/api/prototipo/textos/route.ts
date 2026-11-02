@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizarCopia } from "@/lib/estudio/copia-viva";
 import { tituloVenha } from "@/lib/estudio/aplicar";
-import { ajustarCopiaSimulacao, escreverCopiaSimulacao } from "@/lib/media/openai";
+import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
+import { ajustarBloco, escreverCopiaSimulacao } from "@/lib/media/openai";
 import type { Nicho } from "@/lib/media/tipos";
 
 export const runtime = "nodejs";
@@ -55,20 +56,38 @@ export async function POST(req: NextRequest) {
     const bairro = String(body.bairro || "").trim();
     const servicos = listaServicos(body.servicos);
     const modo = body.modo === "ajustar" ? "ajustar" : "escrever";
-    const pedido = String(body.pedido || "").trim().slice(0, 500);
+    const pedido = String(body.pedido || "").trim().slice(0, 80);
+    const alvo = String(body.alvo || "") as AlvoPedido;
 
-    const gerado =
-      modo === "ajustar"
-        ? await ajustarCopiaSimulacao({
-            nicho,
-            nome,
-            cidade,
-            bairro,
-            pedido: pedido || "Deixe os textos mais próximos deste negócio.",
-            copia: body.copia,
-            servicos,
-          })
-        : await escreverCopiaSimulacao({
+    if (modo === "ajustar") {
+      const fora = avisoFora(pedido);
+      if (fora) return NextResponse.json({ aviso: fora, copia: null });
+      if (alvo === "horario") {
+        const horario = limparHorario(pedido);
+        if (!horario) return NextResponse.json({ aviso: "Escreva os dias e as horas.", copia: null });
+        return NextResponse.json({ horario, aviso: "" });
+      }
+      if (alvo !== "capa" && alvo !== "sobre" && alvo !== "servicos") {
+        return NextResponse.json({ aviso: "Escolha horário, capa, sobre ou serviços.", copia: null });
+      }
+      const geradoBloco = await ajustarBloco({
+        alvo,
+        instrucao: pedido,
+        nome,
+        nicho,
+        cidade,
+        bairro,
+        servicos,
+        atual: body.copia,
+      });
+      const copia = normalizarCopia(geradoBloco.copia);
+      return NextResponse.json({
+        copia,
+        aviso: String(geradoBloco.aviso || "").replace(/\s+/g, " ").trim().slice(0, 280),
+      });
+    }
+
+    const gerado = await escreverCopiaSimulacao({
             nicho,
             nome,
             cidade,

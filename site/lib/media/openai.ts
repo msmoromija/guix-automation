@@ -127,6 +127,47 @@ export async function escreverCopiaSimulacao(entrada: {
   return { aviso: String(json.aviso_limite || ""), copia: json };
 }
 
+export async function ajustarBloco(entrada: {
+  alvo: "capa" | "sobre" | "servicos";
+  instrucao: string;
+  nome: string;
+  nicho: Nicho;
+  cidade?: string;
+  bairro?: string;
+  atual: unknown;
+  servicos?: Array<{ nome: string; descricao?: string }>;
+}) {
+  const sistema = [
+    "Reescreva somente o bloco pedido. Responda só JSON.",
+    "Não invente telefone, CNPJ, endereço, preço ou nome de serviço.",
+    "Não mude cor, layout, foto nem estrutura.",
+    "Se a instrução pedir isso, devolva aviso_limite e mantenha o texto atual o mais próximo possível.",
+    "Português do Brasil, frase curta.",
+    REGRA_NICHO[entrada.nicho] || "",
+  ].join(" ");
+  const ctrl = new AbortController();
+  const prazo = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const json = await completarJson(
+      sistema,
+      {
+        bloco: entrada.alvo,
+        instrucao: entrada.instrucao.slice(0, 80),
+        nome: entrada.nome,
+        cidade: entrada.cidade || "",
+        bairro: entrada.bairro || "",
+        servicos: entrada.servicos || [],
+        texto_atual: entrada.atual,
+      },
+      0.3,
+      ctrl.signal,
+    );
+    return { aviso: String(json.aviso_limite || ""), copia: json };
+  } finally {
+    clearTimeout(prazo);
+  }
+}
+
 export async function ajustarCopiaSimulacao(entrada: {
   nicho: Nicho;
   nome: string;
@@ -153,8 +194,9 @@ export async function ajustarCopiaSimulacao(entrada: {
   return { aviso: String(json.aviso_limite || ""), copia: json };
 }
 
-async function completarJson(sistema: string, user: unknown, temperature: number) {
+async function completarJson(sistema: string, user: unknown, temperature: number, signal?: AbortSignal) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    signal,
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey()}`,

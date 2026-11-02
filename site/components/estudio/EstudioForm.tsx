@@ -8,6 +8,7 @@ import type { AlvoEdicao, SlotFoto } from "@/components/preview/SiteLivePreview"
 import { construirAoVivo } from "@/lib/estudio/construir-ao-vivo";
 import { definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
+import { avisoFora, limparHorario, type AlvoPedido } from "@/lib/estudio/pedido-fechado";
 import { MarcaStudio } from "@/components/estudio/MarcaStudio";
 import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
@@ -89,6 +90,8 @@ export function EstudioForm() {
   const [iaEscreve, setIaEscreve] = useState(true);
   const [copia, setCopia] = useState<CopiaViva | null>(null);
   const [pedidoIa, setPedidoIa] = useState("");
+  const [alvoPedido, setAlvoPedido] = useState<AlvoPedido | "">("");
+  const [horario, setHorario] = useState("");
   const [avisoIa, setAvisoIa] = useState("");
   const [escrevendo, setEscrevendo] = useState(false);
   const [ajustando, setAjustando] = useState(false);
@@ -144,6 +147,7 @@ export function EstudioForm() {
         galeria: fotoGaleria.length ? fotoGaleria : undefined,
       },
       copia,
+      horario,
     });
   }, [
     modelo,
@@ -168,6 +172,7 @@ export function EstudioForm() {
     fotoSobre,
     fotoGaleria,
     copia,
+    horario,
   ]);
 
   const dicaSite =
@@ -352,47 +357,74 @@ export function EstudioForm() {
 
   async function pedirTexto() {
     const pedido = pedidoIa.trim();
-    if (nome.trim().length < 2 || pedido.length < 3) {
-      setAvisoIa("Escreva o nome do negócio e diga o que quer mudar no texto.");
+    if (!alvoPedido) {
+      setAvisoIa("Escolha horário, capa, sobre ou serviços.");
+      return;
+    }
+    if (pedido.length < 3) {
+      setAvisoIa("Escreva uma frase curta para esse bloco.");
+      return;
+    }
+    const fora = avisoFora(pedido);
+    if (fora) {
+      setAvisoIa(fora);
+      return;
+    }
+    if (alvoPedido === "horario") {
+      const h = limparHorario(pedido);
+      if (!h) {
+        setAvisoIa("Escreva os dias e as horas. Ex.: Segunda a sexta, 8h às 17h.");
+        return;
+      }
+      setHorario(h);
+      setPedidoIa("");
+      setAvisoIa("Horário atualizado.");
       return;
     }
     setAjustando(true);
     setAvisoIa("");
+    const ctrl = new AbortController();
+    const prazo = window.setTimeout(() => ctrl.abort(), 12000);
     try {
       const res = await fetch("/api/prototipo/textos", {
         method: "POST",
+        signal: ctrl.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           modo: "ajustar",
+          alvo: alvoPedido,
           pedido,
           copia,
           nicho,
           nome,
-          slogan,
           cidade,
           bairro,
-          tom,
-          destaque,
           servicos,
         }),
       });
       const data = (await res.json()) as { copia?: CopiaViva; aviso?: string; erro?: string };
-      if (data.copia) {
-        ["hero.titulo", "hero.subtitulo", "sobre.titulo", "sobre.p.0", "sobre.p.1", "servicos.titulo", "servicos.subtitulo", "contato.titulo", "contato.subtitulo"].forEach((c) => porPedido.current.add(c));
-        servicos.forEach((_, i) => porPedido.current.add(`srv.${i}.descricao`));
-        setCopia(data.copia);
+      if (data.copia && alvoPedido === "capa") {
+        setCopia((atual) => ({ ...(atual || {}), hero: data.copia?.hero || atual?.hero }));
+        ["hero.titulo", "hero.subtitulo"].forEach((c) => porPedido.current.add(c));
+      } else if (data.copia && alvoPedido === "sobre") {
+        setCopia((atual) => ({ ...(atual || {}), sobre: data.copia?.sobre || atual?.sobre }));
+        ["sobre.titulo", "sobre.p.0", "sobre.p.1"].forEach((c) => porPedido.current.add(c));
+      } else if (data.copia && alvoPedido === "servicos") {
+        setCopia((atual) => ({ ...(atual || {}), servicos: { ...(atual?.servicos || {}), ...(data.copia?.servicos || {}) } }));
         setServicos((rows) =>
           rows.map((r, i) => {
             const desc = data.copia?.servicos?.itens?.[i]?.descricao;
             return desc ? { ...r, descricao: desc } : r;
           }),
         );
-        setPedidoIa("");
+        servicos.forEach((_, i) => porPedido.current.add(`srv.${i}.descricao`));
       }
+      if (data.copia) setPedidoIa("");
       setAvisoIa(data.aviso || data.erro || "");
     } catch {
-      setAvisoIa("Não deu para ajustar agora. O texto no quadro continua editável.");
+      setAvisoIa("Demorou demais. Esse bloco não mudou. Edite o texto direto no quadro.");
     } finally {
+      window.clearTimeout(prazo);
       setAjustando(false);
     }
   }
@@ -557,12 +589,13 @@ export function EstudioForm() {
 
   const pedidoPainel = (
     <PedidoIa
-      pedido={pedidoIa}
-      onPedido={setPedidoIa}
+      alvo={alvoPedido}
+      onAlvo={setAlvoPedido}
+      texto={pedidoIa}
+      onTexto={setPedidoIa}
       onEnviar={() => void pedirTexto()}
       aviso={avisoIa}
       ocupado={ajustando}
-      escrevendo={escrevendo}
     />
   );
 

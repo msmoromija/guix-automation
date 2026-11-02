@@ -27,6 +27,7 @@ export function construirAoVivo(
     etapa: number;
     fotos?: { hero?: string; sobre?: string; galeria?: string[] };
     copia?: CopiaViva | null;
+    horario?: string;
   },
 ) {
   const site = JSON.parse(JSON.stringify(modelo)) as Record<string, unknown>;
@@ -88,6 +89,7 @@ export function construirAoVivo(
     empresa.telefone_label = "";
   }
   if (!opts.email.trim()) empresa.email = "";
+  if (opts.horario?.trim()) empresa.horario_resumo = opts.horario.trim().slice(0, 80);
   site.empresa = empresa;
 
   // Ofertas e eventos do exemplo não aparecem como se fossem do cliente.
