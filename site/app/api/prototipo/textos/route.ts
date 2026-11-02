@@ -61,6 +61,8 @@ function patchTemConteudo(patch: PatchPedido | null | undefined) {
       patch.servicos ||
       patch.faq ||
       patch.eventos ||
+      patch.avisos ||
+      patch.redes ||
       patch.visual ||
       patch.empresa ||
       patch.diferenciais ||
@@ -68,7 +70,7 @@ function patchTemConteudo(patch: PatchPedido | null | undefined) {
       patch.rodape ||
       patch.profissionais ||
       patch.midia?.foto?.src ||
-      (Array.isArray(patch.midia?.fotos) && patch.midia.fotos.some((f) => f?.src)) ||
+      (Array.isArray(patch.midia?.fotos) && patch.midia.fotos.some((f) => f?.src || (f as { busca?: string }).busca)) ||
       patch.midia?.logo?.src,
   );
 }
@@ -93,6 +95,10 @@ function mesclarPatches(a: PatchPedido, b: PatchPedido): PatchPedido {
     servicos: b.servicos || a.servicos,
     faq: b.faq || a.faq,
     eventos: b.eventos || a.eventos,
+    avisos: b.avisos || a.avisos,
+    redes: { ...(a.redes || {}), ...(b.redes || {}) },
+    profissionais: b.profissionais || a.profissionais,
+    diferenciais: b.diferenciais || a.diferenciais,
     visual: { ...(a.visual || {}), ...(b.visual || {}) },
     midia,
     abrir: b.abrir || a.abrir,
@@ -102,18 +108,17 @@ function mesclarPatches(a: PatchPedido, b: PatchPedido): PatchPedido {
 async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
   const composto = falaTexto(pedido) && falaFoto(pedido);
   if (!composto) {
-    const bruto = (await executarPedido({ nicho, pedido, contexto })) as PatchPedido;
+    const bruto = (await executarPedido({ nicho, pedido, contexto, timeoutMs: 40000 })) as PatchPedido;
     return resolverMidia(bruto, nicho);
   }
 
-  // Pedidos compostos (texto + foto) em duas passagens — evita timeout e JSON vazio.
   let textos: PatchPedido = {};
   try {
     textos = (await executarPedido({
       nicho,
-      pedido: `${pedido}\n\nNesta resposta: só textos (hero, sobre, serviços, contato, FAQ, eventos). NÃO preencha midia.`,
+      pedido: `${pedido}\n\nNesta resposta: textos, FAQ, eventos, avisos, serviços, equipe, visual se pedido. NÃO preencha midia.`,
       contexto,
-      timeoutMs: 22000,
+      timeoutMs: 28000,
     })) as PatchPedido;
   } catch {
     textos = {};
@@ -132,7 +137,7 @@ async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
   }
 
   const bruto = mesclarPatches(textos || {}, fotos || {});
-  if (!bruto.resumo) bruto.resumo = "Atualizei textos e fotos do ofício.";
+  if (!bruto.resumo) bruto.resumo = "Atualizei o que o motor permite neste pedido.";
   return resolverMidia(bruto, nicho);
 }
 
@@ -153,31 +158,65 @@ export async function POST(req: NextRequest) {
     const bairro = String(body.bairro || "").trim();
     const servicos = listaServicos(body.servicos);
     if (body.modo === "executar") {
-      const pedido = String(body.pedido || "").trim().slice(0, 700);
-      if (pedido.length < 3) return NextResponse.json({ aviso: "Escreva o que quer mudar.", patch: null });
-      if (soEstrutura(pedido)) return NextResponse.json({ aviso: AVISO_ESTRUTURA, patch: null });
-      const rapido = patchRapido(pedido);
-      if (rapido) return NextResponse.json({ patch: rapido, aviso: "", resumo: rapido.resumo || "" });
+      const pedido = String(body.pedido || "").trim().slice(0, 900);
+      if (pedido.length < 3) return NextResponse.json({ aviso: "Escreva o que quer mudar.", patch: null, via: "nenhum" });
+      if (soEstrutura(pedido)) return NextResponse.json({ aviso: AVISO_ESTRUTURA, patch: null, via: "nenhum" });
+
+      // OpenAI primeiro — atalho só se a IA falhar de verdade.
       try {
-        const patch = await montarPatch(nicho, pedido, body.contexto);
+        let patch = await montarPatch(nicho, pedido, body.contexto);
         if (!patchTemConteudo(patch)) {
+          patch = await resolverMidia(
+            (await executarPedido({
+              nicho,
+              pedido: `${pedido}\n\nOBRIGATÓRIO: devolva JSON com as mudanças pedidas agora. Não deixe o patch vazio. Use o formato completo.`,
+              contexto: body.contexto,
+              timeoutMs: 35000,
+            })) as PatchPedido,
+            nicho,
+          );
+        }
+        if (patchTemConteudo(patch)) {
           return NextResponse.json({
-            patch: null,
-            aviso: "Não consegui montar a alteração. Peça de novo em uma frase objetiva.",
+            patch,
+            resumo: String(patch.resumo || "").slice(0, 220),
+            aviso: String(patch.aviso_estrutura || "").replace(/\s+/g, " ").trim().slice(0, 280),
+            via: "openai",
           });
         }
-        return NextResponse.json({
-          patch,
-          resumo: String(patch.resumo || "").slice(0, 220),
-          aviso: String(patch.aviso_estrutura || "").replace(/\s+/g, " ").trim().slice(0, 280),
-        });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "";
+        const rapido = patchRapido(pedido);
+        if (rapido) {
+          return NextResponse.json({
+            patch: rapido,
+            aviso: "OpenAI falhou neste instante; apliquei o atalho local do que deu.",
+            resumo: rapido.resumo || "",
+            via: "atalho",
+          });
+        }
         const aviso = /abort/i.test(msg)
-          ? "Demorou demais. Peça textos primeiro; depois as fotos."
-          : "Não consegui aplicar agora. Tente de novo em uma frase.";
-        return NextResponse.json({ patch: null, aviso });
+          ? "A OpenAI demorou demais. Peça de novo em uma frase."
+          : /OPENAI_API_KEY/i.test(msg)
+            ? "OPENAI_API_KEY ausente neste ambiente."
+            : "Não consegui falar com a OpenAI agora. Tente de novo.";
+        return NextResponse.json({ patch: null, aviso, via: "nenhum" });
       }
+
+      const rapido = patchRapido(pedido);
+      if (rapido) {
+        return NextResponse.json({
+          patch: rapido,
+          aviso: "A IA não montou o patch; apliquei só o atalho local.",
+          resumo: rapido.resumo || "",
+          via: "atalho",
+        });
+      }
+      return NextResponse.json({
+        patch: null,
+        aviso: "A OpenAI respondeu vazia. Peça de novo, bem objetivo.",
+        via: "nenhum",
+      });
     }
 
     const gerado = await escreverCopiaSimulacao({
@@ -201,10 +240,10 @@ export async function POST(req: NextRequest) {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 280);
-    return NextResponse.json({ copia, aviso });
+    return NextResponse.json({ copia, aviso, via: "openai" });
   } catch {
     return NextResponse.json(
-      { erro: "Não deu para escrever agora. O quadro continua editável.", copia: null, aviso: "" },
+      { erro: "Não deu para escrever agora. O quadro continua editável.", copia: null, aviso: "", via: "nenhum" },
       { status: 200 },
     );
   }

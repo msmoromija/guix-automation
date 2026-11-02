@@ -102,7 +102,18 @@ export type PatchPedido = {
     acrescentar?: { nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[];
     atualizar?: { nome?: string; novo_nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[];
   };
-  profissionais?: { ocultar?: boolean; atualizar?: { nome?: string; novo_nome?: string; cargo?: string; descricao?: string }[] };
+  profissionais?: {
+    ocultar?: boolean;
+    limpar?: boolean;
+    remover?: string[];
+    acrescentar?: { nome?: string; cargo?: string; descricao?: string; whatsapp?: string; email?: string }[];
+    atualizar?: { nome?: string; novo_nome?: string; cargo?: string; descricao?: string; whatsapp?: string; email?: string }[];
+  };
+  avisos?: {
+    limpar?: boolean;
+    itens?: { titulo?: string; descricao?: string; data_label?: string }[];
+  };
+  redes?: Record<string, string>;
   visual?: {
     paletaId?: string;
     tipografiaId?: string;
@@ -160,6 +171,9 @@ export type TocouPedido = {
   midia: boolean;
   faq: boolean;
   eventos: boolean;
+  profissionais: boolean;
+  avisos: boolean;
+  redes: boolean;
 };
 
 export type ResultadoPedido = {
@@ -169,6 +183,9 @@ export type ResultadoPedido = {
   aviso: string;
   abrir: AbrirPedido;
   tocou: TocouPedido;
+  /** Avisos/recessos para o formulário (não vão no schema congelado como bloco próprio). */
+  avisos?: { titulo: string; descricao: string; dataLabel: string }[];
+  redes?: Record<string, string>;
 };
 
 function corta(v: unknown, max: number) {
@@ -352,12 +369,43 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
     })),
     menu: menu.slice(0, 7).map((m) => ({ id: corta(m.id, 20), label: corta(m.label, 24) })),
     rodape: corta(rodape.texto, 120),
+    profissionais: (Array.isArray(obj(site.profissionais).itens) ? (obj(site.profissionais).itens as Record<string, unknown>[]) : [])
+      .filter((p) => corta(p.nome, 2) && corta(p.nome, 40) !== "Sem preferência")
+      .slice(0, 8)
+      .map((p) => ({
+        nome: corta(p.nome, 60),
+        cargo: corta(p.cargo, 40),
+        descricao: corta(p.descricao, 140),
+      })),
+    motor: {
+      pode: [
+        "empresa",
+        "hero",
+        "sobre",
+        "contato",
+        "faq",
+        "eventos",
+        "avisos",
+        "servicos",
+        "profissionais",
+        "diferenciais",
+        "visual",
+        "header",
+        "rodape",
+        "redes",
+        "midia",
+      ],
+      paletas: ["latao-escuro", "papel-quente", "spa", "limão-escuro", "marinho", "bordô"],
+      fontes: ["editorial", "luxo", "limpo", "urbano", "suave"],
+      cabecalhos: ["logo-esquerda", "logo-slogan", "centralizado", "menu-abaixo"],
+    },
     campos_vazios: [
       !(Array.isArray(faq.itens) && faq.itens.length) ? "faq" : "",
       !(Array.isArray(obj(site.eventos).itens) && (obj(site.eventos).itens as unknown[]).length) ? "eventos" : "",
       !corta(hero.titulo, 2) ? "hero.titulo" : "",
       !corta(hero.subtitulo, 2) ? "hero.subtitulo" : "",
       !(Array.isArray(sobre.paragrafos) && sobre.paragrafos.length) ? "sobre" : "",
+      !itens.length ? "servicos" : "",
     ].filter(Boolean),
     visual: {
       paletaId: visual?.paletaId || "",
@@ -368,8 +416,23 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       banner: visual?.banner || "",
       botao: visual?.botao || "",
       aparencia: visual?.aparencia || "",
+      agendamento: visual?.agendamento !== false,
+      estilo: visual?.estilo || "",
     },
   };
+}
+
+export function profissionaisDoSite(site: Record<string, unknown>) {
+  const itens = Array.isArray(obj(site.profissionais).itens) ? (obj(site.profissionais).itens as Record<string, unknown>[]) : [];
+  return itens
+    .map((p) => ({
+      nome: corta(p.nome, 60),
+      cargo: corta(p.cargo, 40),
+      descricao: corta(p.descricao, 320),
+      whatsapp: corta(p.whatsapp || p.telefone, 20),
+      email: corta(p.email, 80),
+    }))
+    .filter((p) => p.nome && p.nome !== "Sem preferência" && p.nome !== "Novo nome");
 }
 
 export function eventosDoSite(site: Record<string, unknown>) {
@@ -639,7 +702,12 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     midia: false,
     faq: false,
     eventos: false,
+    profissionais: false,
+    avisos: false,
+    redes: false,
   };
+  let avisosExtra: { titulo: string; descricao: string; dataLabel: string }[] | undefined;
+  let redesExtra: Record<string, string> | undefined;
   const empresa = { ...obj(site.empresa) };
 
   if (patch.empresa) {
@@ -803,11 +871,27 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     aplicarServicos(site, patch.servicos, avisos);
     tocou.servicos = true;
   }
-  if (patch.profissionais && (patch.profissionais.ocultar === true || textoPreenchido(patch.profissionais.atualizar))) {
+  if (
+    patch.profissionais &&
+    (patch.profissionais.ocultar === true ||
+      patch.profissionais.limpar === true ||
+      textoPreenchido(patch.profissionais.atualizar) ||
+      textoPreenchido(patch.profissionais.acrescentar) ||
+      textoPreenchido(patch.profissionais.remover))
+  ) {
     const bloco = { ...obj(site.profissionais) };
-    const itens = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]).map((p) => ({ ...p })) : [];
+    let itens =
+      patch.profissionais.limpar === true
+        ? []
+        : Array.isArray(bloco.itens)
+          ? (bloco.itens as Record<string, unknown>[]).map((p) => ({ ...p }))
+          : [];
     if (patch.profissionais.ocultar) {
       for (const item of itens) item.nome = "Sem preferência";
+    }
+    for (const nome of patch.profissionais.remover || []) {
+      const i = acharNome(itens, corta(nome, 60));
+      if (i >= 0) itens.splice(i, 1);
     }
     for (const item of patch.profissionais.atualizar || []) {
       const i = acharNome(itens, corta(item.nome, 60));
@@ -815,10 +899,64 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       if (item.novo_nome) itens[i].nome = corta(item.novo_nome, 60);
       if (item.cargo) itens[i].cargo = corta(item.cargo, 40);
       if (item.descricao) itens[i].descricao = corta(item.descricao, 240);
+      if (item.whatsapp) itens[i].whatsapp = corta(item.whatsapp, 20);
+      if (item.email) itens[i].email = corta(item.email, 80);
+    }
+    for (const item of patch.profissionais.acrescentar || []) {
+      if (itens.length >= 8) {
+        avisos.push("A equipe fica com no máximo 8 profissionais.");
+        break;
+      }
+      const nome = corta(item.nome, 60);
+      if (!nome || nome === "Novo nome") continue;
+      itens.push({
+        id: `pro_extra_${itens.length + 1}`,
+        nome,
+        cargo: corta(item.cargo, 40),
+        descricao: corta(item.descricao, 240),
+        whatsapp: corta(item.whatsapp, 20),
+        email: corta(item.email, 80),
+      });
     }
     bloco.itens = itens;
     site.profissionais = bloco;
+    tocou.profissionais = true;
     tocou.textos = true;
+  }
+
+  if (patch.avisos && (patch.avisos.limpar === true || textoPreenchido(patch.avisos.itens))) {
+    avisosExtra =
+      patch.avisos.limpar === true
+        ? []
+        : (patch.avisos.itens || [])
+            .map((a) => ({
+              titulo: corta(a.titulo, 80),
+              descricao: corta(a.descricao, 240),
+              dataLabel: corta(a.data_label, 60),
+            }))
+            .filter((a) => a.titulo && a.descricao)
+            .slice(0, 4);
+    tocou.avisos = true;
+  }
+
+  if (patch.redes && typeof patch.redes === "object") {
+    const limpas: Record<string, string> = {};
+    for (const [k, v] of Object.entries(patch.redes)) {
+      const id = semAcento(k).replace(/\s+/g, "");
+      const url = corta(v, 160);
+      if (!id || !url) continue;
+      limpas[id] = url;
+    }
+    if (Object.keys(limpas).length) {
+      redesExtra = limpas;
+      tocou.redes = true;
+      if (limpas.instagram) visual.instagram = true;
+      if (limpas.facebook) visual.facebook = true;
+      if (limpas.tiktok) visual.tiktok = true;
+      if (limpas.youtube) visual.youtube = true;
+      if (limpas.linkedin) visual.linkedin = true;
+      tocou.visual = true;
+    }
   }
   if (patch.diferenciais && textoPreenchido(patch.diferenciais)) {
     aplicarDiferenciais(site, patch.diferenciais, avisos);
@@ -939,5 +1077,5 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
   const aviso = [avisoModelo, ...avisos].filter(Boolean).join(" ");
   const mudou = abrir !== "" || Object.values(tocou).some(Boolean);
   const resumo = corta(patch.resumo, 220) || (mudou ? "Atualizei o que cabia neste site." : "");
-  return { site, visual, resumo, aviso, abrir, tocou };
+  return { site, visual, resumo, aviso, abrir, tocou, avisos: avisosExtra, redes: redesExtra };
 }

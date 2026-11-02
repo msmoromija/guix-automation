@@ -91,16 +91,20 @@ export function PedidoIa({
       <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-zinc-900 px-3 py-2 shadow-lg">
         <textarea
           value={texto}
-          onChange={(e) => onTexto(e.target.value.slice(0, 400))}
+          onChange={(e) => onTexto(e.target.value.slice(0, 900))}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               if (!noLimite && texto.trim().length >= 3 && !ocupado) onEnviar();
             }
           }}
-          placeholder={noLimite ? "Limite de alterações deste teste" : "Peça a alteração. Ex.: logo maior, cabeçalho com o menu abaixo, telefone 79 98888-7777"}
+          placeholder={
+            noLimite
+              ? "Limite de alterações deste teste"
+              : "Mande no motor: FAQ, eventos, textos, equipe, visual, fotos… Ex.: preencha campos vazios e crie 3 eventos"
+          }
           disabled={ocupado || noLimite}
-          maxLength={400}
+          maxLength={900}
           rows={2}
           className="w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35 disabled:opacity-60"
         />
@@ -139,7 +143,9 @@ export function PedidoIa({
               </div>
             ) : null}
           </div>
-          <span className="text-xs text-white/45">GPT mini</span>
+          <span className={`text-xs ${ocupado ? "animate-pulse text-orange-300" : "text-emerald-300/90"}`}>
+            {ocupado ? "OpenAI · aplicando…" : "OpenAI · motor liberado"}
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"

@@ -13,7 +13,7 @@ import {
   contextoEditavel,
   copiaDoSite,
   eventosDoSite,
-  patchRapido,
+  profissionaisDoSite,
   servicosDoSite,
   type PatchPedido,
   type ResultadoPedido,
@@ -750,6 +750,29 @@ export function EstudioForm() {
       const lista = eventosDoSite(resultado.site).filter((e) => e.titulo && e.descricao);
       setEventos(lista);
     }
+    if (resultado.tocou.avisos && resultado.avisos) {
+      setNotasAgenda(resultado.avisos.map((a) => ({ titulo: a.titulo, descricao: a.descricao, dataLabel: a.dataLabel })));
+    }
+    if (resultado.tocou.redes && resultado.redes) {
+      setRedes((atual) => ({ ...atual, ...resultado.redes }));
+      const ids = Object.keys(resultado.redes).filter((id): id is CanalId => CANAIS.some((c) => c.id === id));
+      if (ids.length) setCanaisAtivos((lista) => Array.from(new Set([...lista, ...ids])));
+    }
+    if (resultado.tocou.profissionais) {
+      const equipe = profissionaisDoSite(resultado.site);
+      if (equipe.length) {
+        setPros(
+          equipe.map((p) => ({
+            ...proVazio(),
+            nome: p.nome,
+            cargo: p.cargo,
+            descricao: p.descricao,
+            whatsapp: p.whatsapp,
+            email: p.email,
+          })),
+        );
+      }
+    }
     if (resultado.tocou.servicos) {
       const linhas = servicosDoSite(resultado.site).filter((s) => s.nome);
       if (linhas.length) {
@@ -821,18 +844,10 @@ export function EstudioForm() {
       setAvisoIa(AVISO_ESTRUTURA);
       return;
     }
-    const rapido = patchRapido(pedido);
-    if (rapido) {
-      guardarMarco();
-      aplicarResultado(aplicarPedido(structuredClone(siteVivo), visual, rapido));
-      setUsosIa((n) => n + 1);
-      setPedidoIa("");
-      return;
-    }
     setAjustando(true);
-    setAvisoIa("");
+    setAvisoIa("OpenAI conectada · aplicando no motor…");
     const ctrl = new AbortController();
-    const prazo = window.setTimeout(() => ctrl.abort(), 65000);
+    const prazo = window.setTimeout(() => ctrl.abort(), 90000);
     try {
       const res = await fetch("/api/prototipo/textos", {
         method: "POST",
@@ -848,17 +863,26 @@ export function EstudioForm() {
           contexto: contextoEditavel(siteVivo, visual),
         }),
       });
-      const data = (await res.json()) as { patch?: PatchPedido; aviso?: string; erro?: string };
+      const data = (await res.json()) as {
+        patch?: PatchPedido;
+        aviso?: string;
+        erro?: string;
+        resumo?: string;
+        via?: "openai" | "atalho" | "nenhum";
+      };
       if (!data.patch) {
-        setAvisoIa(data.aviso || data.erro || "Não consegui aplicar agora.");
+        setAvisoIa(data.aviso || data.erro || "OpenAI não devolveu alteração. Tente de novo.");
         return;
       }
       guardarMarco();
-      aplicarResultado(aplicarPedido(structuredClone(siteVivo), visual, data.patch));
+      const resultado = aplicarPedido(structuredClone(siteVivo), visual, data.patch);
+      aplicarResultado(resultado);
       setUsosIa((n) => n + 1);
       setPedidoIa("");
+      const selo = data.via === "openai" ? "via OpenAI" : data.via === "atalho" ? "via atalho local" : "";
+      setAvisoIa([selo, resultado.resumo || data.resumo, resultado.aviso || data.aviso].filter(Boolean).join(" · "));
     } catch {
-      setAvisoIa("Demorou demais. Peça de novo em partes: textos primeiro, fotos depois.");
+      setAvisoIa("OpenAI demorou demais. Peça de novo em uma frase objetiva.");
     } finally {
       window.clearTimeout(prazo);
       setAjustando(false);
