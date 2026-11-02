@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
 import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { tomDoEstilo } from "@/lib/media/catalogo";
 import type { Nicho } from "@/lib/media/tipos";
 import {
   gravarPacote,
@@ -71,6 +72,9 @@ export async function POST(req: NextRequest) {
     const logoSrc = sanitizarLogoSrc(body.logoSrc);
     const servicos = Array.isArray(body.servicos) ? body.servicos : [];
     const profissionais = Array.isArray(body.profissionais) ? body.profissionais : [];
+    const tom = String(body.tom || tomDoEstilo(visual.estilo)).trim();
+    const destaque = String(body.destaque || "").trim() || undefined;
+    const iaEscreve = body.iaEscreve !== false;
 
     if (!nome || nome.length < 2) {
       return NextResponse.json({ erro: "informe o nome do negócio" }, { status: 400 });
@@ -98,7 +102,11 @@ export async function POST(req: NextRequest) {
       bairro,
       estado,
       cep,
-      tom: "profissional e acolhedor",
+      tom,
+      estilo: visual.estilo,
+      destaque,
+      iaEscreve,
+      servicos: servicos.map((s: { nome?: string }) => String(s.nome || "").trim()).filter(Boolean),
     });
     aplicarEstudio(gerado.site, {
       entrada: {

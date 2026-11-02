@@ -7,7 +7,8 @@ export interface ImagemResolvida {
   motivo: string;
   src?: string;
   r2_key?: string;
-  origem: "biblioteca" | "pendente";
+  origem: "biblioteca" | "unsplash" | "pendente";
+  credito?: import("./tipos").CreditoUnsplash;
 }
 
 /** Cruza sugestões da IA com arquivos da biblioteca compartilhada (tags no metadado). */

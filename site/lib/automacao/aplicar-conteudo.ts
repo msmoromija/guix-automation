@@ -46,7 +46,11 @@ function aplicarFoto(
     });
   }
   if (daLib?.src) {
-    return patchImagem(img, { src: daLib.src, origem: "biblioteca" });
+    return patchImagem(img, {
+      src: daLib.src,
+      origem: daLib.origem === "unsplash" ? "unsplash" : "biblioteca",
+      credito: daLib.credito as unknown as Record<string, unknown> | undefined,
+    });
   }
   return img;
 }

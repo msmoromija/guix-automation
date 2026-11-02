@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gerarEmblemaIa, montarLockupComEmblema } from "@/lib/estudio/ia-marca";
+import { lockupEmblema } from "@/lib/estudio/marca";
 import { paletaPorId } from "@/lib/estudio/visual";
 import type { Nicho } from "@/lib/media/tipos";
 
@@ -36,30 +37,46 @@ export async function POST(req: NextRequest) {
     const slogan = String(body.slogan || "").trim() || undefined;
     const paleta = paletaPorId(String(body.paletaId || ""));
 
-    const emblema = await gerarEmblemaIa({
-      nome,
-      nicho,
-      acento: paleta.color_accent,
-      fundo: paleta.color_background,
-    });
-
-    const src = montarLockupComEmblema({
-      nome,
-      slogan,
-      fundo: paleta.color_background,
-      tinta: paleta.color_text,
-      acento: paleta.color_accent,
-      nicho,
-      emblemaWebp: emblema,
-    });
+    let origem: "ia" | "estudio" = "ia";
+    let aviso: string | undefined;
+    let src: string;
+    try {
+      const emblema = await gerarEmblemaIa({
+        nome,
+        nicho,
+        acento: paleta.color_accent,
+        fundo: paleta.color_background,
+      });
+      src = montarLockupComEmblema({
+        nome,
+        slogan,
+        fundo: paleta.color_background,
+        tinta: paleta.color_text,
+        acento: paleta.color_accent,
+        nicho,
+        emblemaWebp: emblema,
+      });
+    } catch {
+      origem = "estudio";
+      aviso = "A geração de imagem não respondeu. Montamos o símbolo do ofício com o nome tipografado.";
+      src = lockupEmblema({
+        nome,
+        slogan,
+        fundo: paleta.color_background,
+        tinta: paleta.color_text,
+        acento: paleta.color_accent,
+        nicho,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
-      origem: "ia",
+      origem,
+      aviso,
       proposta: {
         id: `ia-${Date.now().toString(36)}`,
-        titulo: "Marca com IA",
-        nota: "Emblema gerado + nome tipografado (o texto não sai distorcido)",
+        titulo: origem === "ia" ? "Marca com IA" : "Símbolo do ofício",
+        nota: aviso || "Emblema gerado + nome tipografado",
         src,
       },
     });

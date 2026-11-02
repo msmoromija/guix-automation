@@ -22,6 +22,9 @@ export interface EntradaAutomacao {
   cnpj?: string;
   servicos?: string[];
   tom?: string;
+  estilo?: string;
+  destaque?: string;
+  iaEscreve?: boolean;
   /** Imagens já aprovadas do cliente (isoladas) — têm prioridade sobre a biblioteca. */
   imagensCliente?: Array<{
     categoria: string;

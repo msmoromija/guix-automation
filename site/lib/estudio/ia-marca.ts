@@ -39,25 +39,6 @@ export async function gerarEmblemaIa(opts: {
 }
 
 async function gerarImagem(key: string, prompt: string) {
-  const gpt = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-      n: 1,
-    }),
-  });
-
-  if (gpt.ok) {
-    const data = (await gpt.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
-    return bufferDaImagem(data.data?.[0]);
-  }
-
   const dalle = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -72,11 +53,29 @@ async function gerarImagem(key: string, prompt: string) {
       n: 1,
     }),
   });
-  if (!dalle.ok) {
-    const err = await dalle.text();
-    throw new Error(`OpenAI imagem: ${dalle.status} ${err.slice(0, 280)}`);
+  if (dalle.ok) {
+    const data = (await dalle.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
+    return bufferDaImagem(data.data?.[0]);
   }
-  const data = (await dalle.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
+
+  const gpt = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+      n: 1,
+    }),
+  });
+  if (!gpt.ok) {
+    const err = await gpt.text();
+    throw new Error(`OpenAI imagem: ${gpt.status} ${err.slice(0, 220)}`);
+  }
+  const data = (await gpt.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
   return bufferDaImagem(data.data?.[0]);
 }
 

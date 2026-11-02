@@ -12,6 +12,7 @@ import {
   visualPadrao,
   type VisualConfig,
 } from "@/lib/estudio/visual";
+import { tomDoEstilo } from "@/lib/media/catalogo";
 import { nichos } from "@/lib/nichos";
 
 const campo = "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-ink";
@@ -68,7 +69,11 @@ export function EstudioForm() {
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState([{ nome: "", preco: "", duracao: "", descricao: "" }]);
   const [pros, setPros] = useState([{ nome: "", cargo: "", descricao: "", fotoSrc: "" }]);
+  const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
+  const [destaque, setDestaque] = useState("");
+  const [iaEscreve, setIaEscreve] = useState(true);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [loading, setLoading] = useState(false);
 
   const nichoAtual = useMemo(() => nichos.find((n) => n.slug === nicho) || nichos[0], [nicho]);
@@ -116,6 +121,7 @@ export function EstudioForm() {
 
   async function gerarComIa() {
     setErro("");
+    setAviso("");
     setGerandoIa(true);
     setLogoModo("gerar");
     try {
@@ -132,6 +138,7 @@ export function EstudioForm() {
       const p = data.proposta as Proposta;
       setPropostas((lista) => [p, ...lista.filter((x) => x.id !== p.id)]);
       setPropostaId(p.id);
+      if (data.aviso) setAviso(data.aviso);
     } catch {
       setErro("Falha ao falar com a IA da marca.");
     } finally {
@@ -169,6 +176,9 @@ export function EstudioForm() {
           slogan,
           redes,
           visual,
+          tom,
+          destaque,
+          iaEscreve,
           logoSrc: logoModo === "texto" ? undefined : logoSrc,
           servicos: servicos.filter((s) => s.nome.trim()),
           profissionais: pros.filter((p) => p.nome.trim()),
@@ -236,8 +246,11 @@ export function EstudioForm() {
                     className={campo}
                     value={nicho}
                     onChange={(e) => {
-                      setNicho(e.target.value);
-                      setVisual(visualPadrao(e.target.value));
+                      const slug = e.target.value;
+                      setNicho(slug);
+                      const v = visualPadrao(slug);
+                      setVisual(v);
+                      setTom(tomDoEstilo(v.estilo));
                     }}
                   >
                     {nichos.map((n) => (
@@ -287,7 +300,10 @@ export function EstudioForm() {
                       key={p.id}
                       type="button"
                       className={`overflow-hidden rounded-xl border text-left ${visual.presetId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
-                      onClick={() => setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }))}
+                      onClick={() => {
+                        setVisual((v) => ({ ...v, ...p.visual, presetId: p.id }));
+                        setTom(tomDoEstilo(p.visual.estilo));
+                      }}
                     >
                       <span className="flex h-10">
                         <i className="flex-1" style={{ background: pal.color_background }} />
@@ -302,6 +318,44 @@ export function EstudioForm() {
                   );
                 })}
               </div>
+
+              <p className="mt-6 text-sm font-semibold">Como a IA vai escrever</p>
+              <p className="text-xs text-muted">Isso entra no pedido à IA — textos, serviços e o tipo de foto.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["tradicional, acolhedor, de ofício", "Acolhedor"],
+                    ["direto, jovem, com energia", "Urbano"],
+                    ["sofisticado, sóbrio, premium", "Luxo"],
+                    ["profissional, claro, comercial", "Direto"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`${chip} ${tom === id ? chipOn : chipOff}`}
+                    onClick={() => setTom(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="mt-4 block text-sm">
+                O que destacar (a IA usa isso)
+                <input
+                  className={campo}
+                  value={destaque}
+                  onChange={(e) => setDestaque(e.target.value)}
+                  placeholder="Ex.: corte na tesoura, atendimento com hora marcada"
+                />
+              </label>
+              <button
+                type="button"
+                className={`mt-3 ${chip} ${iaEscreve ? chipOn : chipOff}`}
+                onClick={() => setIaEscreve((v) => !v)}
+              >
+                {iaEscreve ? "A IA escreve os textos do site" : "Não usar IA nos textos"}
+              </button>
 
               <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => setAvancado((v) => !v)}>
                 {avancado ? "Esconder paleta e letras" : "Ajustar paleta e letras"}
@@ -556,16 +610,19 @@ export function EstudioForm() {
               <h2 className="text-base font-semibold">O que acontece agora</h2>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
-                  <strong>1.</strong> Você clica abaixo e abre o site de teste neste navegador.
+                  <strong>1.</strong> A IA escreve os textos no tom escolhido e escolhe fotos do ofício (barbearia ≠ salão).
                 </li>
                 <li>
-                  <strong>2.</strong> Guarda o link (ou o código curto). Dá para mandar no WhatsApp e mostrar a alguém.
+                  <strong>2.</strong> Você clica abaixo e abre o site de teste neste navegador.
                 </li>
                 <li>
-                  <strong>3.</strong> O teste fica no ar por <strong>3 dias</strong>. Depois some sozinho — não é o site publicado.
+                  <strong>3.</strong> Guarda o link (ou o código curto). Dá para mandar no WhatsApp e mostrar a alguém.
                 </li>
                 <li>
-                  <strong>4.</strong> Se gostar, contrata. Aí sim o site entra no seu domínio, de verdade.
+                  <strong>4.</strong> O teste fica no ar por <strong>3 dias</strong>. Depois some sozinho — não é o site publicado.
+                </li>
+                <li>
+                  <strong>5.</strong> Se gostar, contrata. Aí sim o site entra no seu domínio, de verdade.
                 </li>
               </ol>
               <div className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
@@ -575,7 +632,8 @@ export function EstudioForm() {
             </section>
           ) : null}
 
-          {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
+          {aviso ? <p className="text-sm text-muted">{aviso}</p> : null}
+        {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
 
           <div className="flex flex-wrap items-center gap-3 pb-24 lg:pb-4">
             {etapa > 1 ? (

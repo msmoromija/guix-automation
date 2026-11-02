@@ -1,5 +1,5 @@
+import { REGRA_NICHO, tagsDoNicho, tomDoEstilo } from "./catalogo";
 import type { GeracaoSiteJson, Nicho } from "./tipos";
-import { tagsDoNicho } from "./catalogo";
 
 function apiKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -11,26 +11,34 @@ export async function gerarTextosSite(entrada: {
   nicho: Nicho;
   nome: string;
   cidade?: string;
+  slogan?: string;
   servicos?: string[];
   tom?: string;
+  estilo?: string;
+  destaque?: string;
 }): Promise<GeracaoSiteJson> {
   const tags = tagsDoNicho(entrada.nicho);
+  const tom = entrada.tom || tomDoEstilo(entrada.estilo);
   const sistema = [
-    "Você escreve conteúdo comercial em português do Brasil para sites de presença digital.",
+    "Você é o redator e diretor de arte do site. Decide textos, nomes de serviço, FAQ e que tipo de foto usar.",
     "Responda SOMENTE com JSON válido, sem markdown.",
-    "Use o modelo de campos pedido. Textos curtos, concretos, sem citar GuiX nem GNU Guix.",
-    "Não invente endereço, CNPJ, telefone ou nomes de pessoas reais de outras cidades.",
-    "Profissionais: 2 a 3 nomes brasileiros fictícios adequados ao nicho.",
-    "FAQ: 4 perguntas úteis de cliente (agendar, preço, horário, o que levar).",
-    "Em imagens_sugeridas, escolha tags da lista fornecida (hero, sobre, servico, galeria).",
+    "Português do Brasil, concreto, sem citar GuiX.",
+    "Não invente endereço, CNPJ, telefone.",
+    REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico,
+    "imagens_sugeridas: só tags da lista. Cada item precisa bater com o nicho.",
+    "Hero e sobre: frases novas, não genéricas de template.",
   ].join(" ");
 
   const user = {
     nicho: entrada.nicho,
+    regra_nicho: REGRA_NICHO[entrada.nicho],
     nome_negocio: entrada.nome,
+    slogan: entrada.slogan || "",
     cidade: entrada.cidade || "",
-    servicos: entrada.servicos || [],
-    tom: entrada.tom || "profissional e acolhedor",
+    servicos_informados: entrada.servicos || [],
+    tom,
+    estilo_visual: entrada.estilo || "moderno",
+    o_que_destacar: entrada.destaque || "",
     tags_disponiveis: tags,
     schema: {
       hero: { titulo: "string", subtitulo: "string" },
@@ -51,7 +59,7 @@ export async function gerarTextosSite(entrada: {
       galeria: { titulo: "string", legendas: ["string"] },
       rodape: { texto: "string" },
       imagens_sugeridas: [
-        { categoria: "hero|servico|sobre|galeria", tags: ["string"], motivo: "string" },
+        { categoria: "hero|servico|sobre|galeria|profissional", tags: ["string"], motivo: "string" },
       ],
     },
   };
@@ -64,7 +72,7 @@ export async function gerarTextosSite(entrada: {
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
-      temperature: 0.6,
+      temperature: 0.55,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: sistema },
@@ -75,7 +83,7 @@ export async function gerarTextosSite(entrada: {
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`OpenAI: ${res.status} ${err}`);
+    throw new Error(`OpenAI: ${res.status} ${err.slice(0, 240)}`);
   }
 
   const data = (await res.json()) as {

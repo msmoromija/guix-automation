@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { gerarTextosSite } from "@/lib/media/openai";
-import { resolverSugestoesBiblioteca } from "@/lib/media/resolver-imagens";
+import type { GeracaoSiteJson } from "@/lib/media/tipos";
+import { escolherImagensDoNicho } from "@/lib/media/escolher-imagens";
 import type { CategoriaImagem } from "@/lib/media/tipos";
 import { sanitizarClienteId } from "@/lib/media/isolamento";
 import { aplicarDadosCliente } from "./aplicar-cliente";
@@ -28,13 +29,24 @@ export async function gerarSiteCliente(
   let site = await carregarExemplo(entrada.nicho);
   site = aplicarDadosCliente(site, { ...entrada, clienteId });
 
-  const textos = await gerarTextosSite({
-    nicho: entrada.nicho,
-    nome: entrada.nome,
-    cidade: entrada.cidade,
-    servicos: entrada.servicos,
-    tom: entrada.tom,
-  });
+  const textos =
+    entrada.iaEscreve === false
+      ? {
+          hero: { titulo: entrada.nome, subtitulo: entrada.slogan || "" },
+          sobre: { titulo: "Sobre", paragrafos: [] as string[] },
+          servicos: { titulo: "Serviços", subtitulo: "", itens: [] },
+          imagens_sugeridas: [] as GeracaoSiteJson["imagens_sugeridas"],
+        } satisfies Partial<GeracaoSiteJson> as GeracaoSiteJson
+      : await gerarTextosSite({
+          nicho: entrada.nicho,
+          nome: entrada.nome,
+          cidade: entrada.cidade,
+          slogan: entrada.slogan,
+          servicos: entrada.servicos,
+          tom: entrada.tom,
+          estilo: entrada.estilo,
+          destaque: entrada.destaque,
+        });
 
   const sugestoes = (textos.imagens_sugeridas || []).map((s) => ({
     categoria: s.categoria as CategoriaImagem,
@@ -49,7 +61,7 @@ export async function gerarSiteCliente(
     }
   }
 
-  const resolvidas = await resolverSugestoesBiblioteca({
+  const resolvidas = await escolherImagensDoNicho({
     nicho: entrada.nicho,
     sugestoes,
   });
@@ -57,6 +69,9 @@ export async function gerarSiteCliente(
   const aplicado = aplicarConteudoGerado(site, textos, resolvidas, { ...entrada, clienteId });
   site = aplicado.site;
   const avisos = [...aplicado.avisos];
+  if (entrada.iaEscreve !== false) avisos.push("textos escritos pela IA");
+  if (resolvidas.some((r) => r.origem === "unsplash")) avisos.push("fotos do ofício via Unsplash (nicho filtrado)");
+  if (resolvidas.every((r) => r.origem === "pendente")) avisos.push("sem foto nova — mantidas as do modelo do nicho");
 
   const validacao = await validarSiteJson(site);
   if (!validacao.ok) {
