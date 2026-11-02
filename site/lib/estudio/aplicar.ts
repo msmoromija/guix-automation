@@ -90,43 +90,73 @@ export function aplicarEstudio(
     const atuais = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
     bloco.itens = opts.servicos.map((s, i) => {
       const base = atuais[i] || {};
+      const mins = Number(String(s.duracao || "").replace(/\D/g, "")) || Number(base.duracao_minutos) || 30;
+      const precoNum = Number(String(s.preco || "").replace(/[^\d,]/g, "").replace(",", ".")) || Number(base.preco) || 0;
+      const imagem = { ...((base.imagem as Record<string, unknown>) || {}) };
+      if (typeof imagem.src !== "string") imagem.src = "";
+      if (!imagem.id) imagem.id = `img_srv_item${i + 1}`;
+      if (!imagem.alt) imagem.alt = s.nome;
+      if (!imagem.categoria) imagem.categoria = "servico";
       return {
         ...base,
-        id: String(base.id || `srv_${i + 1}`),
+        id: String(base.id || `srv_item${i + 1}`),
         nome: s.nome,
         descricao: s.descricao || base.descricao || "",
+        preco: precoNum,
         preco_label: s.preco || base.preco_label || "Sob consulta",
-        duracao_label: s.duracao || base.duracao_label || "",
+        duracao_minutos: mins < 1 ? 30 : mins,
+        duracao_label: s.duracao || base.duracao_label || `${mins} min`,
+        imagem,
       };
     });
     site.servicos = bloco;
   }
 
-  if (opts.profissionais?.length) {
-    const bloco = { ...((site.profissionais as Record<string, unknown>) || {}) };
-    const atuais = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
-    bloco.itens = opts.profissionais.map((p, i) => {
+  const blocoPro = { ...((site.profissionais as Record<string, unknown>) || {}) };
+  const reais = (opts.profissionais || []).filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome");
+  if (reais.length) {
+    const atuais = Array.isArray(blocoPro.itens) ? (blocoPro.itens as Record<string, unknown>[]) : [];
+    blocoPro.itens = reais.map((p, i) => {
       const base = atuais[i] || {};
       const foto = { ...((base.foto as Record<string, unknown>) || {}) };
       if (p.fotoSrc) {
-        if (!foto.id) foto.id = `img_pro${i + 1}`;
+        foto.id = String(foto.id || `img_pro_p${i + 1}`);
         foto.src = p.fotoSrc;
         foto.alt = p.nome;
         foto.categoria = "profissional";
         foto.origem = "upload";
         delete foto.credito;
+      } else {
+        if (typeof foto.src !== "string") foto.src = "";
+        if (!foto.id) foto.id = `img_pro_p${i + 1}`;
+        if (!foto.alt) foto.alt = p.nome;
+        if (!foto.categoria) foto.categoria = "profissional";
       }
       return {
         ...base,
-        id: String(base.id || `pro_${i + 1}`),
+        id: String(base.id || `pro_p${i + 1}`),
         nome: p.nome,
-        cargo: p.cargo || base.cargo || "",
-        descricao: p.descricao || base.descricao || "",
+        cargo: p.cargo || "",
+        descricao: p.descricao || "",
+        whatsapp: typeof base.whatsapp === "string" ? base.whatsapp : "",
         foto,
       };
     });
-    site.profissionais = bloco;
+  } else {
+    blocoPro.titulo = "Equipe";
+    blocoPro.subtitulo = "O agendamento não destina profissional.";
+    blocoPro.itens = [
+      {
+        id: "pro_sempref",
+        nome: "Sem preferência",
+        cargo: "",
+        descricao: "O horário não destina um profissional.",
+        whatsapp: "",
+        foto: { id: "img_pro_sempref", src: "", alt: "Sem preferência", categoria: "profissional" },
+      },
+    ];
   }
+  site.profissionais = blocoPro;
 
   return site;
 }

@@ -8,7 +8,7 @@ import { sanitizarClienteId } from "@/lib/media/isolamento";
 import { aplicarDadosCliente } from "./aplicar-cliente";
 import { aplicarConteudoGerado } from "./aplicar-conteudo";
 import { carregarExemplo } from "./carregar-exemplo";
-import { limparIdentidadeExemplo, polirTextosSite } from "./limpar-exemplo";
+import { limparIdentidadeExemplo, polirTextosSite, repararParaSchema } from "./limpar-exemplo";
 import type { EntradaAutomacao, ResultadoAutomacao } from "./tipos";
 import { validarSiteJson } from "./validar-site";
 
@@ -78,6 +78,7 @@ export async function gerarSiteCliente(
 
   const aplicado = aplicarConteudoGerado(site, textos, resolvidas, { ...entrada, clienteId });
   site = polirTextosSite(aplicado.site);
+  site = repararParaSchema(site, { ...entrada, clienteId });
   const avisos = [...aplicado.avisos];
   if (entrada.iaEscreve !== false) avisos.push("textos escritos pela IA");
   if (resolvidas.some((r) => r.origem === "unsplash")) avisos.push("fotos do ofício via Unsplash (nicho filtrado)");

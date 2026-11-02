@@ -16,7 +16,7 @@ export function montarRascunho(opts: {
   const nome = opts.nome.trim() || "Seu negócio";
   const slogan = opts.slogan?.trim() || "O site vai ganhando cara enquanto você preenche";
   const servicos = opts.servicos.filter((s) => s.nome.trim());
-  const profissionais = opts.profissionais.filter((p) => p.nome.trim());
+  const profissionais = opts.profissionais.filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome");
 
   return {
     empresa: {
@@ -50,14 +50,8 @@ export function montarRascunho(opts: {
     },
     servicos: {
       titulo: "Serviços",
-      subtitulo: servicos.length ? "O que você cadastrou aparece aqui." : "Exemplo — troque pelos seus preços.",
-      itens: (servicos.length
-        ? servicos
-        : [
-            { nome: "Corte clássico", preco: "R$ 45", duracao: "40 min", descricao: "Máquina e tesoura." },
-            { nome: "Barba", preco: "R$ 35", duracao: "30 min", descricao: "Toalha quente e navalha." },
-          ]
-      ).map((s, i) => ({
+      subtitulo: servicos.length ? "Preço e texto como você deixou no cardápio." : "Gere ou escreva os serviços à esquerda.",
+      itens: (servicos.length ? servicos : []).map((s, i) => ({
         id: `ex-${i}`,
         nome: s.nome,
         descricao: s.descricao,
@@ -67,11 +61,8 @@ export function montarRascunho(opts: {
     },
     profissionais: {
       titulo: "Equipe",
-      subtitulo: profissionais.length ? "" : "Exemplo — com foto ou só a inicial.",
-      itens: (profissionais.length
-        ? profissionais
-        : [{ nome: "Ana Souza", cargo: "Barbeira", descricao: "Cortes clássicos.", fotoSrc: "" }]
-      ).map((p, i) => ({
+      subtitulo: profissionais.length ? "" : "Sem nomes — o agendamento não destina profissional.",
+      itens: profissionais.map((p, i) => ({
         id: `pex-${i}`,
         nome: p.nome,
         cargo: p.cargo,

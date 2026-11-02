@@ -5,9 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { EstudioPreview } from "@/components/estudio/EstudioPreview";
 import { propostasEstudio } from "@/lib/estudio/marca";
 import { montarRascunho } from "@/lib/estudio/rascunho";
-import { equipeDoNicho, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
+import { formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
-  PALETAS,
   PRESETS,
   paletaPorId,
   visualPadrao,
@@ -50,7 +49,6 @@ export function EstudioForm() {
 
   const [etapa, setEtapa] = useState(1);
   const [previewAberta, setPreviewAberta] = useState(false);
-  const [avancado, setAvancado] = useState(false);
   const [nicho, setNicho] = useState(nichoInicial);
   const [nome, setNome] = useState("");
   const [slogan, setSlogan] = useState("");
@@ -70,7 +68,7 @@ export function EstudioForm() {
   const [logoUpload, setLogoUpload] = useState("");
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
-  const [pros, setPros] = useState(() => equipeDoNicho(nichoInicial));
+  const [pros, setPros] = useState<Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string }>>([]);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
@@ -120,6 +118,7 @@ export function EstudioForm() {
   function ir(n: number) {
     setEtapa(n);
     setErro("");
+    if (n !== 3) setAviso("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -219,7 +218,7 @@ export function EstudioForm() {
           iaEscreve,
           logoSrc: logoModo === "texto" ? undefined : logoSrc,
           servicos: servicos.filter((s) => s.nome.trim()),
-          profissionais: pros.filter((p) => p.nome.trim()),
+          profissionais: pros.filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome"),
         }),
       });
       const data = await res.json();
@@ -272,7 +271,7 @@ export function EstudioForm() {
         ))}
       </ol>
 
-      <form onSubmit={enviar} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+      <form onSubmit={enviar} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,1fr)]">
         <div className="space-y-5">
           {etapa === 1 ? (
             <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
@@ -291,7 +290,6 @@ export function EstudioForm() {
                       setVisual(v);
                       setTom(tomDoEstilo(v.estilo));
                       setServicos(servicosDoNicho(slug));
-                      setPros(equipeDoNicho(slug));
                     }}
                   >
                     {nichos.map((n) => (
@@ -356,23 +354,11 @@ export function EstudioForm() {
 
           {etapa === 2 ? (
             <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Que cara o site tem</h2>
-              <p className="mt-1 text-sm text-muted">Toque num cartão e olhe a prévia à direita — cores e letras mudam na hora.</p>
-              <p className="mt-6 text-sm font-semibold">Claro ou escuro</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {(["claro", "escuro", "automatico"] as const).map((a) => (
-                  <button
-                    key={a}
-                    type="button"
-                    className={`${chip} ${visual.aparencia === a ? chipOn : chipOff}`}
-                    onClick={() => setVisual((v) => ({ ...v, aparencia: a }))}
-                  >
-                    {a === "automatico" ? "Do celular" : a === "claro" ? "Claro" : "Escuro"}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-6 text-sm font-semibold">Visual pronto</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <h2 className="text-base font-semibold">Escolha um visual</h2>
+              <p className="mt-1 text-sm text-muted">
+                Cada cartão já junta cores e letras. Olhe o simulador à direita — é o site, não só uma faixa.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {PRESETS.map((p) => {
                   const pal = paletaPorId(p.visual.paletaId || visual.paletaId);
                   return (
@@ -394,27 +380,6 @@ export function EstudioForm() {
                   );
                 })}
               </div>
-              <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => setAvancado((v) => !v)}>
-                {avancado ? "Esconder paleta" : "Ajustar paleta na mão"}
-              </button>
-              {avancado ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {PALETAS.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`${chip} flex items-center gap-2 ${visual.paletaId === p.id ? chipOn : chipOff}`}
-                      onClick={() => setVisual((v) => ({ ...v, paletaId: p.id }))}
-                    >
-                      <span className="flex h-6 w-10 overflow-hidden rounded">
-                        <i className="flex-1" style={{ background: p.color_background }} />
-                        <i className="flex-1" style={{ background: p.color_accent }} />
-                      </span>
-                      {p.nome}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </section>
           ) : null}
 
@@ -594,7 +559,7 @@ export function EstudioForm() {
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Cardápio de {nichoAtual.nome.toLowerCase()}</h2>
-                    <p className="mt-1 text-sm text-muted">Já geramos três. Ajuste preço se quiser — não precisa inventar o texto.</p>
+                    <p className="mt-1 text-sm text-muted">Três sugestões. Clique nos campos para mudar nome, preço, tempo e texto.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -615,37 +580,49 @@ export function EstudioForm() {
                 </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   {servicos.map((s, i) => (
-                    <article key={`${s.nome}-${i}`} className="gx-card-in flex flex-col rounded-2xl border border-line bg-canvas/50 p-4">
+                    <article key={`srv-${i}`} className="gx-card-in flex flex-col rounded-2xl border border-line bg-white p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <input
-                          className="w-full bg-transparent text-base font-semibold outline-none"
-                          value={s.nome}
-                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                        />
+                        <label className="block min-w-0 flex-1 text-xs font-medium text-muted">
+                          Nome
+                          <input
+                            className={campo}
+                            value={s.nome}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                          />
+                        </label>
                         {servicos.length > 1 ? (
-                          <button type="button" className="text-xs text-muted" onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}>
-                            ×
+                          <button type="button" className="mt-6 text-xs text-muted" onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}>
+                            Remover
                           </button>
                         ) : null}
                       </div>
-                      <p className="mt-3 text-2xl font-bold tracking-tight text-accent">
-                        <input
-                          className="w-full bg-transparent outline-none"
-                          value={s.preco}
-                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-medium text-muted">
+                          Preço
+                          <input
+                            className={`${campo} font-semibold text-accent`}
+                            value={s.preco}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
+                          />
+                        </label>
+                        <label className="block text-xs font-medium text-muted">
+                          Duração
+                          <input
+                            className={campo}
+                            value={s.duracao}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
+                          />
+                        </label>
+                      </div>
+                      <label className="mt-2 block text-xs font-medium text-muted">
+                        Texto
+                        <textarea
+                          rows={3}
+                          className={`${campo} resize-none`}
+                          value={s.descricao}
+                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
                         />
-                      </p>
-                      <input
-                        className="mt-1 w-full bg-transparent text-xs text-muted outline-none"
-                        value={s.duracao}
-                        onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
-                      />
-                      <textarea
-                        rows={2}
-                        className="mt-3 w-full resize-none bg-transparent text-sm leading-5 text-muted outline-none"
-                        value={s.descricao}
-                        onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                      />
+                      </label>
                     </article>
                   ))}
                 </div>
@@ -655,30 +632,30 @@ export function EstudioForm() {
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Quem atende</h2>
-                    <p className="mt-1 text-sm text-muted">Dois nomes do segmento. Troque ou ponha uma foto — a inicial já vale.</p>
+                    <p className="mt-1 text-sm text-muted">
+                      Opcional. Em branco, o site agenda sem destinar profissional. Não inventamos nomes.
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rounded-full bg-ink px-4 py-2 text-sm text-white" onClick={() => setPros(equipeDoNicho(nicho))}>
-                      Gerar de novo
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border border-line px-4 py-2 text-sm"
-                      onClick={() => setPros((p) => [...p, { nome: "Novo nome", cargo: "", descricao: "", fotoSrc: "" }])}
-                    >
-                      + Pessoa
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-line px-4 py-2 text-sm"
+                    onClick={() => setPros((p) => [...p, { nome: "", cargo: "", descricao: "", fotoSrc: "" }])}
+                  >
+                    + Pessoa
+                  </button>
                 </div>
+                {pros.length === 0 ? (
+                  <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">Ninguém cadastrado. O cliente marca o horário, sem escolher barbeiro.</p>
+                ) : (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   {pros.map((p, i) => (
-                    <article key={`${p.nome}-${i}`} className="gx-card-in flex gap-4 rounded-2xl border border-line p-4">
+                    <article key={`pro-${i}`} className="gx-card-in flex gap-4 rounded-2xl border border-line p-4">
                       <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-canvas text-2xl font-semibold text-ink/50">
                         {p.fotoSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          (p.nome || "?").slice(0, 1)
+                          (p.nome || "+").slice(0, 1)
                         )}
                         <input
                           type="file"
@@ -692,25 +669,41 @@ export function EstudioForm() {
                         />
                       </label>
                       <div className="min-w-0 flex-1">
-                        <input
-                          className="w-full bg-transparent text-base font-semibold outline-none"
-                          value={p.nome}
-                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                        />
-                        <input
-                          className="mt-1 w-full bg-transparent text-sm text-accent outline-none"
-                          value={p.cargo}
-                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
-                        />
-                        <input
-                          className="mt-2 w-full bg-transparent text-sm text-muted outline-none"
-                          value={p.descricao}
-                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                        />
+                        <label className="block text-xs font-medium text-muted">
+                          Nome
+                          <input
+                            className={campo}
+                            value={p.nome}
+                            placeholder="Quem atende"
+                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                          />
+                        </label>
+                        <label className="mt-2 block text-xs font-medium text-muted">
+                          Função
+                          <input
+                            className={campo}
+                            value={p.cargo}
+                            placeholder="Barbeiro, cabeleireira…"
+                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
+                          />
+                        </label>
+                        <label className="mt-2 block text-xs font-medium text-muted">
+                          Uma linha
+                          <input
+                            className={campo}
+                            value={p.descricao}
+                            placeholder="Opcional"
+                            onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
+                          />
+                        </label>
+                        <button type="button" className="mt-2 text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
+                          Remover
+                        </button>
                       </div>
                     </article>
                   ))}
                 </div>
+                )}
               </section>
             </>
           ) : null}
@@ -763,8 +756,22 @@ export function EstudioForm() {
           </div>
         </div>
 
-        <aside className="lg:sticky lg:top-24">{preview}</aside>
+        <aside className="lg:sticky lg:top-20">{preview}</aside>
       </form>
+
+      {loading ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-6 backdrop-blur-sm">
+          <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+            <p className="text-xs font-semibold tracking-[0.16em] text-accent">GERANDO</p>
+            <h2 className="mt-3 text-2xl font-bold tracking-[-0.03em]">Aguarde enquanto criamos tudo para você</h2>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              Estamos escrevendo os textos, escolhendo fotos do ofício e montando o site de teste. Isso leva cerca de um
+              minuto — a tela não travou.
+            </p>
+            <p className="mt-5 text-sm font-medium text-ink">Montando o site de teste…</p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

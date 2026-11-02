@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
 import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
 import type { Nicho } from "@/lib/media/tipos";
@@ -116,7 +117,10 @@ export async function POST(req: NextRequest) {
           duracao: String(s.duracao || "").trim() || undefined,
         })),
       profissionaisDetalhe: profissionais
-        .filter((p: { nome?: string }) => String(p.nome || "").trim())
+        .filter((p: { nome?: string }) => {
+          const n = String(p.nome || "").trim();
+          return n && n !== "Novo nome";
+        })
         .map((p: { nome?: string; cargo?: string; descricao?: string }) => ({
           nome: String(p.nome || "").trim(),
           cargo: String(p.cargo || "").trim() || undefined,
@@ -147,6 +151,25 @@ export async function POST(req: NextRequest) {
       logoSrc,
       servicos,
       profissionais,
+    });
+    repararParaSchema(gerado.site, {
+      clienteId: `t${token}`,
+      nicho,
+      nome,
+      slogan,
+      cidade,
+      whatsapp,
+      email,
+      profissionaisDetalhe: profissionais
+        .filter((p: { nome?: string }) => {
+          const n = String(p.nome || "").trim();
+          return n && n !== "Novo nome";
+        })
+        .map((p: { nome?: string; cargo?: string; descricao?: string }) => ({
+          nome: String(p.nome || "").trim(),
+          cargo: String(p.cargo || "").trim() || undefined,
+          descricao: String(p.descricao || "").trim() || undefined,
+        })),
     });
 
     const agora = Date.now();

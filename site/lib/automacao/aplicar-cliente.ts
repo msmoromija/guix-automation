@@ -34,17 +34,21 @@ export function aplicarDadosCliente(site: Record<string, unknown>, entrada: Entr
   if (entrada.cnpj) empresa.cnpj = entrada.cnpj;
   if (entrada.email) empresa.email = entrada.email;
 
-  if (entrada.telefone) {
-    const dig = soDigitos(entrada.telefone);
-    empresa.telefone = dig;
-    empresa.telefone_label = rotuloTel(dig);
-  }
   if (entrada.whatsapp) {
     const wa = whatsappE164(entrada.whatsapp);
     empresa.whatsapp = wa;
     empresa.whatsapp_label = rotuloTel(wa.startsWith("55") ? wa.slice(2) : wa);
     empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar um horário.`;
     empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
+    const tel = soDigitos(entrada.telefone || wa.replace(/^55/, ""));
+    if (/^[0-9]{10,13}$/.test(tel)) {
+      empresa.telefone = tel;
+      empresa.telefone_label = rotuloTel(tel);
+    }
+  } else if (entrada.telefone) {
+    const dig = soDigitos(entrada.telefone);
+    empresa.telefone = dig;
+    empresa.telefone_label = rotuloTel(dig);
   }
 
   const endereco = { ...((empresa.endereco as Record<string, unknown>) || {}) };

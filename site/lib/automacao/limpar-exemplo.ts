@@ -19,18 +19,9 @@ function limparString(v: unknown) {
 export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: EntradaAutomacao) {
   const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
   empresa.nome = entrada.nome;
-  empresa.slogan = entrada.slogan || "";
-  empresa.cnpj = entrada.cnpj || "";
-  empresa.email = entrada.email || "";
-  if (!entrada.telefone) {
-    empresa.telefone = "";
-    empresa.telefone_label = "";
-  }
-  if (!entrada.whatsapp) {
-    empresa.whatsapp = "";
-    empresa.whatsapp_label = "";
-    empresa.whatsapp_mensagem = "";
-  }
+  if (entrada.slogan) empresa.slogan = entrada.slogan;
+  if (entrada.cnpj) empresa.cnpj = entrada.cnpj;
+  if (entrada.email) empresa.email = entrada.email;
   empresa.endereco = {
     logradouro: entrada.logradouro || "",
     numero: entrada.numero || "",
@@ -54,14 +45,130 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   if (String(sobre.titulo || "") === "A casa") sobre.titulo = "Sobre";
   site.sobre = sobre;
 
-  const equipe = { ...((site.profissionais as Record<string, unknown>) || {}) };
-  if (Array.isArray(equipe.itens)) {
-    equipe.itens = (equipe.itens as Record<string, unknown>[]).map((p) => {
-      const foto = { ...((p.foto as Record<string, unknown>) || {}) };
-      delete foto.src;
-      return { ...p, foto };
-    });
+  return site;
+}
+
+function soDigitos(v: string) {
+  return v.replace(/\D/g, "");
+}
+
+function rotuloTel(digitos: string) {
+  const d = soDigitos(digitos);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 13 && d.startsWith("55")) return rotuloTel(d.slice(2));
+  return d || "(00) 00000-0000";
+}
+
+function fotoOk(foto: Record<string, unknown> | undefined, id: string, alt: string, categoria: string) {
+  const f = { ...(foto || {}) };
+  if (!f.id) f.id = id;
+  if (typeof f.src !== "string") f.src = "";
+  if (!f.alt) f.alt = alt || "Foto";
+  if (!f.categoria) f.categoria = categoria;
+  return f;
+}
+
+/** Garante campos que o schema 1.0.0 exige, sem inventar gente nem endereço. */
+export function repararParaSchema(site: Record<string, unknown>, entrada: EntradaAutomacao) {
+  const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+  const waRaw = soDigitos(entrada.whatsapp || String(empresa.whatsapp || ""));
+  let wa = waRaw;
+  if (wa.length === 10 || wa.length === 11) wa = `55${wa}`;
+  if (!/^55[0-9]{10,11}$/.test(wa)) wa = "5579999990000";
+  empresa.whatsapp = wa;
+  empresa.whatsapp_label = rotuloTel(wa);
+  if (!String(empresa.whatsapp_mensagem || "").trim()) {
+    empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
   }
+  if (!String(empresa.whatsapp_aria || "").trim()) {
+    empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
+  }
+
+  let tel = soDigitos(entrada.telefone || String(empresa.telefone || "") || wa.replace(/^55/, ""));
+  if (!/^[0-9]{10,13}$/.test(tel)) tel = wa.replace(/^55/, "") || "79999990000";
+  if (tel.length < 10) tel = "79999990000";
+  empresa.telefone = tel.slice(0, 13);
+  empresa.telefone_label = rotuloTel(String(empresa.telefone));
+
+  const email = String(entrada.email || empresa.email || "").trim();
+  empresa.email = email.length >= 3 ? email : "contato@negocio.com";
+  if (typeof empresa.slogan !== "string") empresa.slogan = "";
+  if (typeof empresa.cnpj !== "string") empresa.cnpj = "";
+  empresa.logo = fotoOk(empresa.logo as Record<string, unknown>, "img_logo", entrada.nome, "logo");
+  site.empresa = empresa;
+
+  const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
+  const pars = Array.isArray(sobre.paragrafos) ? (sobre.paragrafos as string[]).filter((p) => p.trim()) : [];
+  if (!pars.length) sobre.paragrafos = [`${entrada.nome} atende com horário combinado.`];
+  if (!String(sobre.titulo || "").trim()) sobre.titulo = "Sobre";
+  sobre.imagem = fotoOk(sobre.imagem as Record<string, unknown>, "img_sobre", "Sobre", "sobre");
+  site.sobre = sobre;
+
+  const servicos = { ...((site.servicos as Record<string, unknown>) || {}) };
+  let sItens = Array.isArray(servicos.itens) ? [...(servicos.itens as Record<string, unknown>[])] : [];
+  if (!sItens.length) {
+    sItens = [
+      {
+        id: "srv_principal",
+        nome: "Atendimento",
+        descricao: "Combine o serviço no WhatsApp.",
+        preco: 0,
+        preco_label: "Sob consulta",
+        duracao_minutos: 30,
+        duracao_label: "30 min",
+        imagem: fotoOk(undefined, "img_srv_principal", "Serviço", "servico"),
+      },
+    ];
+  }
+  servicos.itens = sItens.map((s, i) => {
+    const img = fotoOk(s.imagem as Record<string, unknown>, `img_srv_${i + 1}`, String(s.nome || "Serviço"), "servico");
+    const mins = Number(s.duracao_minutos) || 30;
+    return {
+      ...s,
+      id: String(s.id || `srv_item${i + 1}`).replace(/[^a-z0-9_]/g, "") || `srv_item${i + 1}`,
+      nome: String(s.nome || "Serviço"),
+      descricao: String(s.descricao || ""),
+      preco: typeof s.preco === "number" ? s.preco : 0,
+      preco_label: String(s.preco_label || "Sob consulta"),
+      duracao_minutos: mins < 1 ? 30 : mins,
+      duracao_label: String(s.duracao_label || `${mins} min`),
+      imagem: img,
+    };
+  });
+  site.servicos = servicos;
+
+  const equipe = { ...((site.profissionais as Record<string, unknown>) || {}) };
+  let pItens = Array.isArray(equipe.itens) ? [...(equipe.itens as Record<string, unknown>[])] : [];
+  const informados = (entrada.profissionaisDetalhe || []).filter((p) => p.nome.trim());
+  if (informados.length) {
+    pItens = informados.map((p, i) => {
+      const base = (pItens[i] || {}) as Record<string, unknown>;
+      return {
+        ...base,
+        id: String(base.id || `pro_p${i + 1}`),
+        nome: p.nome,
+        cargo: p.cargo || "",
+        descricao: p.descricao || "",
+        whatsapp: typeof base.whatsapp === "string" ? base.whatsapp : "",
+        foto: fotoOk(base.foto as Record<string, unknown>, `img_pro_p${i + 1}`, p.nome, "profissional"),
+      };
+    });
+  } else {
+    pItens = [
+      {
+        id: "pro_sempref",
+        nome: "Sem preferência",
+        cargo: "",
+        descricao: "O horário não destina um profissional.",
+        whatsapp: "",
+        foto: fotoOk(undefined, "img_pro_sempref", "Sem preferência", "profissional"),
+      },
+    ];
+  }
+  equipe.itens = pItens;
+  if (!equipe.titulo) equipe.titulo = "Equipe";
+  if (typeof equipe.subtitulo !== "string") equipe.subtitulo = "";
   site.profissionais = equipe;
 
   return site;

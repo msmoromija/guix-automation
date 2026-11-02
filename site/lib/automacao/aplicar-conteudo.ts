@@ -133,24 +133,25 @@ export function aplicarConteudoGerado(
     site.servicos = servicos;
   }
 
-  if (textos.profissionais?.itens?.length || entrada.profissionaisDetalhe?.length) {
+  if (entrada.profissionaisDetalhe?.length) {
     const bloco = { ...(site.profissionais as Record<string, unknown>) };
     if (textos.profissionais?.titulo) bloco.titulo = textos.profissionais.titulo;
     if (textos.profissionais?.subtitulo) bloco.subtitulo = textos.profissionais.subtitulo;
     const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
-    const equipe = entrada.profissionaisDetalhe?.length
-      ? entrada.profissionaisDetalhe
-      : textos.profissionais?.itens || [];
-    bloco.itens = equipe.map((p, i) => {
+    bloco.itens = entrada.profissionaisDetalhe.map((p, i) => {
       const base = itens[i] || {};
       const fotoAtual = { ...((base.foto as Record<string, unknown>) || {}) };
-      delete fotoAtual.src;
+      if (typeof fotoAtual.src !== "string") fotoAtual.src = "";
+      if (!fotoAtual.id) fotoAtual.id = `img_pro_p${i + 1}`;
+      if (!fotoAtual.alt) fotoAtual.alt = p.nome;
+      if (!fotoAtual.categoria) fotoAtual.categoria = "profissional";
       return {
         ...base,
-        id: String(base.id || `pro_${i + 1}`),
+        id: String(base.id || `pro_p${i + 1}`),
         nome: p.nome,
-        ...(p.cargo ? { cargo: p.cargo } : {}),
-        ...(p.descricao ? { descricao: p.descricao } : {}),
+        cargo: p.cargo || "",
+        descricao: p.descricao || "",
+        whatsapp: typeof base.whatsapp === "string" ? base.whatsapp : "",
         foto: fotoAtual,
       };
     });

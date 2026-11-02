@@ -163,6 +163,10 @@ export function SiteLivePreview({
     ["--r"]: raio[t.radius || "sm"] || "8px",
   } as React.CSSProperties;
 
+  const equipeVisivel = (site.profissionais?.itens || []).filter(
+    (p) => p.nome && p.nome !== "Sem preferência",
+  );
+
   const marca = (
     <span className={`flex min-w-0 items-center gap-2 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
       {e.logo?.src ? (
@@ -226,7 +230,7 @@ export function SiteLivePreview({
           )}
         </header>
 
-        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[420px]" : "min-h-[82vh]"}`}>
+        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[280px]" : "min-h-[82vh]"}`}>
           {vis.banner !== "solido" && vis.banner !== "degrade" && site.hero?.imagem?.src ? (
             <Foto
               src={site.hero.imagem.src}
@@ -252,7 +256,7 @@ export function SiteLivePreview({
               background: "linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 55%, transparent), transparent)",
             }}
           />
-          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[420px]" : "min-h-[82vh]"}`}>
+          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[280px] pt-16 pb-10" : "min-h-[82vh]"}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
               {e.slogan}
             </p>
@@ -285,7 +289,20 @@ export function SiteLivePreview({
           </div>
         </section>
 
-        {rascunho ? null : (
+        {rascunho ? (
+        <section className="mx-auto max-w-5xl px-4 py-10 md:px-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
+            {e.nome}
+          </p>
+          <h2 className="mt-2 text-2xl font-bold" style={{ fontFamily: heading }}>
+            {site.sobre?.titulo || "Sobre"}
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-6" style={{ color: "var(--mt)" }}>
+            {(site.sobre?.paragrafos && site.sobre.paragrafos[0]) ||
+              "Textos e fotos entram quando você gerar o site de teste."}
+          </p>
+        </section>
+        ) : (
         <section id="sobre" className="mx-auto grid max-w-5xl items-center gap-10 px-4 py-20 md:grid-cols-2 md:px-8">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
@@ -322,7 +339,7 @@ export function SiteLivePreview({
         </section>
         )}
 
-        <section id="servicos" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
+        <section id="servicos" className={`px-4 md:px-8 ${rascunho ? "py-10" : "py-20"}`} style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
             <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
               {site.servicos?.titulo}
@@ -365,6 +382,7 @@ export function SiteLivePreview({
           </div>
         </section>
 
+        {equipeVisivel.length ? (
         <section id="profissionais" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
           <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
             {site.profissionais?.titulo}
@@ -373,7 +391,7 @@ export function SiteLivePreview({
             {site.profissionais?.subtitulo}
           </p>
           <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {(site.profissionais?.itens || []).slice(0, 6).map((p) => (
+            {equipeVisivel.slice(0, 6).map((p) => (
               <article key={p.id || p.nome} className="text-center">
                 {p.foto?.src ? (
                   <Foto
@@ -405,6 +423,7 @@ export function SiteLivePreview({
             ))}
           </div>
         </section>
+        ) : null}
 
         {!rascunho && (site.galeria?.itens?.length ?? 0) > 0 ? (
           <section id="galeria" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
