@@ -480,7 +480,7 @@ export function EstudioForm() {
               Adicionar serviço
             </button>
           </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className={`mt-5 grid gap-4 ${servicos.length > 1 ? "md:grid-cols-2" : ""}`}>
             {servicos.map((s, i) => (
               <article key={i} className="flex flex-col rounded-2xl border border-line p-4">
                 <div className="flex items-center justify-between gap-2">
@@ -553,7 +553,7 @@ export function EstudioForm() {
               Adicionar profissional
             </button>
           </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className={`mt-5 grid gap-4 ${pros.length > 1 ? "md:grid-cols-2" : ""}`}>
             {pros.map((p, i) => (
               <article key={i} className="flex gap-4 rounded-2xl border border-line p-4">
                 <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-center text-[11px] text-muted">
