@@ -13,7 +13,8 @@ export function Footer() {
     path.startsWith("/p/") ||
     path.startsWith("/exemplos/") ||
     path.startsWith("/conta/") ||
-    path.startsWith("/visualizar/")
+    path.startsWith("/visualizar/") ||
+    path.startsWith("/prototipar")
   )
     return null;
 

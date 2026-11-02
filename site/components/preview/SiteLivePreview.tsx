@@ -1,5 +1,8 @@
 "use client";
 
+import { LogoMarca } from "@/components/preview/LogoMarca";
+import { TextoEditavel } from "@/components/preview/TextoEditavel";
+import { tintaClara } from "@/lib/estudio/logo-spec";
 import { googleFontsHref, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { enquadrarFoto } from "@/lib/media/tratar-url";
 
@@ -16,6 +19,7 @@ type ItemPro = { id?: string; nome?: string; cargo?: string; descricao?: string;
 type ItemFaq = { id?: string; pergunta?: string; resposta?: string };
 
 type Site = {
+  meta?: { nicho?: string };
   empresa?: {
     nome?: string;
     slogan?: string;
@@ -52,6 +56,9 @@ type Site = {
   faq?: { titulo?: string; itens?: ItemFaq[] };
   contato?: { titulo?: string; subtitulo?: string };
   galeria?: { titulo?: string; itens?: { id?: string; legenda?: string; imagem?: Img }[] };
+  diferenciais?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string }[] };
+  promocoes?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; validade_label?: string; imagem?: Img }[] };
+  eventos?: { titulo?: string; itens?: { id?: string; titulo?: string; descricao?: string; data_label?: string; horario?: string; imagem?: Img }[] };
   rodape?: { texto?: string };
 };
 
@@ -96,10 +103,68 @@ function CreditosDoSite({ site }: { site: Site }) {
   );
 }
 
+export type AlvoEdicao = "negocio" | "aparencia" | "marca" | "contato" | "servicos" | "equipe";
+export type SlotFoto = { tipo: "hero" | "sobre" | "galeria" | "servico"; indice?: number };
+
+function textosIguais(a?: string, b?: string) {
+  const n = (s?: string) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-záéíóúâêôãõç0-9]+/gi, "");
+  const x = n(a);
+  const y = n(b);
+  if (!x || !y) return false;
+  return x === y || y.startsWith(x) || x.startsWith(y);
+}
+
+const WA_PLACEHOLDER = /^(55)?79999990000$/;
+
 function wa(digitos?: string, msg?: string) {
-  if (!digitos) return "#contato";
+  const d = String(digitos || "").replace(/\D/g, "");
+  if (!d || WA_PLACEHOLDER.test(d)) return "#contato";
   const text = encodeURIComponent(msg || "Olá, vim pelo site.");
-  return `https://wa.me/${digitos}?text=${text}`;
+  return `https://wa.me/${d}?text=${text}`;
+}
+
+function Bloco({
+  alvo,
+  label,
+  onEditar,
+  foco,
+  revelado,
+  children,
+}: {
+  alvo: AlvoEdicao;
+  label: string;
+  onEditar?: (alvo: AlvoEdicao) => void;
+  foco?: AlvoEdicao[];
+  revelado?: AlvoEdicao[];
+  children: React.ReactNode;
+}) {
+  const ativo = Boolean(foco?.length && foco.includes(alvo));
+  const ok = Boolean(revelado?.includes(alvo));
+  const escurecer = Boolean(foco?.length) && !ativo && !ok;
+  return (
+    <div
+      data-preview-alvo={alvo}
+      className={`group/bloco relative transition-[filter,box-shadow] duration-700 ${ativo ? "gx-foco-bloco z-[2]" : ""} ${escurecer ? "gx-dim-bloco" : ""}`}
+    >
+      {children}
+      {onEditar ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEditar(alvo);
+          }}
+          className="absolute left-3 top-3 z-30 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-ink shadow-md opacity-100 lg:opacity-0 lg:group-hover/bloco:opacity-100"
+        >
+          Editar {label}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function Foto({
@@ -110,6 +175,7 @@ function Foto({
   w,
   h,
   faces,
+  onTrocar,
 }: {
   src?: string;
   alt?: string;
@@ -118,11 +184,24 @@ function Foto({
   w: number;
   h: number;
   faces?: boolean;
+  onTrocar?: () => void;
 }) {
   if (!src) return null;
+  const url = enquadrarFoto(src, w, h, faces) || src;
+  if (!onTrocar) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt={alt || ""} className={`gx-photo ${className || ""}`} style={style} />
+    );
+  }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={enquadrarFoto(src, w, h, faces) || src} alt={alt || ""} className={`gx-photo ${className || ""}`} style={style} />
+    <button type="button" className={`group/foto relative overflow-hidden ${className || ""}`} style={style} onClick={onTrocar}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={alt || ""} className="gx-photo h-full w-full object-cover" />
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-ink/70 py-1.5 text-center text-[11px] font-semibold text-white opacity-100">
+        Trocar foto
+      </span>
+    </button>
   );
 }
 
@@ -131,25 +210,43 @@ export function SiteLivePreview({
   site,
   visual,
   modo = "pagina",
+  studio = false,
+  estreito = false,
+  onEditar,
+  onTrocarFoto,
+  onTexto,
+  foco,
+  revelado,
 }: {
   site: Site;
   visual?: VisualConfig;
   modo?: "pagina" | "rascunho";
+  studio?: boolean;
+  estreito?: boolean;
+  onEditar?: (alvo: AlvoEdicao) => void;
+  onTrocarFoto?: (slot: SlotFoto) => void;
+  onTexto?: (campo: string, valor: string) => void;
+  foco?: AlvoEdicao[];
+  revelado?: AlvoEdicao[];
 }) {
   const rascunho = modo === "rascunho";
-  const vis = visual || visualPadrao();
+  const vis = visual || visualPadrao(site.meta?.nicho);
   const t = site.tema || {};
   const e = site.empresa || {};
   const heading = t.font_heading || "Oswald";
   const body = t.font_body || "Manrope";
-  const redes = (e.redes || []).filter((r) => {
-    if (r.id === "instagram") return vis.instagram;
-    if (r.id === "facebook") return vis.facebook;
-    if (r.id === "tiktok") return vis.tiktok;
-    if (r.id === "youtube") return vis.youtube;
-    return true;
-  });
-  if (vis.linkedin && vis.linkedinUrl) {
+  const redes = [
+    ...(e.redes || []).filter((r) => {
+      if (!r.url) return false;
+      if (r.id === "instagram") return vis.instagram !== false;
+      if (r.id === "facebook") return vis.facebook !== false;
+      if (r.id === "tiktok") return vis.tiktok !== false;
+      if (r.id === "youtube") return vis.youtube !== false;
+      return true;
+    }),
+    ...(vis.redesExtra || []).filter((r) => r.url && !(e.redes || []).some((x) => x.id === r.id && x.url)),
+  ];
+  if (vis.linkedin !== false && vis.linkedinUrl && !redes.some((r) => r.id === "linkedin")) {
     redes.push({ id: "linkedin", label: "LinkedIn", url: vis.linkedinUrl });
   }
   const style = {
@@ -167,28 +264,43 @@ export function SiteLivePreview({
     (p) => p.nome && p.nome !== "Sem preferência",
   );
 
+  const logoArquivo = Boolean(e.logo?.src?.startsWith("/marcas/"));
   const marca = (
     <span className={`flex min-w-0 items-center gap-3 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
       {e.logo?.src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <LogoMarca
           src={e.logo.src}
           alt={e.logo.alt || e.nome || ""}
-          className="h-12 w-auto max-w-[240px] object-contain object-left"
+          className={logoArquivo ? "h-12 w-auto max-w-[88px] object-contain" : "h-14 w-auto max-w-[300px]"}
+          inverter={logoArquivo && tintaClara(t.color_text)}
         />
-      ) : (
+      ) : null}
+      {!e.logo?.src || logoArquivo ? (
         <strong className="truncate text-base tracking-wide" style={{ fontFamily: heading }}>
           {e.nome}
         </strong>
-      )}
+      ) : null}
       {vis.cabecalho === "logo-slogan" && e.slogan ? (
         <span className="hidden truncate text-xs opacity-70 sm:block">{e.slogan}</span>
       ) : null}
     </span>
   );
 
+  function aoClicarStudio(e: React.MouseEvent) {
+    if (!studio) return;
+    const a = (e.target as HTMLElement).closest("a");
+    if (!a) return;
+    e.preventDefault();
+  }
+
   return (
-    <div style={style} className="overflow-hidden" data-preview="site" data-anim={vis.animacao}>
+    <div
+      style={style}
+      className="overflow-hidden"
+      data-preview="site"
+      data-anim={vis.animacao}
+      onClick={aoClicarStudio}
+    >
       {/* eslint-disable-next-line @next/next/no-css-tags */}
       <link rel="stylesheet" href={googleFontsHref(vis)} />
       <div
@@ -199,22 +311,23 @@ export function SiteLivePreview({
           fontFamily: `${body}, system-ui, sans-serif`,
         }}
       >
+        <Bloco alvo="marca" label="marca" onEditar={onEditar} foco={foco} revelado={revelado}>
         <header
           className={`flex items-center gap-3 px-4 py-3 md:px-8 ${
             vis.cabecalho === "centralizado" ? "flex-col justify-center text-center" : "justify-between"
           }`}
         >
           {marca}
-          <nav className="hidden gap-4 text-xs opacity-80 md:flex">
+          <nav className={`gap-4 text-xs opacity-80 ${estreito ? "hidden" : "hidden md:flex"}`}>
             {(site.header?.menu || []).slice(0, 6).map((m) => (
               <a key={m.id} href={m.href} className="hover:opacity-100">
-                {m.label}
+                {m.label === "A casa" ? "Sobre" : m.label}
               </a>
             ))}
           </nav>
           {vis.agendamento ? (
             <a
-              href="#agendar"
+              href={wa(e.whatsapp, e.whatsapp_mensagem)}
               className="px-3 py-1.5 text-xs font-semibold"
               style={{
                 background: vis.botao === "sem-contorno" ? "transparent" : "var(--a)",
@@ -229,8 +342,10 @@ export function SiteLivePreview({
             <span />
           )}
         </header>
+        </Bloco>
 
-        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[280px]" : "min-h-[82vh]"}`}>
+        <Bloco alvo="negocio" label="nome e frase" onEditar={onEditar} foco={foco} revelado={revelado}>
+        <section id="inicio" className={`relative overflow-hidden ${rascunho ? "min-h-[280px]" : "min-h-[70vh]"}`}>
           {vis.banner !== "solido" && vis.banner !== "degrade" && site.hero?.imagem?.src ? (
             <Foto
               src={site.hero.imagem.src}
@@ -238,6 +353,7 @@ export function SiteLivePreview({
               className="absolute inset-0 h-full w-full object-cover"
               w={1920}
               h={1080}
+              onTrocar={onTrocarFoto ? () => onTrocarFoto({ tipo: "hero" }) : undefined}
             />
           ) : (
             <div
@@ -251,28 +367,50 @@ export function SiteLivePreview({
             />
           )}
           <div
-            className="absolute inset-0"
+            className="pointer-events-none absolute inset-0"
             style={{
               background: "linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 55%, transparent), transparent)",
             }}
           />
-          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[280px] pt-16 pb-10" : "min-h-[82vh]"}`}>
-            {e.logo?.src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={e.logo.src} alt="" className="mb-5 h-14 w-auto max-w-[280px] object-contain object-left" />
+          <div className={`relative mx-auto flex max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:px-8 ${rascunho ? "min-h-[280px] pt-16 pb-10" : "min-h-[70vh]"}`}>
+            {e.slogan && !textosIguais(e.slogan, site.hero?.subtitulo) && !textosIguais(e.slogan, site.hero?.titulo) ? (
+              <TextoEditavel
+                as="p"
+                valor={e.slogan}
+                campo="slogan"
+                onTexto={onTexto}
+                className="text-xs font-semibold uppercase tracking-[0.2em]"
+                style={{ color: "var(--s)" }}
+              />
             ) : null}
-            <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
-              {e.slogan}
-            </p>
-            <h1
+            <TextoEditavel
+              as="h1"
+              valor={site.hero?.titulo}
+              campo="hero.titulo"
+              onTexto={onTexto}
               className="mt-3 max-w-3xl text-4xl font-bold leading-[1.05] md:text-6xl"
               style={{ fontFamily: heading }}
-            >
-              {site.hero?.titulo}
-            </h1>
-            <p className="mt-4 max-w-xl text-base" style={{ color: "var(--mt)" }}>
-              {site.hero?.subtitulo}
-            </p>
+            />
+            {site.hero?.subtitulo && !textosIguais(site.hero.subtitulo, site.hero.titulo) ? (
+              <TextoEditavel
+                as="p"
+                valor={site.hero.subtitulo}
+                campo="hero.subtitulo"
+                onTexto={onTexto}
+                multiline
+                className="mt-4 max-w-xl text-base"
+                style={{ color: "var(--mt)" }}
+              />
+            ) : null}
+            {onTrocarFoto ? (
+              <button
+                type="button"
+                className="mt-4 w-fit rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-ink"
+                onClick={() => onTrocarFoto({ tipo: "hero" })}
+              >
+                Trocar foto da capa
+              </button>
+            ) : null}
             <div className="mt-6 flex flex-wrap gap-3">
               <a
                 id="agendar"
@@ -283,11 +421,13 @@ export function SiteLivePreview({
                 {site.hero?.botao_principal || "Agendar"}
               </a>
               <a
-                href={wa(e.whatsapp, e.whatsapp_mensagem)}
+                href="#contato"
                 className="rounded-full border px-5 py-2.5 text-sm font-semibold"
                 style={{ borderColor: "var(--s)", color: "var(--tx)", borderRadius: "var(--r)" }}
               >
-                {site.hero?.botao_secundario || "WhatsApp"}
+                {site.hero?.botao_secundario && !textosIguais(site.hero.botao_secundario, site.hero.botao_principal)
+                  ? site.hero.botao_secundario
+                  : "Ver contato"}
               </a>
             </div>
           </div>
@@ -312,13 +452,24 @@ export function SiteLivePreview({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--s)" }}>
               {e.nome}
             </p>
-            <h2 className="mt-2 text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.sobre?.titulo}
-            </h2>
-            {(site.sobre?.paragrafos || []).map((p) => (
-              <p key={p.slice(0, 24)} className="mt-4 text-sm leading-7 md:text-base" style={{ color: "var(--mt)" }}>
-                {p}
-              </p>
+            <TextoEditavel
+              as="h2"
+              valor={site.sobre?.titulo}
+              campo="sobre.titulo"
+              onTexto={onTexto}
+              className="mt-2 text-3xl font-bold md:text-4xl"
+              style={{ fontFamily: heading }}
+            />
+            {(site.sobre?.paragrafos || []).map((p, i) => (
+              <TextoEditavel
+                key={`sobre-${i}`}
+                valor={p}
+                campo={`sobre.p.${i}`}
+                onTexto={onTexto}
+                multiline
+                className="mt-4 text-sm leading-7 md:text-base"
+                style={{ color: "var(--mt)" }}
+              />
             ))}
             <a
               href={wa(e.whatsapp, e.whatsapp_mensagem)}
@@ -337,20 +488,32 @@ export function SiteLivePreview({
                 style={{ borderRadius: "var(--r)" }}
                 w={1200}
                 h={900}
+                onTrocar={onTrocarFoto ? () => onTrocarFoto({ tipo: "sobre" }) : undefined}
               />
             </div>
           ) : null}
         </section>
         )}
+        </Bloco>
 
+        <Bloco alvo="servicos" label="serviços" onEditar={onEditar} foco={foco} revelado={revelado}>
         <section id="servicos" className={`px-4 md:px-8 ${rascunho ? "py-10" : "py-20"}`} style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
-            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.servicos?.titulo}
-            </h2>
-            <p className="mt-2 max-w-xl text-sm" style={{ color: "var(--mt)" }}>
-              {site.servicos?.subtitulo}
-            </p>
+            <TextoEditavel
+              as="h2"
+              valor={site.servicos?.titulo}
+              campo="servicos.titulo"
+              onTexto={onTexto}
+              className="text-3xl font-bold md:text-4xl"
+              style={{ fontFamily: heading }}
+            />
+            <TextoEditavel
+              valor={site.servicos?.subtitulo}
+              campo="servicos.subtitulo"
+              onTexto={onTexto}
+              className="mt-2 max-w-xl text-sm"
+              style={{ color: "var(--mt)" }}
+            />
             <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {(site.servicos?.itens || []).slice(0, 6).map((s, i) => (
                 <article
@@ -360,18 +523,36 @@ export function SiteLivePreview({
                 >
                   {s.imagem?.src ? (
                     <div className="gx-photo-frame aspect-[16/10] w-full">
-                      <Foto src={s.imagem.src} alt={s.imagem.alt || ""} className="h-full w-full object-cover" w={1200} h={750} />
+                      <Foto
+                        src={s.imagem.src}
+                        alt={s.imagem.alt || ""}
+                        className="h-full w-full object-cover"
+                        w={1200}
+                        h={750}
+                        onTrocar={onTrocarFoto ? () => onTrocarFoto({ tipo: "servico", indice: i }) : undefined}
+                      />
                     </div>
                   ) : null}
                   <div className="p-5">
-                    <h3 className="text-lg font-semibold">{s.nome}</h3>
-                    <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
-                      {s.descricao}
-                    </p>
+                    <TextoEditavel as="h3" valor={s.nome} campo={`srv.${i}.nome`} onTexto={onTexto} className="text-lg font-semibold" />
+                    <TextoEditavel
+                      valor={s.descricao}
+                      campo={`srv.${i}.descricao`}
+                      onTexto={onTexto}
+                      multiline
+                      className="mt-2 text-sm leading-6"
+                      style={{ color: "var(--mt)" }}
+                    />
                     <p className="mt-4 text-xl font-bold" style={{ color: "var(--s)" }}>
-                      {s.preco_label}
+                      <TextoEditavel as="span" valor={s.preco_label} campo={`srv.${i}.preco`} onTexto={onTexto} />
                       {s.duracao_label ? (
-                        <span className="ml-2 text-sm font-normal opacity-80">{s.duracao_label}</span>
+                        <TextoEditavel
+                          as="span"
+                          valor={s.duracao_label}
+                          campo={`srv.${i}.duracao`}
+                          onTexto={onTexto}
+                          className="ml-2 text-sm font-normal opacity-80"
+                        />
                       ) : null}
                     </p>
                     {!rascunho ? (
@@ -385,17 +566,29 @@ export function SiteLivePreview({
             </div>
           </div>
         </section>
+        </Bloco>
 
         {equipeVisivel.length ? (
+        <Bloco alvo="equipe" label="quem atende" onEditar={onEditar} foco={foco} revelado={revelado}>
         <section id="profissionais" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
-          <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-            {site.profissionais?.titulo}
-          </h2>
-          <p className="mt-2 text-sm" style={{ color: "var(--mt)" }}>
-            {site.profissionais?.subtitulo}
-          </p>
+          <TextoEditavel
+            as="h2"
+            valor={site.profissionais?.titulo}
+            campo="equipe.titulo"
+            onTexto={onTexto}
+            className="text-3xl font-bold md:text-4xl"
+            style={{ fontFamily: heading }}
+          />
+          <TextoEditavel
+            valor={site.profissionais?.subtitulo}
+            campo="equipe.subtitulo"
+            onTexto={onTexto}
+            className="mt-2 text-sm"
+            style={{ color: "var(--mt)" }}
+          />
           <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {equipeVisivel.slice(0, 6).map((p) => (
+            {(site.profissionais?.itens || []).slice(0, 6).map((p, i) =>
+              p.nome && p.nome !== "Sem preferência" ? (
               <article key={p.id || p.nome} className="text-center">
                 {p.foto?.src ? (
                   <Foto
@@ -414,19 +607,98 @@ export function SiteLivePreview({
                     {(p.nome || "?").slice(0, 1)}
                   </div>
                 )}
-                <h3 className="mt-4 font-semibold">{p.nome}</h3>
-                <p className="text-sm" style={{ color: "var(--s)" }}>
-                  {p.cargo}
-                </p>
+                <TextoEditavel as="h3" valor={p.nome} campo={`pro.${i}.nome`} onTexto={onTexto} className="mt-4 font-semibold" />
+                <TextoEditavel as="p" valor={p.cargo} campo={`pro.${i}.cargo`} onTexto={onTexto} className="text-sm" style={{ color: "var(--s)" }} />
                 {p.descricao ? (
-                  <p className="mx-auto mt-2 max-w-xs text-xs leading-5" style={{ color: "var(--mt)" }}>
-                    {p.descricao}
-                  </p>
+                  <TextoEditavel
+                    valor={p.descricao}
+                    campo={`pro.${i}.descricao`}
+                    onTexto={onTexto}
+                    multiline
+                    className="mx-auto mt-2 max-w-xs text-xs leading-5"
+                    style={{ color: "var(--mt)" }}
+                  />
                 ) : null}
               </article>
-            ))}
+            ) : null
+            )}
           </div>
         </section>
+        </Bloco>
+        ) : null}
+
+        {!rascunho && (site.diferenciais?.itens?.length ?? 0) > 0 ? (
+          <section className="mx-auto max-w-5xl px-4 py-16 md:px-8">
+            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.diferenciais?.titulo}
+            </h2>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2">
+              {(site.diferenciais?.itens || []).slice(0, 6).map((d) => (
+                <article key={d.id || d.titulo} className="p-5" style={{ background: "var(--sf)", borderRadius: "var(--r)" }}>
+                  <h3 className="font-semibold">{d.titulo}</h3>
+                  <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
+                    {d.descricao}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {!rascunho && (site.promocoes?.itens?.length ?? 0) > 0 ? (
+          <section id="promocoes" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
+            <div className="mx-auto max-w-5xl">
+              <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+                {site.promocoes?.titulo || "Promoções"}
+              </h2>
+              <div className="mt-10 grid gap-6 md:grid-cols-2">
+                {(site.promocoes?.itens || []).slice(0, 4).map((p) => (
+                  <article key={p.id || p.titulo} className="overflow-hidden" style={{ background: "var(--bg)", borderRadius: "var(--r)" }}>
+                    {p.imagem?.src ? (
+                      <Foto src={p.imagem.src} alt={p.imagem.alt || ""} className="aspect-[16/9] w-full object-cover" w={1200} h={675} />
+                    ) : null}
+                    <div className="p-5">
+                      <h3 className="text-lg font-semibold">{p.titulo}</h3>
+                      <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
+                        {p.descricao}
+                      </p>
+                      {p.validade_label ? (
+                        <p className="mt-3 text-xs" style={{ color: "var(--s)" }}>
+                          {p.validade_label}
+                        </p>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!rascunho && (site.eventos?.itens?.length ?? 0) > 0 ? (
+          <section id="eventos" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
+              {site.eventos?.titulo || "Eventos"}
+            </h2>
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              {(site.eventos?.itens || []).slice(0, 4).map((ev) => (
+                <article key={ev.id || ev.titulo} className="overflow-hidden" style={{ background: "var(--sf)", borderRadius: "var(--r)" }}>
+                  {ev.imagem?.src ? (
+                    <Foto src={ev.imagem.src} alt={ev.imagem.alt || ""} className="aspect-[16/9] w-full object-cover" w={1200} h={675} />
+                  ) : null}
+                  <div className="p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                      {[ev.data_label, ev.horario].filter(Boolean).join(" · ")}
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold">{ev.titulo}</h3>
+                    <p className="mt-2 text-sm leading-6" style={{ color: "var(--mt)" }}>
+                      {ev.descricao}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         ) : null}
 
         {!rascunho && (site.galeria?.itens?.length ?? 0) > 0 ? (
@@ -435,7 +707,7 @@ export function SiteLivePreview({
               {site.galeria?.titulo && site.galeria.titulo !== "A casa" ? site.galeria.titulo : "O espaço"}
             </h2>
             <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3">
-              {(site.galeria?.itens || []).slice(0, 6).map((g) => (
+              {(site.galeria?.itens || []).slice(0, 6).map((g, gi) => (
                 <figure key={g.id || g.legenda} className="gx-card-in">
                   {g.imagem?.src ? (
                     <div className="gx-photo-frame aspect-square w-full" style={{ borderRadius: "var(--r)" }}>
@@ -446,6 +718,7 @@ export function SiteLivePreview({
                         style={{ borderRadius: "var(--r)" }}
                         w={900}
                         h={900}
+                        onTrocar={onTrocarFoto ? () => onTrocarFoto({ tipo: "galeria", indice: gi }) : undefined}
                       />
                     </div>
                   ) : null}
@@ -464,26 +737,41 @@ export function SiteLivePreview({
           <section id="faq" className="mx-auto max-w-3xl px-4 py-12 md:px-8">
             <h2 className="text-3xl font-bold">{site.faq?.titulo}</h2>
             <dl className="mt-6 space-y-4">
-              {(site.faq?.itens || []).slice(0, 6).map((f) => (
+              {(site.faq?.itens || []).slice(0, 6).map((f, i) => (
                 <div key={f.id || f.pergunta}>
-                  <dt className="font-semibold">{f.pergunta}</dt>
-                  <dd className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
-                    {f.resposta}
-                  </dd>
+                  <TextoEditavel as="dt" valor={f.pergunta} campo={`faq.${i}.pergunta`} onTexto={onTexto} className="font-semibold" />
+                  <TextoEditavel
+                    valor={f.resposta}
+                    campo={`faq.${i}.resposta`}
+                    onTexto={onTexto}
+                    multiline
+                    className="mt-1 text-sm"
+                    style={{ color: "var(--mt)" }}
+                  />
                 </div>
               ))}
             </dl>
           </section>
         ) : null}
 
+        <Bloco alvo="contato" label="contato" onEditar={onEditar} foco={foco} revelado={revelado}>
         <section id="contato" className="px-4 py-20 md:px-8" style={{ background: "var(--sf)" }}>
           <div className="mx-auto max-w-5xl">
-            <h2 className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }}>
-              {site.contato?.titulo || "Onde estamos"}
-            </h2>
-            <p className="mt-2 max-w-xl text-sm" style={{ color: "var(--mt)" }}>
-              {site.contato?.subtitulo}
-            </p>
+            <TextoEditavel
+              as="h2"
+              valor={site.contato?.titulo || "Onde estamos"}
+              campo="contato.titulo"
+              onTexto={onTexto}
+              className="text-3xl font-bold md:text-4xl"
+              style={{ fontFamily: heading }}
+            />
+            <TextoEditavel
+              valor={site.contato?.subtitulo}
+              campo="contato.subtitulo"
+              onTexto={onTexto}
+              className="mt-2 max-w-xl text-sm"
+              style={{ color: "var(--mt)" }}
+            />
             {e.endereco?.completo ? <p className="mt-6 text-base">{e.endereco.completo}</p> : null}
             {e.horario_resumo ? (
               <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
@@ -513,8 +801,9 @@ export function SiteLivePreview({
           ) : null}
           <CreditosDoSite site={site} />
         </footer>
+        </Bloco>
 
-        {vis.whatsappFlutuante && e.whatsapp ? (
+        {vis.whatsappFlutuante && wa(e.whatsapp) !== "#contato" && !studio ? (
           <a
             href={wa(e.whatsapp, e.whatsapp_mensagem)}
             className={`${rascunho ? "absolute" : "fixed"} bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg`}

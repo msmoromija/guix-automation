@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
-import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
-import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { aplicarEstudio, aplicarSrcNoSlot, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { aplicarCampoNoSite, aplicarCopiaNoSite, normalizarCopia } from "@/lib/estudio/copia-viva";
+import { ajustarCopiaSimulacao } from "@/lib/media/openai";
 import type { Nicho } from "@/lib/media/tipos";
+import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
 export const runtime = "nodejs";
 
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   });
 }
 
-/** Edição leve do rascunho (nome/cidade/whatsapp) sem republicar página. */
+/** Edição leve do rascunho. Foto-only não reescreve copy. */
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const token = tokenDaReq(req, id);
@@ -58,15 +60,76 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "Rascunho inválido ou expirado." }, { status: 404 });
   }
 
-  const body = await req.json();
-  const nome = String(body.nome || pacote.nome).trim();
-  const cidade = String(body.cidade || pacote.cidade || "").trim() || undefined;
-  const whatsapp = String(body.whatsapp || pacote.whatsapp || "").trim() || undefined;
-  const slogan = String(body.slogan || pacote.slogan || "").trim() || undefined;
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
+  }
+
+  const pedido = String(body.pedido || "").trim().slice(0, 500);
+  if (pedido && body.nome == null && !body.visual) {
+    try {
+      const empresa = (pacote.site.empresa || {}) as { nome?: string; endereco?: { cidade?: string; bairro?: string } };
+      const servicos = Array.isArray((pacote.site.servicos as { itens?: { nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[] })?.itens)
+        ? ((pacote.site.servicos as { itens: { nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[] }).itens || []).map((s) => ({
+            nome: String(s.nome || ""),
+            descricao: String(s.descricao || ""),
+            preco: String(s.preco_label || ""),
+            duracao: String(s.duracao_label || ""),
+          }))
+        : [];
+      const gerado = await ajustarCopiaSimulacao({
+        nicho: pacote.nicho as Nicho,
+        nome: empresa.nome || pacote.nome,
+        cidade: empresa.endereco?.cidade || pacote.cidade,
+        bairro: empresa.endereco?.bairro,
+        pedido,
+        copia: pacote.site,
+        servicos,
+      });
+      const copia = normalizarCopia(gerado.copia);
+      const site = aplicarCopiaNoSite(structuredClone(pacote.site), copia);
+      await gravarPacote({ ...pacote, site });
+      return NextResponse.json({
+        ok: true,
+        token,
+        site,
+        aviso: String(gerado.aviso || "").slice(0, 280),
+        expiraEm: pacote.expiraEm,
+      });
+    } catch {
+      return NextResponse.json({ erro: "Não deu para ajustar o texto agora.", aviso: "O quadro continua editável." }, { status: 200 });
+    }
+  }
+
+  const campo = String(body.campo || "");
+  const valorCampo = String(body.valor || "");
+  if (campo && valorCampo && body.nome == null && !body.visual && !body.fotoSrc) {
+    const site = aplicarCampoNoSite(structuredClone(pacote.site), campo, valorCampo);
+    await gravarPacote({ ...pacote, site });
+    return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
+  }
+
+  const fotoSrc = sanitizarFotoSrc(body.fotoSrc);
+  const slot = body.slot as { tipo?: "hero" | "sobre" | "galeria" | "servico"; indice?: number } | undefined;
+  const soFoto = Boolean(fotoSrc && slot?.tipo && body.nome == null && body.cidade == null && body.whatsapp == null && body.slogan == null && !body.visual && !body.logoSrc);
+
+  if (soFoto && fotoSrc && slot?.tipo) {
+    const site = aplicarSrcNoSlot({ ...pacote.site }, { tipo: slot.tipo, indice: slot.indice }, fotoSrc);
+    const atualizado = { ...pacote, site };
+    await gravarPacote(atualizado);
+    return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
+  }
+
+  const nome = String(body.nome ?? pacote.nome).trim();
+  const cidade = body.cidade !== undefined ? String(body.cidade || "").trim() || undefined : pacote.cidade;
+  const whatsapp = body.whatsapp !== undefined ? String(body.whatsapp || "").trim() || undefined : pacote.whatsapp;
+  const slogan = body.slogan !== undefined ? String(body.slogan || "").trim() || undefined : pacote.slogan;
   const visual: VisualConfig = {
     ...visualPadrao(pacote.nicho),
     ...(pacote.visual || {}),
-    ...(body.visual || {}),
+    ...(body.visual && typeof body.visual === "object" ? (body.visual as VisualConfig) : {}),
   };
 
   const site = aplicarEstudio(pacote.site, {
@@ -80,7 +143,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     },
     visual,
     logoSrc: sanitizarLogoSrc(body.logoSrc),
+    aplicarServicos: false,
+    aplicarProfissionais: false,
+    preservarModeloQuandoVazio: true,
   });
+  if (fotoSrc && slot?.tipo) {
+    aplicarSrcNoSlot(site, { tipo: slot.tipo, indice: slot.indice }, fotoSrc);
+  }
 
   const atualizado = {
     ...pacote,

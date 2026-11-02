@@ -27,9 +27,11 @@ export async function GET(req: NextRequest) {
   }
   const nicho = (req.nextUrl.searchParams.get("nicho") || "barbearia") as Nicho;
   const cfg = BUSCA_FOTO[nicho] || BUSCA_FOTO.generico;
-  const q = req.nextUrl.searchParams.get("q") || cfg.query.servico || cfg.query.hero;
+  const chave = req.nextUrl.searchParams.get("q") || "servico";
+  const mapa = cfg.query as Record<string, string>;
+  const q = mapa[chave] || (chave.includes(" ") ? chave : mapa.servico || mapa.hero);
   try {
-    const fotos = await buscarUnsplash(q, 8);
+    const fotos = await buscarUnsplash(q, 12);
     return NextResponse.json({
       fotos: fotos.map((f) => ({
         src: enquadrarFoto(f.url_regular, 900, 560) || f.url_regular,
@@ -39,6 +41,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
-    return NextResponse.json({ erro: msg, fotos: [] }, { status: 200 });
+    return NextResponse.json({ erro: msg || "Não deu para buscar fotos agora.", fotos: [] }, { status: 502 });
   }
 }

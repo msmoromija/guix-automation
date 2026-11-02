@@ -1,5 +1,5 @@
 import type { EntradaAutomacao } from "./tipos";
-import { templateIdDoNicho } from "./carregar-exemplo";
+import { templateIdDoNicho } from "./template-id";
 import { ehFicticio, enderecoCompleto } from "./limpar-exemplo";
 
 function soDigitos(v: string) {

@@ -24,6 +24,7 @@ export interface VisualConfig {
   youtube: boolean;
   agendamento: boolean;
   linkedinUrl?: string;
+  redesExtra?: { id: string; label: string; url: string }[];
   presetId?: string;
 }
 
@@ -238,9 +239,9 @@ export function visualPadrao(nicho?: string): VisualConfig {
     whatsappFlutuante: true,
     instagram: true,
     facebook: true,
-    linkedin: false,
-    tiktok: false,
-    youtube: false,
+    linkedin: true,
+    tiktok: true,
+    youtube: true,
     agendamento: true,
     presetId: preset.id,
     ...preset.visual,

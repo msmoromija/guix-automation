@@ -1,4 +1,4 @@
-import type { CreditoUnsplash, Nicho } from "@/lib/media/tipos";
+import type { CreditoUnsplash, GeracaoSiteJson, Nicho } from "@/lib/media/tipos";
 
 export interface EntradaAutomacao {
   clienteId: string;
@@ -27,6 +27,8 @@ export interface EntradaAutomacao {
   estilo?: string;
   destaque?: string;
   iaEscreve?: boolean;
+  /** Textos já vistos na simulação. Evita uma segunda redação diferente na hora de gerar. */
+  textosProntos?: GeracaoSiteJson;
   /** Imagens já aprovadas do cliente (isoladas) — têm prioridade sobre a biblioteca. */
   imagensCliente?: Array<{
     categoria: string;
@@ -41,6 +43,8 @@ export interface ResultadoAutomacao {
   clienteId: string;
   site: Record<string, unknown>;
   avisos: string[];
+  /** Lugar do exemplo, fora do site.json — o schema não aceita campo extra. */
+  modelo?: { bairro: string; cidade: string };
   imagens: Array<{
     categoria: string;
     src?: string;

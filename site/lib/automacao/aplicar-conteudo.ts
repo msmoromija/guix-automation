@@ -151,7 +151,7 @@ export function aplicarConteudoGerado(
         nome: p.nome,
         cargo: p.cargo || "",
         descricao: p.descricao || "",
-        whatsapp: typeof base.whatsapp === "string" ? base.whatsapp : "",
+        whatsapp: "",
         foto: fotoAtual,
       };
     });
@@ -238,9 +238,7 @@ export function aplicarConteudoGerado(
   if (empresa.logo) {
     empresa.logo = aplicarFoto(empresa.logo as Record<string, unknown>, "logo", entrada, resolvidas);
   }
-  if (!empresa.slogan && textos.hero?.subtitulo) {
-    empresa.slogan = textos.hero.subtitulo.split(/[.!?]/)[0]?.slice(0, 80) || "";
-  }
+  // Não copia o subtítulo do hero para o slogan — evita frase duplicada na capa.
   site.empresa = empresa;
 
   return { site, avisos };

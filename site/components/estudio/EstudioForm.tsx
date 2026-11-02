@@ -1,11 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EstudioPreview } from "@/components/estudio/EstudioPreview";
-import { propostasEstudio } from "@/lib/estudio/marca";
-import { montarRascunho } from "@/lib/estudio/rascunho";
-import { fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
+import { SeletorFoto } from "@/components/estudio/SeletorFoto";
+import type { AlvoEdicao, SlotFoto } from "@/components/preview/SiteLivePreview";
+import { construirAoVivo } from "@/lib/estudio/construir-ao-vivo";
+import { definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
+import { PedidoIa } from "@/components/estudio/PedidoIa";
+import { MarcaStudio } from "@/components/estudio/MarcaStudio";
+import { LockupMarca } from "@/components/preview/LockupMarca";
+import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
+import { CANAIS, extrasDeRedes, type CanalId } from "@/lib/estudio/canais";
+import { dicasDoNicho, fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
   PRESETS,
   paletaPorId,
@@ -15,7 +22,8 @@ import {
 import { tomDoEstilo } from "@/lib/media/catalogo";
 import { nichos } from "@/lib/nichos";
 
-const campo = "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-ink";
+const campo =
+  "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none transition focus:border-ink focus:ring-2 focus:ring-accent/25";
 const chip = "rounded-xl border px-3 py-2.5 text-left text-sm leading-snug transition";
 const chipOn = "border-ink bg-ink text-white";
 const chipOff = "border-line bg-white text-ink hover:border-ink/30";
@@ -28,9 +36,12 @@ const ETAPAS = [
   { id: 5, titulo: "Gerar" },
 ];
 
-type Proposta = { id: string; titulo: string; nota: string; src: string };
-
 async function arquivoParaDataUrl(file: File, max = 640) {
+  if (file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")) {
+    const texto = await file.text();
+    if (/script|foreignObject|javascript:/i.test(texto)) throw new Error("svg");
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(texto)}`;
+  }
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const canvas = document.createElement("canvas");
@@ -60,11 +71,13 @@ export function EstudioForm() {
   const [cep, setCep] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
-  const [redes, setRedes] = useState({ instagram: "", facebook: "", linkedin: "", tiktok: "", youtube: "" });
+  const [redes, setRedes] = useState<Record<string, string>>({});
+  const [canaisAtivos, setCanaisAtivos] = useState<CanalId[]>([]);
   const [visual, setVisual] = useState<VisualConfig>(() => visualPadrao(nichoInicial));
   const [logoModo, setLogoModo] = useState<"gerar" | "enviar" | "texto">("gerar");
-  const [propostas, setPropostas] = useState<Proposta[]>([]);
-  const [propostaId, setPropostaId] = useState("");
+  const [propostasLogo, setPropostasLogo] = useState<SpecLogo[]>(() => propostasBiblioteca(nichoInicial));
+  const [specLogo, setSpecLogo] = useState<SpecLogo | null>(() => propostasBiblioteca(nichoInicial)[0] || null);
+  const [studioAberto, setStudioAberto] = useState(false);
   const [logoUpload, setLogoUpload] = useState("");
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
@@ -74,66 +87,337 @@ export function EstudioForm() {
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
   const [destaque, setDestaque] = useState("");
   const [iaEscreve, setIaEscreve] = useState(true);
+  const [copia, setCopia] = useState<CopiaViva | null>(null);
+  const [pedidoIa, setPedidoIa] = useState("");
+  const [avisoIa, setAvisoIa] = useState("");
+  const [escrevendo, setEscrevendo] = useState(false);
+  const [ajustando, setAjustando] = useState(false);
+  const manuais = useRef(new Set<string>());
+  const porPedido = useRef(new Set<string>());
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fotosProntas, setFotosProntas] = useState<{ src: string; thumb: string }[]>([]);
-  const [fotoAberta, setFotoAberta] = useState<number | null>(null);
+  const [fotoHero, setFotoHero] = useState("");
+  const [fotoSobre, setFotoSobre] = useState("");
+  const [fotoGaleria, setFotoGaleria] = useState<string[]>([]);
+  const [slotFoto, setSlotFoto] = useState<SlotFoto | null>(null);
+  const fotosTocadas = useRef({ hero: false, sobre: false, galeria: false });
+  const [modelo, setModelo] = useState<Record<string, unknown> | null>(null);
+  const formColRef = useRef<HTMLDivElement>(null);
 
   const nichoAtual = useMemo(() => nichos.find((n) => n.slug === nicho) || nichos[0], [nicho]);
+  const dicas = dicasDoNicho(nicho);
   const paleta = paletaPorId(visual.paletaId);
   const nomeMarca = nome.trim() || nichoAtual.negocio;
-  const logoSrc = logoModo === "enviar" ? logoUpload : logoModo === "texto" ? "" : propostas.find((p) => p.id === propostaId)?.src || "";
+  const logoSrc =
+    logoModo === "enviar"
+      ? logoUpload
+      : logoModo === "texto" || !specLogo
+        ? ""
+        : specLogo.arquivo
+          ? specLogo.arquivo
+          : uriMarcaViva(specLogo, { nome: nomeMarca, slogan, acento: paleta.color_accent });
 
-  const siteRascunho = useMemo(
-    () =>
-      montarRascunho({
-        nome: nome.trim() || nomeMarca,
-        slogan,
-        nichoNome: nichoAtual.nome,
-        cidade,
-        logoSrc,
-        visual: { ...visual, linkedinUrl: redes.linkedin || visual.linkedinUrl },
-        servicos,
-        profissionais: pros,
-        whatsapp,
-      }),
-    [nome, nomeMarca, slogan, nichoAtual.nome, cidade, logoSrc, visual, redes.linkedin, servicos, pros, whatsapp],
-  );
-
-  useEffect(() => {
-    const lista = propostasEstudio({
-      nome: nomeMarca,
-      slogan,
-      fundo: paleta.color_background,
-      tinta: paleta.color_text,
-      acento: paleta.color_accent,
+  const siteVivo = useMemo(() => {
+    if (!modelo) return null;
+    return construirAoVivo(modelo, {
       nicho,
+      nome,
+      slogan,
+      cidade,
+      estado,
+      logradouro,
+      numero,
+      bairro,
+      cep,
+      whatsapp,
+      email,
+      redes,
+      visual,
+      logoSrc: etapa >= 3 ? logoSrc : undefined,
+      servicos,
+      profissionais: pros,
+      etapa,
+      fotos: {
+        hero: fotoHero || undefined,
+        sobre: fotoSobre || undefined,
+        galeria: fotoGaleria.length ? fotoGaleria : undefined,
+      },
+      copia,
     });
-    setPropostas((atuais) => {
-      const ia = atuais.filter((p) => p.id.startsWith("ia-"));
-      return [...lista, ...ia];
-    });
-    setPropostaId((id) => {
-      if (id.startsWith("ia-")) return id;
-      if (lista.some((p) => p.id === id)) return id;
-      return lista[0].id;
-    });
-  }, [nomeMarca, slogan, paleta.color_background, paleta.color_text, paleta.color_accent, nicho]);
+  }, [
+    modelo,
+    nicho,
+    nome,
+    slogan,
+    cidade,
+    estado,
+    logradouro,
+    numero,
+    bairro,
+    cep,
+    whatsapp,
+    email,
+    redes,
+    visual,
+    logoSrc,
+    servicos,
+    pros,
+    etapa,
+    fotoHero,
+    fotoSobre,
+    fotoGaleria,
+    copia,
+  ]);
+
+  const dicaSite =
+    etapa <= 1
+      ? "Escreva o nome. A IA troca a capa e o sobre pelo seu ofício. Clique num texto para editar."
+      : etapa === 2
+        ? "Cores, letra e fotos. Clique na imagem à direita para trocar."
+        : etapa === 3
+          ? "A marca entra no topo. O restante do site segue o modelo."
+          : etapa === 4
+            ? "Agora o contato e os serviços. O que você não mexer, fica do modelo."
+            : "Os textos já estão no quadro. Gere o link quando quiser guardar por 3 dias.";
+  const focoPreview: AlvoEdicao[] =
+    etapa <= 1 ? ["negocio"] : etapa === 2 ? ["aparencia", "negocio"] : etapa === 3 ? ["marca"] : etapa === 4 ? ["contato", "servicos", "equipe"] : [];
+  const reveladoPreview: AlvoEdicao[] =
+    etapa <= 1 ? [] : etapa === 2 || etapa === 3 ? ["negocio"] : etapa === 4 ? ["negocio", "marca"] : ["negocio", "marca", "contato", "servicos", "equipe"];
 
   useEffect(() => {
-    if (etapa !== 4) return;
-    void fetch(`/api/prototipo/fotos?nicho=${encodeURIComponent(nicho)}`)
+    let cancelado = false;
+    void fetch(`/api/prototipo/modelo?nicho=${encodeURIComponent(nicho)}`)
       .then((r) => r.json())
-      .then((d) => setFotosProntas(Array.isArray(d.fotos) ? d.fotos : []))
-      .catch(() => setFotosProntas([]));
-  }, [etapa, nicho]);
+      .then((d) => {
+        if (cancelado || !d.site) return;
+        const site = d.site as Record<string, unknown>;
+        setModelo(site);
+        fotosTocadas.current = { hero: false, sobre: false, galeria: false };
+        setFotoHero(String(((site.hero as Record<string, unknown> | undefined)?.imagem as Record<string, unknown> | undefined)?.src || ""));
+        setFotoSobre(String(((site.sobre as Record<string, unknown> | undefined)?.imagem as Record<string, unknown> | undefined)?.src || ""));
+        const gItens = ((site.galeria as Record<string, unknown> | undefined)?.itens as Array<Record<string, unknown>>) || [];
+        setFotoGaleria(gItens.map((g) => String(((g.imagem as Record<string, unknown> | undefined)?.src || ""))).filter(Boolean));
+        const itens = ((site.servicos as Record<string, unknown> | undefined)?.itens as Array<Record<string, unknown>>) || [];
+        const doModelo = itens.length
+          ? itens.map((i) => ({
+              nome: String(i.nome || ""),
+              preco: String(i.preco_label || ""),
+              duracao: String(i.duracao_label || ""),
+              descricao: String(i.descricao || ""),
+              imagemSrc: String((i.imagem as Record<string, unknown> | undefined)?.src || ""),
+            }))
+          : servicosDoNicho(nicho);
+        const extra = servicosDoNicho(nicho);
+        const lista = [...doModelo];
+        for (const s of extra) {
+          if (lista.length >= 3) break;
+          lista.push(s);
+        }
+        setServicos(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setModelo(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [nicho]);
 
-  function ir(n: number) {
+  const assinaturaTexto = JSON.stringify({
+    nicho,
+    nome: nome.trim(),
+    slogan: slogan.trim(),
+    cidade: cidade.trim(),
+    bairro: bairro.trim(),
+    tom,
+    destaque,
+    estilo: visual.estilo,
+    servicos: servicos.map((s) => s.nome),
+    iaEscreve,
+  });
+
+  useEffect(() => {
+    if (!iaEscreve || nome.trim().length < 2) return;
+    porPedido.current.clear();
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => {
+      setEscrevendo(true);
+      void fetch("/api/prototipo/textos", {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modo: "escrever",
+          nicho,
+          nome,
+          slogan,
+          cidade,
+          bairro,
+          tom,
+          destaque,
+          servicos,
+          profissionais: pros,
+        }),
+      })
+        .then(async (r) => r.json() as Promise<{ copia?: CopiaViva; aviso?: string; erro?: string }>)
+        .then((data) => {
+          if (!data.copia) {
+            if (data.erro) setAvisoIa(data.erro);
+            return;
+          }
+          const travados = new Set([...manuais.current, ...porPedido.current]);
+          setCopia((atual) => mesclarCopia(atual, data.copia as CopiaViva, travados));
+          setServicos((rows) =>
+            rows.map((r, i) => {
+              if (travados.has(`srv.${i}.descricao`)) return r;
+              const desc = data.copia?.servicos?.itens?.[i]?.descricao;
+              return desc ? { ...r, descricao: desc } : r;
+            }),
+          );
+          if (data.aviso) setAvisoIa(data.aviso);
+        })
+        .catch((e: unknown) => {
+          if ((e as { name?: string })?.name === "AbortError") return;
+        })
+        .finally(() => setEscrevendo(false));
+    }, 1100);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(timer);
+    };
+    // A assinatura já resume os campos que devem reescrever a copy.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinaturaTexto]);
+
+  useEffect(() => {
+    const seed = propostasBiblioteca(nicho);
+    setPropostasLogo(seed);
+    setSpecLogo(seed[0] || null);
+  }, [nicho]);
+
+  function aplicarFoto(slot: SlotFoto, src: string) {
+    if (slot.tipo === "hero") {
+      fotosTocadas.current.hero = true;
+      setFotoHero(src);
+      return;
+    }
+    if (slot.tipo === "sobre") {
+      fotosTocadas.current.sobre = true;
+      setFotoSobre(src);
+      return;
+    }
+    if (slot.tipo === "galeria") {
+      fotosTocadas.current.galeria = true;
+      const i = slot.indice ?? 0;
+      setFotoGaleria((rows) => {
+        const next = [...rows];
+        while (next.length <= i) next.push("");
+        next[i] = src;
+        return next;
+      });
+      return;
+    }
+    const i = slot.indice ?? 0;
+    setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, imagemSrc: src } : r)));
+  }
+
+  function aoEditarTexto(campo: string, valor: string) {
+    manuais.current.add(campo);
+    if (campo === "slogan") {
+      setSlogan(valor);
+      return;
+    }
+    const srv = campo.match(/^srv\.(\d+)\.(nome|preco|duracao|descricao)$/);
+    if (srv) {
+      const i = Number(srv[1]);
+      const chave = srv[2] === "preco" ? "preco" : srv[2] === "duracao" ? "duracao" : srv[2];
+      setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, [chave]: valor } : r)));
+      return;
+    }
+    const pessoa = campo.match(/^pro\.(\d+)\.(nome|cargo|descricao)$/);
+    if (pessoa) {
+      const i = Number(pessoa[1]);
+      const chave = pessoa[2] as "nome" | "cargo" | "descricao";
+      setPros((rows) => {
+        const next = [...rows];
+        while (next.length <= i) next.push({ nome: "", cargo: "", descricao: "", fotoSrc: "" });
+        next[i] = { ...next[i], [chave]: valor };
+        return next;
+      });
+      return;
+    }
+    setCopia((atual) => definirCampoCopia(atual, campo, valor));
+  }
+
+  async function pedirTexto() {
+    const pedido = pedidoIa.trim();
+    if (nome.trim().length < 2 || pedido.length < 3) {
+      setAvisoIa("Escreva o nome do negócio e diga o que quer mudar no texto.");
+      return;
+    }
+    setAjustando(true);
+    setAvisoIa("");
+    try {
+      const res = await fetch("/api/prototipo/textos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modo: "ajustar",
+          pedido,
+          copia,
+          nicho,
+          nome,
+          slogan,
+          cidade,
+          bairro,
+          tom,
+          destaque,
+          servicos,
+        }),
+      });
+      const data = (await res.json()) as { copia?: CopiaViva; aviso?: string; erro?: string };
+      if (data.copia) {
+        ["hero.titulo", "hero.subtitulo", "sobre.titulo", "sobre.p.0", "sobre.p.1", "servicos.titulo", "servicos.subtitulo", "contato.titulo", "contato.subtitulo"].forEach((c) => porPedido.current.add(c));
+        servicos.forEach((_, i) => porPedido.current.add(`srv.${i}.descricao`));
+        setCopia(data.copia);
+        setServicos((rows) =>
+          rows.map((r, i) => {
+            const desc = data.copia?.servicos?.itens?.[i]?.descricao;
+            return desc ? { ...r, descricao: desc } : r;
+          }),
+        );
+        setPedidoIa("");
+      }
+      setAvisoIa(data.aviso || data.erro || "");
+    } catch {
+      setAvisoIa("Não deu para ajustar agora. O texto no quadro continua editável.");
+    } finally {
+      setAjustando(false);
+    }
+  }
+
+  function ir(n: number, alvo?: AlvoEdicao) {
+    if (n > etapa && nome.trim().length < 2) {
+      setErro("Escreva o nome do negócio para seguir.");
+      setEtapa(1);
+      return;
+    }
     setEtapa(n);
     setErro("");
     if (n !== 3) setAviso("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => {
+      const id = alvo ? `estudio-${alvo}` : "";
+      const el = id ? document.getElementById(id) : null;
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      else formColRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
+  }
+
+  function irEditar(alvo: AlvoEdicao) {
+    const etapaAlvo = alvo === "negocio" ? 1 : alvo === "aparencia" ? 2 : alvo === "marca" ? 3 : 4;
+    setPreviewAberta(false);
+    ir(etapaAlvo, alvo);
   }
 
   async function buscarCep(raw?: string) {
@@ -170,7 +454,7 @@ export function EstudioForm() {
     }
   }
 
-  async function gerarComIa() {
+  async function gerarLoteMarca() {
     setErro("");
     setAviso("");
     setGerandoIa(true);
@@ -179,19 +463,23 @@ export function EstudioForm() {
       const res = await fetch("/api/prototipo/marca", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: nomeMarca, slogan, nicho, paletaId: visual.paletaId }),
+        body: JSON.stringify({ nome: nomeMarca, nicho, evitar: propostasLogo }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { propostas?: SpecLogo[]; erro?: string };
       if (!res.ok) {
-        setErro(data.erro || "A IA não conseguiu gerar agora. Escolha um dos modelos à direita.");
+        setErro(data.erro || "Não deu para montar as marcas agora. Use a biblioteca.");
         return;
       }
-      const p = data.proposta as Proposta;
-      setPropostas((lista) => [p, ...lista.filter((x) => x.id !== p.id)]);
-      setPropostaId(p.id);
-      if (data.aviso) setAviso(data.aviso);
+      const novas = (data.propostas || []).slice(0, 5);
+      setPropostasLogo((atuais) => {
+        const ia = atuais.filter((p) => p.origem === "ia");
+        const resto = atuais.filter((p) => p.origem !== "ia");
+        const juntas = [...ia, ...novas].slice(0, LIMITE_IA_LOGO);
+        return [...juntas, ...resto];
+      });
+      if (novas[0]) setSpecLogo(novas[0]);
     } catch {
-      setErro("Falha ao falar com a IA da marca.");
+      setErro("Falha ao montar as marcas.");
     } finally {
       setGerandoIa(false);
     }
@@ -199,12 +487,25 @@ export function EstudioForm() {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     if (etapa < 5) {
       if (etapa === 1 && nome.trim().length < 2) {
         setErro("Escreva o nome do negócio para seguir.");
         return;
       }
       ir(etapa + 1);
+      return;
+    }
+    const digitosWa = whatsapp.replace(/\D/g, "");
+    const waOk = digitosWa.length === 10 || digitosWa.length === 11 || (digitosWa.startsWith("55") && digitosWa.length >= 12 && digitosWa.length <= 13);
+    if (!waOk) {
+      setEtapa(4);
+      setErro("Informe o WhatsApp com DDD. Sem ele, os botões do site não chamam o seu número.");
+      return;
+    }
+    if (cidade.trim().length < 2 || !/^[A-Za-z]{2}$/.test(estado.trim())) {
+      setEtapa(4);
+      setErro("Informe a cidade e a UF. O site usa isso para dizer onde você atende.");
       return;
     }
     setErro("");
@@ -230,9 +531,15 @@ export function EstudioForm() {
           tom,
           destaque,
           iaEscreve,
+          copia,
           logoSrc: logoModo === "texto" ? undefined : logoSrc,
           servicos: servicos.filter((s) => s.nome.trim()),
           profissionais: pros.filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome"),
+          fotos: {
+            ...(fotosTocadas.current.hero && fotoHero ? { hero: fotoHero } : {}),
+            ...(fotosTocadas.current.sobre && fotoSobre ? { sobre: fotoSobre } : {}),
+            ...(fotosTocadas.current.galeria && fotoGaleria.length ? { galeria: fotoGaleria } : {}),
+          },
         }),
       });
       const data = await res.json();
@@ -248,50 +555,60 @@ export function EstudioForm() {
     }
   }
 
-  const preview = (
-    <EstudioPreview
-      site={siteRascunho}
-      visual={{ ...visual, linkedinUrl: redes.linkedin || visual.linkedinUrl }}
-      aberto={previewAberta}
-      onToggle={() => setPreviewAberta((v) => !v)}
+  const pedidoPainel = (
+    <PedidoIa
+      pedido={pedidoIa}
+      onPedido={setPedidoIa}
+      onEnviar={() => void pedirTexto()}
+      aviso={avisoIa}
+      ocupado={ajustando}
+      escrevendo={escrevendo}
     />
   );
 
+  const visualPreview = {
+    ...visual,
+    linkedinUrl: redes.linkedin || visual.linkedinUrl,
+    linkedin: Boolean(redes.linkedin) || visual.linkedin,
+    redesExtra: extrasDeRedes(redes),
+  };
+
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">
+    <main className="lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden">
+      <div className="lg:grid lg:h-full lg:grid-cols-[minmax(300px,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(320px,28rem)_minmax(0,1fr)]">
+        <div ref={formColRef} className="flex h-full flex-col overflow-y-auto px-5 py-6 lg:border-r lg:border-line">
       <p className="text-xs font-semibold tracking-[0.16em] text-accent">MONTAR MEU SITE</p>
-      <h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-[-0.035em] sm:text-4xl">
-        Veja o site nascer enquanto você preenche
+      <h1 className="mt-2 text-2xl font-bold tracking-[-0.035em] sm:text-3xl">
+        O site já está à direita. Você só personaliza.
       </h1>
-      <p className="mt-3 max-w-xl text-sm text-muted sm:text-base">
-        Cinco passos. À direita o site já aparece. No fim você ganha um <strong>link do site de teste</strong>,
-        válido por 3 dias — sem publicar e sem pagar ainda.
+      <p className="mt-2 text-sm text-muted">
+        Começa no modelo do ofício. Cada passo troca uma parte. No fim, um <strong>link de teste por 3 dias</strong>.
       </p>
 
-      <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <ol className="mt-5 grid grid-cols-5 gap-1">
         {ETAPAS.map((et) => (
           <li key={et.id}>
             <button
               type="button"
               onClick={() => ir(et.id)}
-              className={`w-full rounded-xl border px-3 py-2 text-left text-xs sm:text-sm ${
+              className={`w-full rounded-lg border px-1.5 py-2 text-left text-[10px] leading-tight sm:px-2 sm:text-xs ${
                 etapa === et.id ? chipOn : etapa > et.id ? "border-ink/20 bg-white" : chipOff
               }`}
             >
-              <span className="block text-[10px] opacity-70">Passo {et.id}</span>
+              <span className="block text-[9px] opacity-70">{et.id}</span>
               {et.titulo}
             </button>
           </li>
         ))}
       </ol>
 
-      <form onSubmit={enviar} className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,1fr)]">
+      <form onSubmit={enviar} className="mt-6">
         <div className="space-y-5">
           {etapa === 1 ? (
-            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-negocio" className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
               <h2 className="text-base font-semibold">O negócio</h2>
-              <p className="mt-1 text-sm text-muted">Nome e tipo. O resto a gente sugere.</p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <p className="mt-1 text-sm text-muted">O site à direita já está pronto no modelo do ofício. Seu nome entra agora; o resto espera você.</p>
+              <div className="mt-4 grid gap-4">
                 <label className="block text-sm">
                   Tipo de negócio
                   <select
@@ -303,7 +620,6 @@ export function EstudioForm() {
                       const v = visualPadrao(slug);
                       setVisual(v);
                       setTom(tomDoEstilo(v.estilo));
-                      setServicos(servicosDoNicho(slug));
                     }}
                   >
                     {nichos.map((n) => (
@@ -315,15 +631,15 @@ export function EstudioForm() {
                 </label>
                 <label className="block text-sm">
                   Nome
-                  <input required className={campo} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Paulinho Barbearia" />
+                  <input required className={campo} value={nome} onChange={(e) => setNome(e.target.value)} placeholder={dicas.nome} />
                 </label>
-                <label className="block text-sm sm:col-span-2">
+                <label className="block text-sm">
                   Frase debaixo do nome
                   <input
                     className={campo}
                     value={slogan}
                     onChange={(e) => setSlogan(e.target.value)}
-                    placeholder="Estilo, tradição e confiança em cada corte"
+                    placeholder={dicas.slogan}
                   />
                 </label>
               </div>
@@ -353,7 +669,7 @@ export function EstudioForm() {
                   className={campo}
                   value={destaque}
                   onChange={(e) => setDestaque(e.target.value)}
-                  placeholder="Ex.: corte na tesoura, navalha, ambiente reservado"
+                  placeholder={`Ex.: ${dicas.destaque}`}
                 />
               </label>
               <button
@@ -367,12 +683,12 @@ export function EstudioForm() {
           ) : null}
 
           {etapa === 2 ? (
-            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-aparencia" className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
               <h2 className="text-base font-semibold">Escolha um visual</h2>
               <p className="mt-1 text-sm text-muted">
-                Cada cartão já junta cores e letras. Olhe o simulador à direita — é o site, não só uma faixa.
+                Cada cartão já junta cores e letras. O site à direita muda na hora.
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3">
                 {PRESETS.map((p) => {
                   const pal = paletaPorId(p.visual.paletaId || visual.paletaId);
                   return (
@@ -394,11 +710,40 @@ export function EstudioForm() {
                   );
                 })}
               </div>
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-sm font-semibold">Fotos do tema</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Envie as suas ou pegue da biblioteca. Também funciona clicando na foto à direita.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Capa", src: fotoHero, slot: { tipo: "hero" } as SlotFoto },
+                    { label: "Sobre", src: fotoSobre, slot: { tipo: "sobre" } as SlotFoto },
+                    { label: "Galeria 1", src: fotoGaleria[0], slot: { tipo: "galeria", indice: 0 } as SlotFoto },
+                    { label: "Galeria 2", src: fotoGaleria[1], slot: { tipo: "galeria", indice: 1 } as SlotFoto },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className="overflow-hidden rounded-xl border border-line text-left"
+                      onClick={() => setSlotFoto(item.slot)}
+                    >
+                      {item.src ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.src} alt="" className="aspect-[16/10] w-full object-cover" />
+                      ) : (
+                        <div className="flex aspect-[16/10] items-center justify-center bg-canvas text-xs text-muted">Sem foto</div>
+                      )}
+                      <span className="block px-2 py-1.5 text-xs font-medium">{item.label} · trocar</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </section>
           ) : null}
 
           {etapa === 3 ? (
-            <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section id="estudio-marca" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
               <h2 className="text-base font-semibold">Como a marca aparece no topo</h2>
               <p className="mt-1 text-sm text-muted">Escolha o resultado. A prévia à direita já mostra o cabeçalho.</p>
               <div className="mt-4 grid gap-3">
@@ -407,14 +752,20 @@ export function EstudioForm() {
                   onClick={() => setLogoModo("gerar")}
                   className={`rounded-2xl border p-4 text-left ${logoModo === "gerar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
                 >
-                  <p className="text-sm font-semibold">A gente desenha o nome</p>
+                  <p className="text-sm font-semibold">Escolher uma marca do ofício</p>
                   <p className="mt-1 text-xs text-muted">
-                    Resultado: o nome composto como marca. Opcional pedir um símbolo à IA — o texto continua nítido.
+                    Biblioteca de logomarcas deste ramo. O nome do negócio entra ao lado. Sem fundo, vale no claro e no escuro.
                   </p>
-                  <div className="mt-3 overflow-hidden rounded-lg" style={{ background: paleta.color_background }}>
-                    {propostas[0]?.src ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={propostas[0].src} alt="" className="h-16 w-full object-contain" />
+                  <div className="mt-3 flex h-16 items-center overflow-hidden rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
+                    {specLogo ? (
+                      <LockupMarca
+                        spec={specLogo}
+                        nome={nomeMarca}
+                        slogan={slogan}
+                        tinta={paleta.color_text}
+                        acento={paleta.color_accent}
+                        className="h-14 w-full"
+                      />
                     ) : null}
                   </div>
                 </button>
@@ -423,8 +774,8 @@ export function EstudioForm() {
                   onClick={() => setLogoModo("enviar")}
                   className={`rounded-2xl border p-4 text-left ${logoModo === "enviar" ? "border-ink ring-1 ring-ink" : "border-line"}`}
                 >
-                  <p className="text-sm font-semibold">Já tenho um arquivo</p>
-                  <p className="mt-1 text-xs text-muted">Resultado: o seu PNG/SVG no lugar da marca desenhada.</p>
+                  <p className="text-sm font-semibold">Já tenho a identidade</p>
+                  <p className="mt-1 text-xs text-muted">Envie PNG ou SVG. Se a marca for exigente, este é o caminho certo.</p>
                   <div className="mt-3 flex h-16 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted">
                     {logoUpload ? "Arquivo carregado" : "Solte o arquivo depois de escolher esta opção"}
                   </div>
@@ -464,31 +815,38 @@ export function EstudioForm() {
                 <>
                   <button
                     type="button"
-                    disabled={gerandoIa || nomeMarca.length < 2}
-                    onClick={() => void gerarComIa()}
+                    disabled={gerandoIa}
+                    onClick={() => {
+                      setStudioAberto(true);
+                    }}
                     className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
                   >
-                    {gerandoIa ? "A IA está desenhando o símbolo…" : "Pedir um símbolo à IA"}
+                    {gerandoIa ? "Abrindo marcas…" : "Ver logomarcas do ofício"}
                   </button>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {propostas.slice(0, 6).map((p) => (
+                  <div className="mt-3 grid gap-2">
+                    {propostasLogo.filter((p) => p.origem === "biblioteca").slice(0, 4).map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => {
-                          setLogoModo("gerar");
-                          setPropostaId(p.id);
-                        }}
-                        className={`overflow-hidden rounded-xl border text-left ${propostaId === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                        onClick={() => setSpecLogo(p)}
+                        className={`overflow-hidden rounded-xl border p-2 text-left ${specLogo?.id === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
                       >
-                        <div className="flex h-16 items-center px-2" style={{ background: paleta.color_background }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.src} alt="" className="h-12 w-full object-contain" />
+                        <div className="flex h-12 items-center rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
+                          <LockupMarca
+                            spec={p}
+                            nome={nomeMarca}
+                            slogan={slogan}
+                            tinta={paleta.color_text}
+                            acento={paleta.color_accent}
+                            className="h-10 w-full"
+                          />
                         </div>
-                        <span className="block px-2 py-1.5 text-[11px] font-medium">{p.titulo}</span>
                       </button>
                     ))}
                   </div>
+                  <button type="button" className="mt-2 text-sm font-medium text-accent underline" onClick={() => setStudioAberto(true)}>
+                    Ver a biblioteca de marcas
+                  </button>
                 </>
               ) : null}
             </section>
@@ -496,28 +854,83 @@ export function EstudioForm() {
 
           {etapa === 4 ? (
             <>
-              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-contato" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <h2 className="text-base font-semibold">Como o cliente te acha</h2>
+                <p className="mt-1 text-sm text-muted">O modelo já tem contato. Troque o que for seu. Redes entram uma a uma.</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <CartaoCanal titulo="WhatsApp" dica="Botão no canto da página" on={visual.whatsappFlutuante} onChange={(whatsappFlutuante) => setVisual((v) => ({ ...v, whatsappFlutuante }))}>
-                    <input className={campo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" />
+                  <CartaoCanal
+                    titulo="WhatsApp"
+                    dica="Número do negócio · o interruptor liga o botão flutuante"
+                    on={visual.whatsappFlutuante}
+                    onChange={(whatsappFlutuante) => setVisual((v) => ({ ...v, whatsappFlutuante }))}
+                    manterFilhos
+                  >
+                    <input className={campo} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="79 99999-0000" inputMode="tel" autoComplete="tel" />
                   </CartaoCanal>
                   <CartaoCanal titulo="Agendar" dica="Botão no topo do site" on={visual.agendamento} onChange={(agendamento) => setVisual((v) => ({ ...v, agendamento }))}>
                     <p className="mt-2 text-xs text-muted">Usa o mesmo WhatsApp neste teste.</p>
                   </CartaoCanal>
-                  <CartaoCanal titulo="Instagram" on={visual.instagram} onChange={(instagram) => setVisual((v) => ({ ...v, instagram }))}>
-                    <input className={campo} value={redes.instagram} onChange={(e) => setRedes((r) => ({ ...r, instagram: e.target.value }))} placeholder="@paulinho.barbearia" />
-                  </CartaoCanal>
-                  <CartaoCanal titulo="Facebook" on={visual.facebook} onChange={(facebook) => setVisual((v) => ({ ...v, facebook }))}>
-                    <input className={campo} value={redes.facebook} onChange={(e) => setRedes((r) => ({ ...r, facebook: e.target.value }))} placeholder="facebook.com/..." />
-                  </CartaoCanal>
-                  <CartaoCanal titulo="LinkedIn" on={visual.linkedin} onChange={(linkedin) => setVisual((v) => ({ ...v, linkedin }))}>
-                    <input className={campo} value={redes.linkedin} onChange={(e) => setRedes((r) => ({ ...r, linkedin: e.target.value }))} placeholder="linkedin.com/company/..." />
-                  </CartaoCanal>
                   <CartaoCanal titulo="E-mail" on={Boolean(email)} onChange={() => undefined} semSwitch>
                     <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@negocio.com" />
                   </CartaoCanal>
+                  {canaisAtivos.map((id) => {
+                    const canal = CANAIS.find((c) => c.id === id);
+                    if (!canal) return null;
+                    return (
+                      <CartaoCanal
+                        key={id}
+                        titulo={canal.label}
+                        on
+                        onChange={() => {
+                          setCanaisAtivos((lista) => lista.filter((x) => x !== id));
+                          setRedes((r) => {
+                            const n = { ...r };
+                            delete n[id];
+                            return n;
+                          });
+                          if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                            setVisual((v) => ({ ...v, [id]: false }));
+                          }
+                        }}
+                      >
+                        <input
+                          className={campo}
+                          value={redes[id] || ""}
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            setRedes((r) => ({ ...r, [id]: valor }));
+                            if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                              setVisual((v) => ({ ...v, [id]: true }));
+                            }
+                          }}
+                          placeholder={canal.placeholder}
+                        />
+                      </CartaoCanal>
+                    );
+                  })}
                 </div>
+                <label className="mt-4 block text-sm font-medium">
+                  Adicionar rede
+                  <select
+                    className={campo}
+                    value=""
+                    onChange={(e) => {
+                      const id = e.target.value as CanalId;
+                      if (!id) return;
+                      setCanaisAtivos((lista) => (lista.includes(id) ? lista : [...lista, id]));
+                      if (id === "instagram" || id === "facebook" || id === "tiktok" || id === "youtube" || id === "linkedin") {
+                        setVisual((v) => ({ ...v, [id]: true }));
+                      }
+                    }}
+                  >
+                    <option value="">Instagram, TikTok, X, LinkedIn…</option>
+                    {CANAIS.filter((c) => !canaisAtivos.includes(c.id)).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="gx-pulse-cep mt-5 rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5">
                   <p className="text-[11px] font-semibold tracking-[0.16em] text-accent">ENDEREÇO PELO CEP</p>
                   <p className="mt-1 text-sm text-muted">Digite o CEP: rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
@@ -572,12 +985,12 @@ export function EstudioForm() {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-servicos" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Serviços no site</h2>
                     <p className="mt-1 text-sm text-muted">
-                      Dois modelos prontos. Edite, troque a foto (sua ou da biblioteca) e veja no simulador.
+                      Os serviços do modelo já estão aqui. Edite, troque a foto (sua ou da biblioteca) e veja no site.
                     </p>
                   </div>
                   <button
@@ -588,7 +1001,7 @@ export function EstudioForm() {
                         ...s,
                         {
                           nome: "Novo serviço",
-                          preco: "R$ 0",
+                          preco: "Sob consulta",
                           duracao: "30 min",
                           descricao: "",
                           imagemSrc: fotoModelo(nicho, s.length),
@@ -601,113 +1014,73 @@ export function EstudioForm() {
                 </div>
                 <div className="mt-4 space-y-4">
                   {servicos.map((s, i) => (
-                    <article key={`srv-${i}`} className="gx-card-in grid gap-4 rounded-2xl border border-line p-3 sm:grid-cols-[220px_minmax(0,1fr)]">
-                      <div className="overflow-hidden rounded-xl bg-canvas">
+                    <article key={`srv-${i}`} className="gx-card-in space-y-3 rounded-2xl border border-line p-3">
+                      <button
+                        type="button"
+                        className="block w-full overflow-hidden rounded-xl bg-canvas text-left"
+                        onClick={() => setSlotFoto({ tipo: "servico", indice: i })}
+                      >
                         {s.imagemSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.imagemSrc} alt="" className="aspect-[16/10] h-full w-full object-cover" />
+                          <img src={s.imagemSrc} alt="" className="aspect-[16/10] w-full object-cover" />
                         ) : (
                           <div className="flex aspect-[16/10] items-center justify-center text-xs text-muted">Sem foto</div>
                         )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-end gap-2">
-                          <label className="min-w-0 flex-1 text-xs font-medium text-muted">
-                            Nome
-                            <input
-                              className={campo}
-                              value={s.nome}
-                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                            />
-                          </label>
-                          <label className="w-28 text-xs font-medium text-muted">
-                            Preço
-                            <input
-                              className={`${campo} font-semibold text-accent`}
-                              value={s.preco}
-                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
-                            />
-                          </label>
-                          <label className="w-28 text-xs font-medium text-muted">
-                            Duração
-                            <input
-                              className={campo}
-                              value={s.duracao}
-                              onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
-                            />
-                          </label>
-                        </div>
-                        <label className="mt-2 block text-xs font-medium text-muted">
-                          Texto
-                          <textarea
-                            rows={2}
-                            className={`${campo} resize-none`}
-                            value={s.descricao}
-                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
+                        <span className="block bg-canvas px-2 py-1.5 text-xs font-medium">Trocar foto</span>
+                      </button>
+                      <label className="block text-xs font-medium text-muted">
+                        Nome
+                        <input
+                          className={campo}
+                          value={s.nome}
+                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                        />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block text-xs font-medium text-muted">
+                          Preço
+                          <input
+                            className={`${campo} font-semibold text-accent`}
+                            value={s.preco}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
                           />
                         </label>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <label className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-xs">
-                            Sua foto
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(ev) => {
-                                const f = ev.target.files?.[0];
-                                if (!f) return;
-                                void arquivoParaDataUrl(f, 900).then((src) =>
-                                  setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, imagemSrc: src } : r))),
-                                );
-                              }}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="rounded-full border border-line px-3 py-1.5 text-xs"
-                            onClick={() => setFotoAberta((v) => (v === i ? null : i))}
-                          >
-                            Fotos do ofício
-                          </button>
-                          {servicos.length > 1 ? (
-                            <button
-                              type="button"
-                              className="rounded-full px-3 py-1.5 text-xs text-muted"
-                              onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
-                            >
-                              Remover
-                            </button>
-                          ) : null}
-                        </div>
-                        {fotoAberta === i ? (
-                          <div className="mt-3 grid grid-cols-4 gap-2">
-                            {fotosProntas.length ? (
-                              fotosProntas.map((f) => (
-                                <button
-                                  key={f.src}
-                                  type="button"
-                                  className="overflow-hidden rounded-lg border border-line"
-                                  onClick={() => {
-                                    setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, imagemSrc: f.src } : r)));
-                                    setFotoAberta(null);
-                                  }}
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={f.thumb || f.src} alt="" className="aspect-[16/10] w-full object-cover" />
-                                </button>
-                              ))
-                            ) : (
-                              <p className="col-span-4 text-xs text-muted">Carregando fotos do ofício…</p>
-                            )}
-                          </div>
-                        ) : null}
+                        <label className="block text-xs font-medium text-muted">
+                          Duração
+                          <input
+                            className={campo}
+                            value={s.duracao}
+                            onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
+                          />
+                        </label>
                       </div>
+                      <label className="block text-xs font-medium text-muted">
+                        Texto
+                        <textarea
+                          rows={4}
+                          className={`${campo} min-h-[5.5rem] resize-y`}
+                          value={s.descricao}
+                          onChange={(e) => {
+                            manuais.current.add(`srv.${i}.descricao`);
+                            setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)));
+                          }}
+                        />
+                      </label>
+                      {servicos.length > 3 ? (
+                        <button
+                          type="button"
+                          className="rounded-full px-3 py-1.5 text-xs text-muted"
+                          onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}
+                        >
+                          Remover
+                        </button>
+                      ) : null}
                     </article>
                   ))}
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+              <section id="estudio-equipe" className="gx-step rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold">Quem atende</h2>
@@ -724,12 +1097,14 @@ export function EstudioForm() {
                   </button>
                 </div>
                 {pros.length === 0 ? (
-                  <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">Ninguém cadastrado. O cliente marca o horário, sem escolher barbeiro.</p>
+                  <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
+                    Ninguém cadastrado. O cliente marca o horário, sem destinar profissional.
+                  </p>
                 ) : (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid gap-4">
                   {pros.map((p, i) => (
                     <article key={`pro-${i}`} className="gx-card-in flex gap-4 rounded-2xl border border-line p-4">
-                      <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-canvas text-2xl font-semibold text-ink/50">
+                      <label className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-canvas text-2xl font-semibold text-ink/50">
                         {p.fotoSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
@@ -762,7 +1137,7 @@ export function EstudioForm() {
                           <input
                             className={campo}
                             value={p.cargo}
-                            placeholder="Barbeiro, cabeleireira…"
+                            placeholder={dicas.cargo}
                             onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
                           />
                         </label>
@@ -788,7 +1163,7 @@ export function EstudioForm() {
           ) : null}
 
           {etapa === 5 ? (
-            <section className="gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
+            <section className="gx-step gx-card-in rounded-2xl border border-line bg-white p-5 sm:p-6">
               <h2 className="text-base font-semibold">Você vai receber um link válido por 3 dias</h2>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
@@ -806,15 +1181,20 @@ export function EstudioForm() {
               </ol>
               <div className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
                 {nome || "Seu negócio"} · {nichoAtual.nome}
-                {cidade ? ` · ${cidade}` : ""} · {logoModo === "texto" ? "nome escrito" : logoModo === "enviar" ? "logo enviado" : "marca do estúdio"}
+                {cidade ? ` · ${cidade}` : ""} · {whatsapp.trim() ? whatsapp.trim() : "WhatsApp ainda não informado"} · {logoModo === "texto" ? "nome escrito" : logoModo === "enviar" ? "logo enviado" : "marca do estúdio"}
               </div>
+              {!whatsapp.trim() ? (
+                <button type="button" className="mt-3 text-sm font-medium text-accent underline" onClick={() => ir(4)}>
+                  Informar o WhatsApp antes de gerar
+                </button>
+              ) : null}
             </section>
           ) : null}
 
           {aviso ? <p className="text-sm text-muted">{aviso}</p> : null}
         {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
 
-          <div className="flex flex-wrap items-center gap-3 pb-24 lg:pb-4">
+          <div className="flex flex-wrap items-center gap-3 pb-28 lg:pb-8">
             {etapa > 1 ? (
               <button type="button" className="rounded-full border border-line px-5 py-3 text-sm" onClick={() => ir(etapa - 1)}>
                 Voltar
@@ -834,9 +1214,73 @@ export function EstudioForm() {
             {etapa === 5 ? <p className="text-xs text-muted">Sem cartão. Sem publicar ainda.</p> : null}
           </div>
         </div>
-
-        <aside className="lg:sticky lg:top-20">{preview}</aside>
       </form>
+        </div>
+        <div className="hidden h-full min-h-0 lg:block">
+          <EstudioPreview site={siteVivo} visual={visualPreview} dica={dicaSite} variante="painel" onEditar={irEditar} onTrocarFoto={setSlotFoto} onTexto={aoEditarTexto} pedido={pedidoPainel} foco={focoPreview} revelado={reveladoPreview} />
+        </div>
+      </div>
+
+      <EstudioPreview
+        site={siteVivo}
+        visual={visualPreview}
+        aberto={previewAberta}
+        onToggle={() => setPreviewAberta(false)}
+        dica={dicaSite}
+        variante="folha"
+        onEditar={irEditar}
+        onTrocarFoto={setSlotFoto}
+        onTexto={aoEditarTexto}
+        pedido={pedidoPainel}
+        foco={focoPreview}
+        revelado={reveladoPreview}
+      />
+      <SeletorFoto
+        aberto={Boolean(slotFoto)}
+        nicho={nicho}
+        slot={slotFoto}
+        onEscolher={(src) => {
+          if (slotFoto) aplicarFoto(slotFoto, src);
+        }}
+        onFechar={() => setSlotFoto(null)}
+      />
+      <button
+        type="button"
+        className="fixed bottom-5 right-4 z-40 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white shadow-lg lg:hidden"
+        onClick={() => setPreviewAberta(true)}
+      >
+        Ver o site
+      </button>
+
+      <MarcaStudio
+        aberto={studioAberto}
+        onFechar={() => setStudioAberto(false)}
+        nicho={nicho}
+        nome={nomeMarca}
+        slogan={slogan}
+        acento={paleta.color_accent}
+        tintaSite={paleta.color_text}
+        fundoSite={paleta.color_background}
+        propostas={propostasLogo}
+        selecionada={specLogo?.id || ""}
+        onSelecionar={(s) => {
+          setLogoModo("gerar");
+          setSpecLogo(s);
+        }}
+        onSomar={(s) => {
+          setPropostasLogo((lista) => {
+            const i = lista.findIndex((x) => x.id === s.id);
+            if (i >= 0) {
+              const n = [...lista];
+              n[i] = s;
+              return n;
+            }
+            return [s, ...lista];
+          });
+        }}
+        onGerarIa={() => void gerarLoteMarca()}
+        gerando={gerandoIa}
+      />
 
       {loading ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-6 backdrop-blur-sm">
@@ -890,6 +1334,7 @@ function CartaoCanal({
   on,
   onChange,
   semSwitch,
+  manterFilhos,
   children,
 }: {
   titulo: string;
@@ -897,10 +1342,13 @@ function CartaoCanal({
   on: boolean;
   onChange: (v: boolean) => void;
   semSwitch?: boolean;
+  /** Mantém o campo utilizável mesmo com o interruptor desligado (ex.: WhatsApp). */
+  manterFilhos?: boolean;
   children: React.ReactNode;
 }) {
+  const ativo = on || semSwitch || manterFilhos;
   return (
-    <div className={`rounded-2xl border p-4 ${on || semSwitch ? "border-line bg-white" : "border-line bg-canvas/60"}`}>
+    <div className={`rounded-2xl border p-4 ${ativo ? "border-line bg-white" : "border-line bg-canvas/60"}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">{titulo}</p>
@@ -918,7 +1366,7 @@ function CartaoCanal({
           </button>
         )}
       </div>
-      <div className={on || semSwitch ? "mt-1" : "pointer-events-none mt-1 opacity-40"}>{children}</div>
+      <div className={ativo ? "mt-1" : "mt-1 opacity-70"}>{children}</div>
     </div>
   );
 }

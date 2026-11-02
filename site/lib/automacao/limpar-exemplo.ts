@@ -1,7 +1,7 @@
 import type { EntradaAutomacao } from "./tipos";
 
 const FICTICIO =
-  /spring field|rua onde fica|animador de porta|lorem|placeholder|exemplo\.com|0000-0000|00\.000\.000\/0000-00|barbeariavilanorte|vila norte/i;
+  /spring field|rua onde fica|animador de porta|lorem|placeholder|exemplo\.com|0000-0000|00\.000\.000\/0000-00|barbeariavilanorte|vila norte|vila flor|salaovilaflor|serra clara|pet shop bento|academia farol|lima contabilidade|vale luz/i;
 
 export function ehFicticio(v?: string) {
   const s = String(v || "").trim();
@@ -19,9 +19,15 @@ function limparString(v: unknown) {
 export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: EntradaAutomacao) {
   const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
   empresa.nome = entrada.nome;
-  if (entrada.slogan) empresa.slogan = entrada.slogan;
-  if (entrada.cnpj) empresa.cnpj = entrada.cnpj;
-  if (entrada.email) empresa.email = entrada.email;
+  empresa.slogan = entrada.slogan || "";
+  empresa.cnpj = entrada.cnpj || "";
+  empresa.email = entrada.email || "";
+  empresa.telefone = "";
+  empresa.telefone_label = "";
+  empresa.whatsapp = "";
+  empresa.whatsapp_label = "";
+  empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
+  empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
   empresa.endereco = {
     logradouro: entrada.logradouro || "",
     numero: entrada.numero || "",
@@ -44,6 +50,32 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
   if (String(sobre.titulo || "") === "A casa") sobre.titulo = "Sobre";
   site.sobre = sobre;
+
+  const contato = { ...((site.contato as Record<string, unknown>) || {}) };
+  // Remove “Venha à Atalaia” etc. do modelo — o estúdio/IA preenche com o lugar do cliente.
+  if (/^venha\s+(ao|à|a|aos)\s+/i.test(String(contato.titulo || ""))) {
+    contato.titulo = "Onde estamos";
+    site.contato = contato;
+  }
+
+  // Promoções e eventos do exemplo não são do cliente. O schema permite lista vazia.
+  const promocoes = { ...((site.promocoes as Record<string, unknown>) || {}) };
+  promocoes.itens = [];
+  if (!promocoes.titulo) promocoes.titulo = "Promoções";
+  site.promocoes = promocoes;
+  const eventos = { ...((site.eventos as Record<string, unknown>) || {}) };
+  eventos.itens = [];
+  if (!eventos.titulo) eventos.titulo = "Eventos";
+  site.eventos = eventos;
+
+  const header = { ...((site.header as Record<string, unknown>) || {}) };
+  if (Array.isArray(header.menu)) {
+    header.menu = (header.menu as Record<string, unknown>[]).map((item) => ({
+      ...item,
+      label: String(item.label || "") === "A casa" ? "Sobre" : item.label,
+    }));
+    site.header = header;
+  }
 
   return site;
 }
@@ -75,26 +107,30 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
   const waRaw = soDigitos(entrada.whatsapp || String(empresa.whatsapp || ""));
   let wa = waRaw;
   if (wa.length === 10 || wa.length === 11) wa = `55${wa}`;
+  // Schema exige E.164 BR; se o cliente ainda não informou, usa placeholder técnico — nunca o WhatsApp do modelo.
   if (!/^55[0-9]{10,11}$/.test(wa)) wa = "5579999990000";
   empresa.whatsapp = wa;
   empresa.whatsapp_label = rotuloTel(wa);
-  if (!String(empresa.whatsapp_mensagem || "").trim()) {
-    empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
-  }
-  if (!String(empresa.whatsapp_aria || "").trim()) {
-    empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
-  }
+  empresa.whatsapp_mensagem = `Olá, vim pelo site de ${entrada.nome} e quero agendar.`;
+  empresa.whatsapp_aria = `Chamar ${entrada.nome} no WhatsApp`;
 
   let tel = soDigitos(entrada.telefone || String(empresa.telefone || "") || wa.replace(/^55/, ""));
-  if (!/^[0-9]{10,13}$/.test(tel)) tel = wa.replace(/^55/, "") || "79999990000";
-  if (tel.length < 10) tel = "79999990000";
+  if (!/^[0-9]{10,13}$/.test(tel) || tel.length < 10) tel = wa.replace(/^55/, "") || "79999990000";
   empresa.telefone = tel.slice(0, 13);
   empresa.telefone_label = rotuloTel(String(empresa.telefone));
 
-  const email = String(entrada.email || empresa.email || "").trim();
-  empresa.email = email.length >= 3 ? email : "contato@negocio.com";
+  const email = String(entrada.email || "").trim();
+  empresa.email = email.length >= 3 && !ehFicticio(email) ? email : "nao-informado@guix.invalid";
+
+  const end = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+  const uf = String(entrada.estado || end.estado || "").trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(uf)) end.estado = uf;
+  else end.estado = "NA";
+  const completo = String(end.completo || "").trim() || enderecoCompleto(entrada);
+  end.completo = completo || "Endereço a confirmar";
+  empresa.endereco = end;
   if (typeof empresa.slogan !== "string") empresa.slogan = "";
-  if (typeof empresa.cnpj !== "string") empresa.cnpj = "";
+  empresa.cnpj = String(entrada.cnpj || "").trim();
   empresa.logo = fotoOk(empresa.logo as Record<string, unknown>, "img_logo", entrada.nome, "logo");
   site.empresa = empresa;
 
@@ -221,6 +257,7 @@ export function polirTextosSite(site: Record<string, unknown>) {
 
   const servicos = { ...((site.servicos as Record<string, unknown>) || {}) };
   polirCampo(servicos, "titulo");
+  if (/cardápio/i.test(String(servicos.titulo || ""))) servicos.titulo = "Serviços";
   polirCampo(servicos, "subtitulo");
   if (Array.isArray(servicos.itens)) {
     servicos.itens = (servicos.itens as Record<string, unknown>[]).map((i) => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
-import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { aplicarEstudio, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { copiaParaGeracao, normalizarCopia } from "@/lib/estudio/copia-viva";
 import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
@@ -71,11 +72,40 @@ export async function POST(req: NextRequest) {
     const cep = String(body.cep || body.endereco?.cep || "").trim() || undefined;
     const visual: VisualConfig = { ...visualPadrao(nicho), ...(body.visual || {}) };
     const logoSrc = sanitizarLogoSrc(body.logoSrc);
-    const servicos = Array.isArray(body.servicos) ? body.servicos : [];
-    const profissionais = Array.isArray(body.profissionais) ? body.profissionais : [];
+    const fotosIn = body.fotos && typeof body.fotos === "object" ? body.fotos : {};
+    const fotos = {
+      hero: sanitizarFotoSrc(fotosIn.hero),
+      sobre: sanitizarFotoSrc(fotosIn.sobre),
+      galeria: Array.isArray(fotosIn.galeria)
+        ? (fotosIn.galeria as unknown[]).map(sanitizarFotoSrc).filter((s): s is string => Boolean(s))
+        : undefined,
+    };
+    const servicosRaw = Array.isArray(body.servicos) ? body.servicos : [];
+    const profissionaisRaw = Array.isArray(body.profissionais) ? body.profissionais : [];
+    const servicos = servicosRaw
+      .map((s: { nome?: string; descricao?: string; preco?: string; duracao?: string; imagemSrc?: string }) => ({
+        nome: String(s.nome || "").trim(),
+        descricao: String(s.descricao || "").trim(),
+        preco: String(s.preco || "").trim(),
+        duracao: String(s.duracao || "").trim(),
+        imagemSrc: sanitizarFotoSrc(s.imagemSrc),
+      }))
+      .filter((s: { nome: string }) => s.nome && s.nome !== "Novo serviço")
+      .slice(0, 12);
+    const profissionais = profissionaisRaw
+      .map((p: { nome?: string; cargo?: string; descricao?: string; fotoSrc?: string }) => ({
+        nome: String(p.nome || "").trim(),
+        cargo: String(p.cargo || "").trim(),
+        descricao: String(p.descricao || "").trim(),
+        fotoSrc: sanitizarFotoSrc(p.fotoSrc) || "",
+      }))
+      .filter((p: { nome: string }) => p.nome && p.nome !== "Novo nome")
+      .slice(0, 8);
     const tom = String(body.tom || tomDoEstilo(visual.estilo)).trim();
     const destaque = String(body.destaque || "").trim() || undefined;
     const iaEscreve = body.iaEscreve !== false;
+    const copia = body.copia && typeof body.copia === "object" ? normalizarCopia(body.copia) : null;
+    const textosProntos = copia?.hero?.titulo ? copiaParaGeracao(copia, servicos) : undefined;
 
     if (!nome || nome.length < 2) {
       return NextResponse.json({ erro: "informe o nome do negócio" }, { status: 400 });
@@ -83,6 +113,12 @@ export async function POST(req: NextRequest) {
     if (!NICHOS_OK.has(nicho)) {
       return NextResponse.json({ erro: "nicho inválido" }, { status: 400 });
     }
+
+    const imagensCliente = [
+      ...(fotos.hero ? [{ categoria: "hero", src: fotos.hero, origem: "upload" as const }] : []),
+      ...(fotos.sobre ? [{ categoria: "sobre", src: fotos.sobre, origem: "upload" as const }] : []),
+      ...(fotos.galeria || []).map((src, i) => ({ categoria: "galeria", src, origem: "upload" as const, alt: `Galeria ${i + 1}` })),
+    ];
 
     const token = sanitizarToken(novoToken());
     const gerado = await gerarSiteCliente({
@@ -107,25 +143,20 @@ export async function POST(req: NextRequest) {
       estilo: visual.estilo,
       destaque,
       iaEscreve,
-      servicos: servicos.map((s: { nome?: string }) => String(s.nome || "").trim()).filter(Boolean),
-      servicosDetalhe: servicos
-        .filter((s: { nome?: string }) => String(s.nome || "").trim())
-        .map((s: { nome?: string; descricao?: string; preco?: string; duracao?: string }) => ({
-          nome: String(s.nome || "").trim(),
-          descricao: String(s.descricao || "").trim() || undefined,
-          preco: String(s.preco || "").trim() || undefined,
-          duracao: String(s.duracao || "").trim() || undefined,
-        })),
-      profissionaisDetalhe: profissionais
-        .filter((p: { nome?: string }) => {
-          const n = String(p.nome || "").trim();
-          return n && n !== "Novo nome";
-        })
-        .map((p: { nome?: string; cargo?: string; descricao?: string }) => ({
-          nome: String(p.nome || "").trim(),
-          cargo: String(p.cargo || "").trim() || undefined,
-          descricao: String(p.descricao || "").trim() || undefined,
-        })),
+      textosProntos,
+      imagensCliente,
+      servicos: servicos.map((s: { nome: string }) => s.nome),
+      servicosDetalhe: servicos.map((s: { nome: string; descricao: string; preco: string; duracao: string }) => ({
+        nome: s.nome,
+        descricao: s.descricao || undefined,
+        preco: s.preco || undefined,
+        duracao: s.duracao || undefined,
+      })),
+      profissionaisDetalhe: profissionais.map((p: { nome: string; cargo: string; descricao: string }) => ({
+        nome: p.nome,
+        cargo: p.cargo || undefined,
+        descricao: p.descricao || undefined,
+      })),
     });
     aplicarEstudio(gerado.site, {
       entrada: {
@@ -151,6 +182,12 @@ export async function POST(req: NextRequest) {
       logoSrc,
       servicos,
       profissionais,
+      aplicarServicos: servicos.length > 0,
+      aplicarProfissionais: profissionais.length > 0,
+      preservarModeloQuandoVazio: true,
+      fotos,
+      bairroModelo: gerado.modelo?.bairro,
+      cidadeModelo: gerado.modelo?.cidade,
     });
     repararParaSchema(gerado.site, {
       clienteId: `t${token}`,
@@ -160,16 +197,11 @@ export async function POST(req: NextRequest) {
       cidade,
       whatsapp,
       email,
-      profissionaisDetalhe: profissionais
-        .filter((p: { nome?: string }) => {
-          const n = String(p.nome || "").trim();
-          return n && n !== "Novo nome";
-        })
-        .map((p: { nome?: string; cargo?: string; descricao?: string }) => ({
-          nome: String(p.nome || "").trim(),
-          cargo: String(p.cargo || "").trim() || undefined,
-          descricao: String(p.descricao || "").trim() || undefined,
-        })),
+      profissionaisDetalhe: profissionais.map((p: { nome: string; cargo: string; descricao: string }) => ({
+        nome: p.nome,
+        cargo: p.cargo || undefined,
+        descricao: p.descricao || undefined,
+      })),
     });
 
     const agora = Date.now();
@@ -197,8 +229,13 @@ export async function POST(req: NextRequest) {
       avisos: gerado.avisos,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "erro";
-    return NextResponse.json({ erro: msg }, { status: 500 });
+    const bruto = e instanceof Error ? e.message : "";
+    const erro = /openai|api key/i.test(bruto)
+      ? "Não deu para escrever os textos agora. Tente de novo em instantes."
+      : /site\.json inválido/i.test(bruto)
+        ? "O site ficou inconsistente na validação. Tente de novo."
+        : "Não foi possível montar o site de teste.";
+    return NextResponse.json({ erro }, { status: 500 });
   }
 }
 

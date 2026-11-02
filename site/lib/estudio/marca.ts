@@ -1,9 +1,9 @@
-/** Lockups profissionais: nome inteiro + slogan. Emblema geométrico do nicho, não só iniciais. */
+import { idSimboloPadrao, nomeMarcaLimpo, svgSimbolo } from "./simbolos";
 
-export type EstiloLockup = "wordmark" | "selo" | "empilhado" | "emblema";
+export type ModoLockup = "lado" | "selo" | "wordmark" | "empilhado";
 
 export function iniciais(nome: string) {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  const partes = nomeMarcaLimpo(nome).split(/\s+/).filter(Boolean);
   if (!partes.length) return "G";
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
@@ -13,59 +13,21 @@ function esc(s: string) {
   return s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] || c);
 }
 
-function dataSvg(svg: string) {
+export function dataSvg(svg: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-/** Símbolo do nicho — traço único, estilo marca. */
-export function emblemaNicho(nicho: string, cor: string, cx = 60, cy = 60) {
-  const n = nicho || "barbearia";
-  if (n === "barbearia") {
-    return `<g>
-      <rect x="${cx - 7}" y="${cy - 26}" width="14" height="52" rx="7" fill="none" stroke="${cor}" stroke-width="2.4"/>
-      <path d="M${cx - 5} ${cy - 16} Q${cx} ${cy - 8} ${cx + 5} ${cy - 16} Q${cx} ${cy - 4} ${cx - 5} ${cy - 16}" fill="${cor}"/>
-      <path d="M${cx - 5} ${cy + 2} Q${cx} ${cy + 10} ${cx + 5} ${cy + 2} Q${cx} ${cy + 14} ${cx - 5} ${cy + 2}" fill="${cor}"/>
-      <circle cx="${cx}" cy="${cy - 28}" r="3" fill="${cor}"/>
-    </g>`;
-  }
-  if (n === "salao") {
-    return `<g fill="none" stroke="${cor}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M${cx - 10} ${cy + 16} L${cx} ${cy - 18} L${cx + 10} ${cy + 16}"/>
-      <path d="M${cx - 6} ${cy + 4} H${cx + 6}"/>
-      <circle cx="${cx - 12}" cy="${cy + 20}" r="5"/>
-      <circle cx="${cx + 12}" cy="${cy + 20}" r="5"/>
-    </g>`;
-  }
-  if (n === "estetica") {
-    return `<g fill="none" stroke="${cor}" stroke-width="3" stroke-linecap="round">
-      <path d="M${cx} ${cy + 18} C${cx - 22} ${cy + 4} ${cx - 16} ${cy - 18} ${cx} ${cy - 14} C${cx + 16} ${cy - 18} ${cx + 22} ${cy + 4} ${cx} ${cy + 18}Z"/>
-    </g>`;
-  }
-  if (n === "petshop") {
-    return `<g fill="${cor}">
-      <circle cx="${cx - 14}" cy="${cy - 10}" r="7"/><circle cx="${cx + 14}" cy="${cy - 10}" r="7"/>
-      <circle cx="${cx - 22}" cy="${cy + 8}" r="6"/><circle cx="${cx + 22}" cy="${cy + 8}" r="6"/>
-      <ellipse cx="${cx}" cy="${cy + 12}" rx="12" ry="10"/>
-    </g>`;
-  }
-  if (n === "academia") {
-    return `<g fill="none" stroke="${cor}" stroke-width="4" stroke-linecap="round">
-      <path d="M${cx - 28} ${cy} H${cx + 28}"/>
-      <rect x="${cx - 34}" y="${cy - 12}" width="10" height="24" rx="2" fill="${cor}" stroke="none"/>
-      <rect x="${cx + 24}" y="${cy - 12}" width="10" height="24" rx="2" fill="${cor}" stroke="none"/>
-    </g>`;
-  }
-  if (n === "advocacia") {
-    return `<g fill="none" stroke="${cor}" stroke-width="3" stroke-linecap="round">
-      <path d="M${cx} ${cy - 20} V${cy + 20}"/>
-      <path d="M${cx - 22} ${cy - 8} H${cx + 22}"/>
-      <path d="M${cx - 18} ${cy - 8} L${cx - 18} ${cy + 8} Q${cx} ${cy + 16} ${cx + 18} ${cy + 8} L${cx + 18} ${cy - 8}"/>
-    </g>`;
-  }
-  return `<g fill="none" stroke="${cor}" stroke-width="3" stroke-linecap="round">
-    <rect x="${cx - 16}" y="${cy - 18}" width="32" height="36" rx="3"/>
-    <path d="M${cx - 8} ${cy - 6} H${cx + 8} M${cx - 8} ${cy + 4} H${cx + 4}"/>
-  </g>`;
+export function emblemaNicho(nicho: string, cor: string, cx = 48, cy = 48) {
+  const inner = svgSimbolo(nicho || "barbearia", idSimboloPadrao(nicho), cor).replace(/<\/?svg[^>]*>/g, "");
+  const dx = cx - 48;
+  const dy = cy - 48;
+  return `<g transform="translate(${dx} ${dy})">${inner}</g>`;
+}
+
+function fonteNome(nicho: string) {
+  if (nicho === "advocacia" || nicho === "contabilidade") return "Georgia, 'Times New Roman', serif";
+  if (nicho === "academia") return "system-ui, 'Segoe UI', sans-serif";
+  return "Georgia, 'Times New Roman', serif";
 }
 
 export function lockupWordmark(opts: {
@@ -74,33 +36,15 @@ export function lockupWordmark(opts: {
   fundo: string;
   tinta: string;
   acento: string;
+  nicho?: string;
 }) {
-  const nome = esc(opts.nome).slice(0, 42);
-  const slogan = esc(opts.slogan || "").slice(0, 72);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
-    <text x="8" y="${slogan ? 42 : 58}" font-family="Georgia, 'Times New Roman', serif" font-size="34" letter-spacing="2" fill="${opts.tinta}">${nome}</text>
-    <rect x="8" y="${slogan ? 52 : 68}" width="72" height="2" fill="${opts.acento}"/>
-    ${slogan ? `<text x="8" y="78" font-family="system-ui, sans-serif" font-size="13" fill="${opts.acento}">${slogan}</text>` : ""}
-  </svg>`);
-}
-
-export function lockupSelo(opts: {
-  nome: string;
-  slogan?: string;
-  fundo: string;
-  tinta: string;
-  acento: string;
-  nicho: string;
-}) {
-  const nome = esc(opts.nome).slice(0, 36);
-  const slogan = esc(opts.slogan || "").slice(0, 48);
-  const ini = iniciais(opts.nome);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
-    <circle cx="40" cy="48" r="36" fill="none" stroke="${opts.acento}" stroke-width="2"/>
-    ${emblemaNicho(opts.nicho, opts.acento, 40, 48)}
-    <text x="88" y="${slogan ? 44 : 54}" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="${opts.tinta}">${nome}</text>
-    ${slogan ? `<text x="88" y="68" font-family="system-ui, sans-serif" font-size="12" fill="${opts.acento}">${slogan}</text>` : ""}
-    <text x="0" y="0" font-size="1" fill="none">${ini}</text>
+  const nome = esc(nomeMarcaLimpo(opts.nome)).slice(0, 36);
+  const slogan = esc(opts.slogan || "").slice(0, 64);
+  const fonte = fonteNome(opts.nicho || "");
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120">
+    <text x="12" y="${slogan ? 52 : 72}" font-family="${fonte}" font-size="40" letter-spacing="1.2" fill="${opts.tinta}">${nome}</text>
+    <rect x="12" y="${slogan ? 64 : 84}" width="56" height="3" fill="${opts.acento}"/>
+    ${slogan ? `<text x="12" y="92" font-family="system-ui, sans-serif" font-size="14" fill="${opts.acento}">${slogan}</text>` : ""}
   </svg>`);
 }
 
@@ -110,15 +54,75 @@ export function lockupEmpilhado(opts: {
   fundo: string;
   tinta: string;
   acento: string;
+  nicho?: string;
 }) {
-  const partes = opts.nome.trim().split(/\s+/);
-  const linha1 = esc(partes[0] || opts.nome).slice(0, 22);
+  const limpo = nomeMarcaLimpo(opts.nome);
+  const partes = limpo.split(/\s+/);
+  const linha1 = esc(partes[0] || limpo).slice(0, 22);
   const linha2 = esc(partes.slice(1).join(" ")).slice(0, 28);
-  const slogan = esc(opts.slogan || "").slice(0, 64);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
-    <text x="8" y="${linha2 ? 38 : 58}" font-family="Georgia, serif" font-size="30" fill="${opts.tinta}">${linha1}</text>
-    ${linha2 ? `<text x="8" y="68" font-family="Georgia, serif" font-size="18" letter-spacing="4" fill="${opts.acento}">${linha2.toUpperCase()}</text>` : ""}
+  const fonte = fonteNome(opts.nicho || "");
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120">
+    <text x="12" y="${linha2 ? 48 : 72}" font-family="${fonte}" font-size="36" fill="${opts.tinta}">${linha1}</text>
+    ${linha2 ? `<text x="12" y="86" font-family="${fonte}" font-size="22" letter-spacing="6" fill="${opts.acento}">${linha2.toUpperCase()}</text>` : ""}
   </svg>`);
+}
+
+function innerDeSvg(svg: string) {
+  return svg.replace(/<\/?svg[^>]*>/gi, "");
+}
+
+function lockupComSimbolo(opts: {
+  nome: string;
+  slogan?: string;
+  tinta: string;
+  acento: string;
+  nicho: string;
+  id: string;
+  modo: "lado" | "selo";
+}) {
+  const nome = esc(nomeMarcaLimpo(opts.nome)).slice(0, 32);
+  const slogan = esc(opts.slogan || "").slice(0, 48);
+  const fonte = fonteNome(opts.nicho);
+  const mark = innerDeSvg(svgSimbolo(opts.nicho, opts.id, opts.acento));
+
+  if (opts.modo === "selo") {
+    return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120">
+      <circle cx="52" cy="60" r="44" fill="none" stroke="${opts.acento}" stroke-width="2"/>
+      <g transform="translate(20 28) scale(0.67)">${mark}</g>
+      <text x="112" y="${slogan ? 54 : 68}" font-family="${fonte}" font-size="32" fill="${opts.tinta}">${nome}</text>
+      ${slogan ? `<text x="112" y="82" font-family="system-ui, sans-serif" font-size="13" fill="${opts.acento}">${slogan}</text>` : ""}
+    </svg>`);
+  }
+
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="120" viewBox="0 0 720 120">
+    <rect x="4" y="12" width="96" height="96" rx="18" fill="none" stroke="${opts.acento}" stroke-width="1.6"/>
+    <g transform="translate(8 16)">${mark}</g>
+    <text x="120" y="${slogan ? 54 : 70}" font-family="${fonte}" font-size="32" fill="${opts.tinta}">${nome}</text>
+    ${slogan ? `<text x="120" y="82" font-family="system-ui, sans-serif" font-size="13" fill="${opts.acento}">${slogan}</text>` : ""}
+  </svg>`);
+}
+
+export function lockupDaEscolha(opts: {
+  nome: string;
+  slogan?: string;
+  fundo: string;
+  tinta: string;
+  acento: string;
+  nicho: string;
+  simboloId: string;
+  modo: ModoLockup;
+}) {
+  if (opts.modo === "wordmark" || !opts.simboloId) return lockupWordmark(opts);
+  if (opts.modo === "empilhado") return lockupEmpilhado(opts);
+  return lockupComSimbolo({
+    nome: opts.nome,
+    slogan: opts.slogan,
+    tinta: opts.tinta,
+    acento: opts.acento,
+    nicho: opts.nicho,
+    id: opts.simboloId,
+    modo: opts.modo === "selo" ? "selo" : "lado",
+  });
 }
 
 export function lockupEmblema(opts: {
@@ -128,35 +132,12 @@ export function lockupEmblema(opts: {
   tinta: string;
   acento: string;
   nicho: string;
-  emblemaHref?: string;
 }) {
-  const nome = esc(opts.nome).slice(0, 40);
-  const slogan = esc(opts.slogan || "").slice(0, 64);
-  const iconCompact = opts.emblemaHref
-    ? `<image href="${opts.emblemaHref}" x="4" y="16" width="64" height="64"/>`
-    : emblemaNicho(opts.nicho, opts.acento, 36, 48);
-  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="96" viewBox="0 0 640 96">
-    ${iconCompact}
-    <text x="84" y="${slogan ? 42 : 54}" font-family="Georgia, 'Times New Roman', serif" font-size="26" fill="${opts.tinta}">${nome}</text>
-    ${slogan ? `<text x="84" y="66" font-family="system-ui, sans-serif" font-size="12" fill="${opts.acento}">${slogan}</text>` : ""}
-  </svg>`);
-}
-
-export function propostasEstudio(opts: {
-  nome: string;
-  slogan?: string;
-  fundo: string;
-  tinta: string;
-  acento: string;
-  nicho: string;
-}) {
-  const base = { nome: opts.nome, slogan: opts.slogan, fundo: opts.fundo, tinta: opts.tinta, acento: opts.acento };
-  return [
-    { id: "wordmark", titulo: "Nome escrito", nota: "Marca só com o nome, editorial", src: lockupWordmark(base) },
-    { id: "empilhado", titulo: "Duas linhas", nota: "Nome empilhado, ar de casa premium", src: lockupEmpilhado(base) },
-    { id: "selo", titulo: "Selo do ofício", nota: "Símbolo + nome ao lado", src: lockupSelo({ ...base, nicho: opts.nicho }) },
-    { id: "emblema", titulo: "Emblema", nota: "Símbolo à esquerda e o nome", src: lockupEmblema({ ...base, nicho: opts.nicho }) },
-  ];
+  return lockupDaEscolha({
+    ...opts,
+    simboloId: idSimboloPadrao(opts.nicho),
+    modo: "lado",
+  });
 }
 
 export function gerarMarcaSvg(opts: {

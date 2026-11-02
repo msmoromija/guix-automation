@@ -11,6 +11,7 @@ export async function gerarTextosSite(entrada: {
   nicho: Nicho;
   nome: string;
   cidade?: string;
+  bairro?: string;
   slogan?: string;
   servicos?: string[];
   servicosDetalhe?: Array<{ nome: string; descricao?: string; preco?: string; duracao?: string }>;
@@ -31,7 +32,8 @@ export async function gerarTextosSite(entrada: {
     "NÃO troque os nomes dos serviços nem da equipe informados. Só reescreva descrições se estiverem pobres.",
     "FAQ: 4 perguntas específicas deste negócio (preço, duração, o que levar, como chegar), nunca genéricas.",
     "Galeria: título 'O espaço' ou 'Ambiente'. Legendas curtas do que se vê, não 'A casa'.",
-    "Hero: título com o nome do negócio ou uma promessa curta; subtítulo com 1 fato (cidade, ofício, como agendar).",
+    "Hero: título com uma promessa curta do ofício, não só o nome. Subtítulo com 1 fato (bairro/cidade, ofício, como agendar). O subtítulo NÃO pode repetir o slogan nem o título.",
+    "contato.titulo: 'Venha ao' ou 'Venha à' + bairro (ou cidade). Nunca use o bairro do modelo de exemplo.",
     "Sobre: 2 parágrafos. O primeiro diz quem atende e o que faz; o segundo, como é o atendimento.",
     "Cada serviço tem descrição de 1 ou 2 frases com o que entra no preço.",
     "Nunca use a palavra 'cardápio' (no Brasil isso é menu de restaurante). Use 'serviços', 'tabela de serviços' ou 'o que fazemos'.",
@@ -45,6 +47,7 @@ export async function gerarTextosSite(entrada: {
     nome_negocio: entrada.nome,
     slogan: entrada.slogan || "",
     cidade: entrada.cidade || "",
+    bairro: entrada.bairro || "",
     servicos_informados: entrada.servicos || [],
     lista_de_servicos: entrada.servicosDetalhe || [],
     equipe_informada: entrada.profissionaisDetalhe || [],
@@ -76,6 +79,81 @@ export async function gerarTextosSite(entrada: {
     },
   };
 
+  return (await completarJson(sistema, user, 0.7)) as unknown as GeracaoSiteJson;
+}
+
+const ESCOPO = [
+  "Você escreve só os textos do site local deste cliente.",
+  "Pode mudar: título e subtítulo da capa, sobre, descrições dos serviços, título do bloco de serviços, contato, dúvidas e o título da equipe.",
+  "Não pode: mudar layout, cores, fontes, ordem dos blocos, fotos, domínio, pagamento, publicar, inventar telefone, CNPJ ou endereço, trocar o nicho, apagar seções, criar loja ou blog.",
+  "Mantenha no mínimo 3 serviços. Não troque os nomes dos serviços nem da equipe que o cliente informou.",
+  "Se o pedido sair desse escopo, preencha aviso_limite com uma frase curta dizendo o limite e mesmo assim entregue o texto mais próximo do que foi pedido, dentro do ofício e dos dados reais.",
+  "Se o pedido estiver no escopo, aviso_limite fica string vazia.",
+  "Português do Brasil. Sem cardápio. Sem clichê de agência. Sem repetir o slogan no subtítulo.",
+].join(" ");
+
+export async function escreverCopiaSimulacao(entrada: {
+  nicho: Nicho;
+  nome: string;
+  cidade?: string;
+  bairro?: string;
+  slogan?: string;
+  tom?: string;
+  destaque?: string;
+  servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string }>;
+  profissionais?: Array<{ nome: string; cargo?: string; descricao?: string }>;
+}) {
+  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} Responda só JSON. Hero com promessa do ofício, não só o nome. Sobre com 2 parágrafos. Uma descrição por serviço, na mesma ordem e quantidade. FAQ com 4 perguntas deste negócio. contato.titulo: Venha ao/à + bairro, ou Venha a + cidade se não houver bairro.`;
+  const json = await completarJson(sistema, {
+    nicho: entrada.nicho,
+    nome: entrada.nome,
+    slogan: entrada.slogan || "",
+    cidade: entrada.cidade || "",
+    bairro: entrada.bairro || "",
+    tom: entrada.tom || "",
+    destaque: entrada.destaque || "",
+    servicos: entrada.servicos,
+    equipe: (entrada.profissionais || []).filter((p) => p.nome.trim()),
+    schema: {
+      aviso_limite: "",
+      hero: { titulo: "", subtitulo: "" },
+      sobre: { titulo: "", paragrafos: ["", ""] },
+      servicos: { titulo: "Serviços", subtitulo: "", itens: [{ descricao: "" }] },
+      contato: { titulo: "", subtitulo: "" },
+      faq: { titulo: "Dúvidas", itens: [{ pergunta: "", resposta: "" }] },
+      profissionais: { titulo: "", subtitulo: "" },
+    },
+  }, 0.6);
+  return { aviso: String(json.aviso_limite || ""), copia: json };
+}
+
+export async function ajustarCopiaSimulacao(entrada: {
+  nicho: Nicho;
+  nome: string;
+  cidade?: string;
+  bairro?: string;
+  pedido: string;
+  copia: unknown;
+  servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string }>;
+}) {
+  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} O cliente pediu um ajuste. Aplique no JSON atual. Responda só JSON no mesmo formato, com aviso_limite.`;
+  const json = await completarJson(
+    sistema,
+    {
+      pedido: entrada.pedido,
+      nicho: entrada.nicho,
+      nome: entrada.nome,
+      cidade: entrada.cidade || "",
+      bairro: entrada.bairro || "",
+      servicos: entrada.servicos,
+      textos_atuais: entrada.copia,
+    },
+    0.4,
+  );
+  return { aviso: String(json.aviso_limite || ""), copia: json };
+}
+
+async function completarJson(sistema: string, user: unknown, temperature: number) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -84,7 +162,7 @@ export async function gerarTextosSite(entrada: {
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
-      temperature: 0.7,
+      temperature,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: sistema },
@@ -103,5 +181,5 @@ export async function gerarTextosSite(entrada: {
   };
   const raw = data.choices[0]?.message?.content;
   if (!raw) throw new Error("OpenAI: resposta vazia");
-  return JSON.parse(raw) as GeracaoSiteJson;
+  return JSON.parse(raw) as Record<string, unknown>;
 }
