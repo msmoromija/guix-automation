@@ -182,7 +182,10 @@ export async function executarPedido(entrada: {
   const sistema = [
     "Você edita o conteúdo e a aparência de um site local já montado. Responda só JSON válido.",
     "Pedidos longos ou com várias partes: aplique o que couber. Nunca responda vazio. Sempre preencha resumo.",
-    "Pode alterar telefone, WhatsApp, e-mail, endereço, horário, textos (hero, sobre, contato, FAQ), serviços, diferenciais, tema, fonte, cores, menu, rodapé e fotos.",
+    "Pode alterar telefone, WhatsApp, e-mail, endereço, horário, textos (hero, sobre, contato, FAQ), eventos/agenda, serviços, diferenciais, tema, fonte, cores, menu, rodapé e fotos.",
+    "Se pedirem FAQ, dúvidas, preencher FAQ ou campos vazios: preencha faq.titulo e faq.itens com 3 a 5 pares pergunta/resposta reais do ofício (sem campo 'de' quando for criar).",
+    "Se pedirem eventos, agenda ou 'crie eventos': preencha eventos.titulo e eventos.itens (2 a 4) com titulo, descricao, data_label e horario (HH:MM). Nunca deixe 'Novo evento' ou descrição vazia.",
+    "Se pedirem 'preencha campos vazios': olhe atual.campos_vazios e preencha cada um (FAQ, eventos, hero, sobre).",
     "Se pedirem 'refaça os textos' ou tom novo (animado, cordial, luxo): reescreva hero.titulo, hero.subtitulo, sobre (2 parágrafos), servicos.itens[].descricao, contato e faq.itens (até 4).",
     "Se pedirem mudar imagens/fotos: preencha midia.fotos com até 4 itens (hero, sobre, galeria indice 0 e 1). Cada um com slot e busca em inglês curto do ofício.",
     "Não invente telefone, CNPJ, endereço nem URL de foto — só busca.",
@@ -204,7 +207,11 @@ export async function executarPedido(entrada: {
       hero: { titulo: "", subtitulo: "" },
       sobre: { titulo: "", paragrafos: ["", ""] },
       contato: { titulo: "", subtitulo: "" },
-      faq: { titulo: "", itens: [{ de: "", pergunta: "", resposta: "" }] },
+      faq: { titulo: "Dúvidas", itens: [{ pergunta: "", resposta: "" }] },
+      eventos: {
+        titulo: "Agenda",
+        itens: [{ titulo: "", descricao: "", data_label: "", horario: "19:00" }],
+      },
       servicos: { atualizar: [{ nome: "", descricao: "", preco_label: "", duracao_label: "" }] },
       visual: { paletaId: "", tipografiaId: "", cabecalho: "", estilo: "" },
       midia: {

@@ -42,7 +42,9 @@ function listaServicos(raw: unknown) {
 }
 
 function falaTexto(pedido: string) {
-  return /\b(texto|t[ií]tulos?|subt[ií]tulo|refa[cç]|reescrev|linguajar|tom|animad|cordial|capa|sobre|faq|d[uú]vida|slogan|frase)\b/i.test(pedido);
+  return /\b(texto|t[ií]tulos?|subt[ií]tulo|refa[cç]|reescrev|linguajar|tom|animad|cordial|capa|sobre|faq|d[uú]vida|slogan|frase|evento|agenda|vazios?|preench)/i.test(
+    pedido,
+  );
 }
 
 function falaFoto(pedido: string) {
@@ -58,6 +60,7 @@ function patchTemConteudo(patch: PatchPedido | null | undefined) {
       patch.contato ||
       patch.servicos ||
       patch.faq ||
+      patch.eventos ||
       patch.visual ||
       patch.empresa ||
       patch.diferenciais ||
@@ -89,6 +92,7 @@ function mesclarPatches(a: PatchPedido, b: PatchPedido): PatchPedido {
     empresa: { ...(a.empresa || {}), ...(b.empresa || {}) },
     servicos: b.servicos || a.servicos,
     faq: b.faq || a.faq,
+    eventos: b.eventos || a.eventos,
     visual: { ...(a.visual || {}), ...(b.visual || {}) },
     midia,
     abrir: b.abrir || a.abrir,
@@ -107,7 +111,7 @@ async function montarPatch(nicho: Nicho, pedido: string, contexto: unknown) {
   try {
     textos = (await executarPedido({
       nicho,
-      pedido: `${pedido}\n\nNesta resposta: só textos (hero, sobre, serviços, contato, FAQ). NÃO preencha midia.`,
+      pedido: `${pedido}\n\nNesta resposta: só textos (hero, sobre, serviços, contato, FAQ, eventos). NÃO preencha midia.`,
       contexto,
       timeoutMs: 22000,
     })) as PatchPedido;

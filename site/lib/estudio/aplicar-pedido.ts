@@ -82,6 +82,12 @@ export type PatchPedido = {
     acrescentar?: { pergunta?: string; resposta?: string }[];
     itens?: { de?: string; pergunta?: string; resposta?: string }[];
   };
+  eventos?: {
+    titulo?: string;
+    limpar?: boolean;
+    acrescentar?: { titulo?: string; descricao?: string; data_label?: string; horario?: string }[];
+    itens?: { titulo?: string; descricao?: string; data_label?: string; horario?: string }[];
+  };
   diferenciais?: {
     titulo?: string;
     atualizar?: { de?: string; titulo?: string; descricao?: string }[];
@@ -153,6 +159,7 @@ export type TocouPedido = {
   diferenciais: boolean;
   midia: boolean;
   faq: boolean;
+  eventos: boolean;
 };
 
 export type ResultadoPedido = {
@@ -333,12 +340,25 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       pergunta: corta(f.pergunta, 100),
       resposta: corta(f.resposta, 140),
     })),
+    eventos: (Array.isArray(obj(site.eventos).itens) ? (obj(site.eventos).itens as Record<string, unknown>[]) : []).slice(0, 4).map((e) => ({
+      titulo: corta(e.titulo, 80),
+      descricao: corta(e.descricao, 180),
+      data_label: corta(e.data_label, 60),
+      horario: corta(e.horario, 8),
+    })),
     diferenciais: (Array.isArray(difs.itens) ? (difs.itens as Record<string, unknown>[]) : []).slice(0, 6).map((d) => ({
       titulo: corta(d.titulo, 60),
       descricao: corta(d.descricao, 120),
     })),
     menu: menu.slice(0, 7).map((m) => ({ id: corta(m.id, 20), label: corta(m.label, 24) })),
     rodape: corta(rodape.texto, 120),
+    campos_vazios: [
+      !(Array.isArray(faq.itens) && faq.itens.length) ? "faq" : "",
+      !(Array.isArray(obj(site.eventos).itens) && (obj(site.eventos).itens as unknown[]).length) ? "eventos" : "",
+      !corta(hero.titulo, 2) ? "hero.titulo" : "",
+      !corta(hero.subtitulo, 2) ? "hero.subtitulo" : "",
+      !(Array.isArray(sobre.paragrafos) && sobre.paragrafos.length) ? "sobre" : "",
+    ].filter(Boolean),
     visual: {
       paletaId: visual?.paletaId || "",
       tipografiaId: visual?.tipografiaId || "",
@@ -350,6 +370,66 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       aparencia: visual?.aparencia || "",
     },
   };
+}
+
+export function eventosDoSite(site: Record<string, unknown>) {
+  const bloco = obj(site.eventos);
+  const itens = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
+  return itens.slice(0, 4).map((e) => ({
+    titulo: corta(e.titulo, 80) || "Evento",
+    descricao: corta(e.descricao, 320),
+    dataLabel: corta(e.data_label, 80),
+    horario: /^\d{2}:\d{2}$/.test(String(e.horario || "")) ? String(e.horario) : "19:00",
+  }));
+}
+
+const LIMITE_EVENTOS = 4;
+
+function eventoPlaceholder(e: Record<string, unknown>) {
+  const titulo = semAcento(String(e.titulo || ""));
+  const descricao = semAcento(String(e.descricao || ""));
+  return !titulo || titulo === "novo evento" || titulo === "evento" || !descricao || /conte o que acontece/.test(descricao);
+}
+
+function aplicarEventos(site: Record<string, unknown>, patch: NonNullable<PatchPedido["eventos"]>, avisos: string[]) {
+  const bloco = { ...obj(site.eventos) };
+  if (patch.titulo) bloco.titulo = corta(patch.titulo, 80) || "Agenda";
+  let itens = patch.limpar === true ? [] : Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]).map((e) => ({ ...e })) : [];
+
+  const listaNova = [
+    ...(Array.isArray(patch.itens) ? patch.itens : []),
+    ...(Array.isArray(patch.acrescentar) ? patch.acrescentar : []),
+  ];
+
+  const soVazios = itens.length > 0 && itens.every((e) => eventoPlaceholder(e));
+  if (patch.limpar === true || itens.length === 0 || (soVazios && listaNova.length)) {
+    itens = [];
+  }
+
+  for (const item of listaNova) {
+    if (itens.length >= LIMITE_EVENTOS) {
+      avisos.push("A agenda fica com no máximo 4 eventos.");
+      break;
+    }
+    const titulo = corta(item.titulo, 80);
+    const descricao = corta(item.descricao, 320);
+    if (!titulo || !descricao) continue;
+    const dataLabel = corta(item.data_label, 80) || "A definir";
+    const horario = /^\d{2}:\d{2}$/.test(String(item.horario || "")) ? String(item.horario) : "19:00";
+    itens.push({
+      id: `evt_cliente_${itens.length + 1}`,
+      titulo,
+      descricao,
+      data: "2026-12-01",
+      data_label: dataLabel,
+      horario,
+      imagem: { id: `img_evt_cliente_${itens.length + 1}`, src: "", alt: titulo, categoria: "evento" },
+    });
+  }
+
+  if (!bloco.titulo) bloco.titulo = itens.length ? "Agenda" : "Agenda";
+  bloco.itens = itens.slice(0, LIMITE_EVENTOS);
+  site.eventos = bloco;
 }
 
 export function servicosDoSite(site: Record<string, unknown>): LinhaServico[] {
@@ -558,6 +638,7 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     diferenciais: false,
     midia: false,
     faq: false,
+    eventos: false,
   };
   const empresa = { ...obj(site.empresa) };
 
@@ -653,13 +734,42 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       const i = itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(n));
       if (i >= 0) itens.splice(i, 1);
     }
-    for (const item of patch.faq.itens || []) {
-      if (!item.pergunta && !item.resposta) continue;
-      const alvo = semAcento(item.de || "");
-      const i = alvo ? itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(alvo)) : -1;
-      if (i < 0 || !itens[i]) continue;
-      if (item.pergunta) itens[i].pergunta = corta(item.pergunta, 180);
-      if (item.resposta) itens[i].resposta = corta(item.resposta, 400);
+    const itensPatch = patch.faq.itens || [];
+    const soCriacao =
+      itensPatch.length > 0 &&
+      itensPatch.every((item) => !corta(item.de, 1) && corta(item.pergunta, 1) && corta(item.resposta, 1));
+
+    // FAQ vazia ou lista sem "de": trata como criação/substituição (a IA costuma mandar assim).
+    if (soCriacao && (itens.length === 0 || patch.faq.limpar === true || itensPatch.length >= 2)) {
+      itens = itensPatch
+        .map((item) => ({
+          id: idFaq([]),
+          pergunta: corta(item.pergunta, 180),
+          resposta: corta(item.resposta, 400),
+        }))
+        .filter((item) => item.pergunta && item.resposta)
+        .map((item, i) => ({ ...item, id: `faq_${String(i + 1).padStart(2, "0")}` }));
+    } else {
+      for (const item of itensPatch) {
+        if (!item.pergunta && !item.resposta) continue;
+        const pergunta = corta(item.pergunta, 180);
+        const resposta = corta(item.resposta, 400);
+        const alvo = semAcento(item.de || "");
+        const i = alvo ? itens.findIndex((f) => semAcento(String(f.pergunta || "")).includes(alvo)) : -1;
+        if (i >= 0 && itens[i]) {
+          if (pergunta) itens[i].pergunta = pergunta;
+          if (resposta) itens[i].resposta = resposta;
+          continue;
+        }
+        // Sem alvo: acrescenta em vez de ignorar
+        if (pergunta && resposta) {
+          if (itens.length >= LIMITE_FAQ) {
+            avisos.push("A FAQ fica com no máximo 10 perguntas.");
+            break;
+          }
+          itens.push({ id: idFaq(itens), pergunta, resposta });
+        }
+      }
     }
     for (const item of patch.faq.acrescentar || []) {
       if (itens.length >= LIMITE_FAQ) {
@@ -674,6 +784,18 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     faq.itens = itens.slice(0, LIMITE_FAQ);
     site.faq = faq;
     tocou.faq = true;
+    tocou.textos = true;
+  }
+
+  if (
+    patch.eventos &&
+    (patch.eventos.limpar === true ||
+      textoPreenchido(patch.eventos.titulo) ||
+      textoPreenchido(patch.eventos.acrescentar) ||
+      textoPreenchido(patch.eventos.itens))
+  ) {
+    aplicarEventos(site, patch.eventos, avisos);
+    tocou.eventos = true;
     tocou.textos = true;
   }
 

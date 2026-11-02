@@ -8,7 +8,16 @@ import type { AlvoEdicao, SlotFoto } from "@/components/preview/SiteLivePreview"
 import { construirAoVivo } from "@/lib/estudio/construir-ao-vivo";
 import { aplicarCampoNoSite, definirCampoCopia, mesclarCopia, type CopiaViva } from "@/lib/estudio/copia-viva";
 import { PedidoIa } from "@/components/estudio/PedidoIa";
-import { aplicarPedido, contextoEditavel, copiaDoSite, patchRapido, servicosDoSite, type PatchPedido, type ResultadoPedido } from "@/lib/estudio/aplicar-pedido";
+import {
+  aplicarPedido,
+  contextoEditavel,
+  copiaDoSite,
+  eventosDoSite,
+  patchRapido,
+  servicosDoSite,
+  type PatchPedido,
+  type ResultadoPedido,
+} from "@/lib/estudio/aplicar-pedido";
 import { AVISO_ESTRUTURA, AVISO_LIMITE, LIMITE_PEDIDOS_IA, soEstrutura } from "@/lib/estudio/pedido-fechado";
 import { linkWhatsapp } from "@/lib/contato";
 import { MarcaStudio } from "@/components/estudio/MarcaStudio";
@@ -571,7 +580,12 @@ export function EstudioForm() {
       return;
     }
     if (campo === "evento.novo") {
-      setEventos((lista) => (lista.length >= 4 ? lista : [...lista, { titulo: valor, descricao: "Conte o que acontece neste dia.", dataLabel: "", horario: "19:00" }]));
+      const titulo = valor.trim() || "Novo evento";
+      setEventos((lista) =>
+        lista.length >= 4
+          ? lista
+          : [...lista, { titulo, descricao: valor.trim() ? `Venha participar: ${titulo}.` : "", dataLabel: "", horario: "19:00" }],
+      );
       return;
     }
     const ev = campo.match(/^evt\.(\d+)\.(titulo|descricao|data|horario)$/);
@@ -731,6 +745,10 @@ export function EstudioForm() {
     }
     if (resultado.tocou.faq) {
       setFaqs(faqsDoSite(resultado.site as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } }));
+    }
+    if (resultado.tocou.eventos) {
+      const lista = eventosDoSite(resultado.site).filter((e) => e.titulo && e.descricao);
+      setEventos(lista);
     }
     if (resultado.tocou.servicos) {
       const linhas = servicosDoSite(resultado.site).filter((s) => s.nome);
