@@ -16,7 +16,17 @@ import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
 import { IconeRede } from "@/components/estudio/IconeRede";
 import { CANAIS, extrasDeRedes, type CanalId } from "@/lib/estudio/canais";
-import { DIAS_SEMANA, expedientePadrao, expedienteParaSchema, resumoDoExpediente, type DiaExpediente, type NotaAgenda } from "@/lib/estudio/expediente";
+import {
+  DIAS_SEMANA,
+  agendaProParaVisual,
+  expedientePadrao,
+  expedienteParaSchema,
+  expedienteProPadrao,
+  resumoDoExpediente,
+  type AusenciaPro,
+  type DiaExpediente,
+  type NotaAgenda,
+} from "@/lib/estudio/expediente";
 import { dicasDoNicho, fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
   PRESETS,
@@ -42,6 +52,28 @@ const ETAPAS = [
 ];
 
 const LIMITE_FAQ_FORM = 10;
+
+type ProForm = {
+  nome: string;
+  cargo: string;
+  descricao: string;
+  fotoSrc: string;
+  whatsapp: string;
+  expediente: DiaExpediente[];
+  ausencias: AusenciaPro[];
+};
+
+function proVazio(): ProForm {
+  return {
+    nome: "",
+    cargo: "",
+    descricao: "",
+    fotoSrc: "",
+    whatsapp: "",
+    expediente: expedienteProPadrao(),
+    ausencias: [],
+  };
+}
 
 type FaqLivre = { titulo: string; itens: { pergunta: string; resposta: string }[] };
 
@@ -116,7 +148,7 @@ export function EstudioForm() {
     estado: string;
     cep: string;
     servicos: Array<{ nome: string; preco: string; duracao: string; descricao: string; imagemSrc: string }>;
-    pros: Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string; whatsapp: string; dias: string[] }>;
+    pros: ProForm[];
     expediente: DiaExpediente[];
     notasAgenda: NotaAgenda[];
     copia: CopiaViva | null;
@@ -136,7 +168,7 @@ export function EstudioForm() {
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
-  const [pros, setPros] = useState<Array<{ nome: string; cargo: string; descricao: string; fotoSrc: string; whatsapp: string; dias: string[] }>>([]);
+  const [pros, setPros] = useState<ProForm[]>([]);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
@@ -566,7 +598,7 @@ export function EstudioForm() {
       const chave = pessoa[2] as "nome" | "cargo" | "descricao";
       setPros((rows) => {
         const next = [...rows];
-        while (next.length <= i) next.push({ nome: "", cargo: "", descricao: "", fotoSrc: "", whatsapp: "", dias: ["seg", "ter", "qua", "qui", "sex"] });
+        while (next.length <= i) next.push(proVazio());
         next[i] = { ...next[i], [chave]: valor };
         return next;
       });
@@ -718,7 +750,7 @@ export function EstudioForm() {
     }
     const equipe = ((resultado.site.profissionais || {}) as { itens?: { nome?: string }[] }).itens || [];
     if (equipe.length && equipe.every((p) => p.nome === "Sem preferência")) {
-      setPros([{ nome: "", cargo: "", descricao: "", fotoSrc: "", whatsapp: "", dias: ["seg", "ter", "qua", "qui", "sex"] }]);
+      setPros([proVazio()]);
     }
     if (resultado.tocou.midia && siteVivo) {
       const logoAgora = String((((resultado.site.empresa || {}) as { logo?: { src?: string } }).logo || {}).src || "");
@@ -1022,9 +1054,7 @@ export function EstudioForm() {
   useEffect(() => {
     setVisual((v) => ({
       ...v,
-      agendaEquipe: pros
-        .filter((p) => p.nome.trim())
-        .map((p) => ({ nome: p.nome.trim(), dias: p.dias, inicio: "09:00", fim: "18:00" })),
+      agendaEquipe: pros.filter((p) => p.nome.trim()).map((p) => agendaProParaVisual(p.nome, p.expediente, p.ausencias)),
     }));
   }, [pros]);
 
@@ -1772,112 +1802,280 @@ export function EstudioForm() {
                   <div>
                     <h2 className="text-base font-semibold">Equipe e agenda</h2>
                     <p className="mt-1 text-sm text-muted">
-                      Cadastre quem atende, os dias de cada um e o WhatsApp. No site, o cliente escolhe a pessoa ao agendar.
+                      Horário por dia e ausências de cada pessoa. O site só oferece horários em que ela está disponível.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="rounded-full bg-ink px-4 py-2 text-sm text-white"
-                    onClick={() =>
-                      setPros((p) => [
-                        ...p,
-                        {
-                          nome: "",
-                          cargo: "",
-                          descricao: "",
-                          fotoSrc: "",
-                          whatsapp: "",
-                          dias: DIAS_SEMANA.filter((d) => d.dia !== "dom").map((d) => d.dia),
-                        },
-                      ])
-                    }
-                  >
+                  <button type="button" className="rounded-full bg-ink px-4 py-2 text-sm text-white" onClick={() => setPros((p) => [...p, proVazio()])}>
                     Incluir profissional
                   </button>
                 </div>
                 {pros.length === 0 ? (
                   <p className="mt-4 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
-                    Ninguém cadastrado ainda. O cliente pode agendar com “Sem preferência”.
+                    Ninguém cadastrado ainda. O cliente pode agendar com “Sem preferência”, usando o horário da casa.
                   </p>
                 ) : (
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 space-y-5">
                     {pros.map((p, i) => (
-                      <article key={`pro-${i}`} className="gx-card-in rounded-2xl border border-line p-4">
-                        <div className="flex gap-4">
-                          <label className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-2xl font-semibold text-ink/40">
-                            {p.fotoSrc ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <>
-                                <span>{(p.nome || "+").slice(0, 1)}</span>
-                                <span className="mt-1 text-[10px] font-medium">Foto</span>
-                              </>
-                            )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(ev) => {
-                                const f = ev.target.files?.[0];
-                                if (!f) return;
-                                void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
-                              }}
-                            />
-                          </label>
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <label className="block text-xs font-medium text-muted">
-                              Nome
-                              <input className={campo} value={p.nome} placeholder="Quem atende" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
-                            </label>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <label className="block text-xs font-medium text-muted">
-                                Função
-                                <input className={campo} value={p.cargo} placeholder={dicas.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
+                      <article key={`pro-${i}`} className="gx-card-in overflow-hidden rounded-2xl border border-line">
+                        <div className="border-b border-line bg-canvas/60 px-4 py-3 sm:px-5">
+                          <p className="text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
+                          <p className="text-xs text-muted">{p.cargo.trim() || "Preencha identidade, grade e ausências"}</p>
+                        </div>
+
+                        <div className="space-y-5 p-4 sm:p-5">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Identidade</p>
+                            <div className="mt-3 flex gap-4">
+                              <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-line bg-canvas text-2xl font-semibold text-ink/40">
+                                {p.fotoSrc ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <>
+                                    <span>+</span>
+                                    <span className="mt-1 text-[10px] font-medium">Foto</span>
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(ev) => {
+                                    const f = ev.target.files?.[0];
+                                    if (!f) return;
+                                    void arquivoParaDataUrl(f, 360).then((src) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))));
+                                  }}
+                                />
                               </label>
-                              <label className="block text-xs font-medium text-muted">
-                                WhatsApp desta pessoa
-                                <input className={campo} value={p.whatsapp} placeholder="Opcional" inputMode="tel" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))} />
-                              </label>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <label className="block text-xs font-medium text-muted">
+                                  Nome
+                                  <input className={campo} value={p.nome} placeholder="Quem atende" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
+                                </label>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  <label className="block text-xs font-medium text-muted">
+                                    Função
+                                    <input className={campo} value={p.cargo} placeholder={dicas.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
+                                  </label>
+                                  <label className="block text-xs font-medium text-muted">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <IconeRede id="whatsapp" className="h-3.5 w-3.5 text-[#128C7E]" />
+                                      WhatsApp desta pessoa
+                                    </span>
+                                    <input className={campo} value={p.whatsapp} placeholder="79 99999-0000" inputMode="tel" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))} />
+                                  </label>
+                                </div>
+                                <label className="block text-xs font-medium text-muted">
+                                  Sobre o atendimento
+                                  <textarea className={campo} rows={2} value={p.descricao} placeholder="Especialidade, estilo, experiência…" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
+                                </label>
+                              </div>
                             </div>
-                            <label className="block text-xs font-medium text-muted">
-                              Sobre o atendimento
-                              <textarea className={campo} rows={2} value={p.descricao} placeholder="Especialidade, estilo, experiência…" onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
-                            </label>
                           </div>
-                        </div>
-                        <div className="mt-3">
-                          <p className="text-xs font-medium text-muted">Dias em que atende</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {DIAS_SEMANA.map((d) => {
-                              const on = p.dias.includes(d.dia);
-                              return (
-                                <button
-                                  key={d.dia}
-                                  type="button"
-                                  className={`rounded-full px-3 py-1 text-xs ${on ? "bg-ink text-white" : "border border-line text-muted"}`}
-                                  onClick={() =>
-                                    setPros((rows) =>
-                                      rows.map((r, j) =>
-                                        j === i
-                                          ? {
-                                              ...r,
-                                              dias: on ? r.dias.filter((x) => x !== d.dia) : [...r.dias, d.dia],
-                                            }
-                                          : r,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  {d.curto}
-                                </button>
-                              );
-                            })}
+
+                          <div>
+                            <div className="flex flex-wrap items-end justify-between gap-2">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Grade semanal</p>
+                                <p className="mt-1 text-xs text-muted">Marque o dia e o intervalo em que esta pessoa atende.</p>
+                              </div>
+                              <button
+                                type="button"
+                                className="text-xs font-medium text-accent underline"
+                                onClick={() =>
+                                  setPros((rows) =>
+                                    rows.map((r, j) =>
+                                      j === i
+                                        ? {
+                                            ...r,
+                                            expediente: expediente.map((d) => ({ ...d })),
+                                          }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                              >
+                                Copiar horário da casa
+                              </button>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {p.expediente.map((dia) => (
+                                <div key={dia.dia} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-xl border border-line px-3 py-2 sm:gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={dia.aberto}
+                                    onChange={(e) =>
+                                      setPros((rows) =>
+                                        rows.map((r, j) =>
+                                          j === i
+                                            ? {
+                                                ...r,
+                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, aberto: e.target.checked } : d)),
+                                              }
+                                            : r,
+                                        ),
+                                      )
+                                    }
+                                    aria-label={`${dia.label} aberto`}
+                                  />
+                                  <span className={`text-sm ${dia.aberto ? "font-medium text-ink" : "text-muted"}`}>{dia.label}</span>
+                                  <input
+                                    type="time"
+                                    className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
+                                    value={dia.inicio}
+                                    disabled={!dia.aberto}
+                                    onChange={(e) =>
+                                      setPros((rows) =>
+                                        rows.map((r, j) =>
+                                          j === i
+                                            ? {
+                                                ...r,
+                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, inicio: e.target.value } : d)),
+                                              }
+                                            : r,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                  <input
+                                    type="time"
+                                    className="rounded-lg border border-line px-2 py-1.5 text-sm disabled:opacity-40"
+                                    value={dia.fim}
+                                    disabled={!dia.aberto}
+                                    onChange={(e) =>
+                                      setPros((rows) =>
+                                        rows.map((r, j) =>
+                                          j === i
+                                            ? {
+                                                ...r,
+                                                expediente: r.expediente.map((d) => (d.dia === dia.dia ? { ...d, fim: e.target.value } : d)),
+                                              }
+                                            : r,
+                                        ),
+                                      )
+                                    }
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-[11px] text-muted">{resumoDoExpediente(p.expediente)}</p>
                           </div>
+
+                          <div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Ausências</p>
+                                <p className="mt-1 text-xs text-muted">Férias, folga, consulta — nesses dias o site não oferece esta pessoa.</p>
+                              </div>
+                              <button
+                                type="button"
+                                className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
+                                onClick={() =>
+                                  setPros((rows) =>
+                                    rows.map((r, j) =>
+                                      j === i
+                                        ? {
+                                            ...r,
+                                            ausencias:
+                                              r.ausencias.length >= 6
+                                                ? r.ausencias
+                                                : [...r.ausencias, { de: "", ate: "", motivo: "Ausente" }],
+                                          }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                              >
+                                Incluir ausência
+                              </button>
+                            </div>
+                            <div className="mt-3 space-y-3">
+                              {p.ausencias.length === 0 ? (
+                                <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">Nenhuma ausência cadastrada.</p>
+                              ) : null}
+                              {p.ausencias.map((a, ai) => (
+                                <div key={`aus-${i}-${ai}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
+                                  <label className="block text-xs font-medium text-muted">
+                                    De
+                                    <input
+                                      type="date"
+                                      className={campo}
+                                      value={a.de}
+                                      onChange={(e) =>
+                                        setPros((rows) =>
+                                          rows.map((r, j) =>
+                                            j === i
+                                              ? {
+                                                  ...r,
+                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, de: e.target.value, ate: x.ate || e.target.value } : x)),
+                                                }
+                                              : r,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <label className="block text-xs font-medium text-muted">
+                                    Até
+                                    <input
+                                      type="date"
+                                      className={campo}
+                                      value={a.ate || a.de}
+                                      min={a.de || undefined}
+                                      onChange={(e) =>
+                                        setPros((rows) =>
+                                          rows.map((r, j) =>
+                                            j === i
+                                              ? {
+                                                  ...r,
+                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, ate: e.target.value } : x)),
+                                                }
+                                              : r,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <label className="block text-xs font-medium text-muted sm:col-span-2">
+                                    Motivo (aparece se o cliente escolher este dia)
+                                    <input
+                                      className={campo}
+                                      value={a.motivo}
+                                      placeholder="Ex.: férias · folga · consulta médica"
+                                      onChange={(e) =>
+                                        setPros((rows) =>
+                                          rows.map((r, j) =>
+                                            j === i
+                                              ? {
+                                                  ...r,
+                                                  ausencias: r.ausencias.map((x, k) => (k === ai ? { ...x, motivo: e.target.value } : x)),
+                                                }
+                                              : r,
+                                          ),
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-muted"
+                                    onClick={() =>
+                                      setPros((rows) =>
+                                        rows.map((r, j) => (j === i ? { ...r, ausencias: r.ausencias.filter((_, k) => k !== ai) } : r)),
+                                      )
+                                    }
+                                  >
+                                    Remover ausência
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button type="button" className="text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
+                            Remover profissional
+                          </button>
                         </div>
-                        <button type="button" className="mt-3 text-xs text-muted underline" onClick={() => setPros((rows) => rows.filter((_, j) => j !== i))}>
-                          Remover profissional
-                        </button>
                       </article>
                     ))}
                   </div>

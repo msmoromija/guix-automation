@@ -34,7 +34,15 @@ export interface VisualConfig {
   rotulosRede?: Record<string, string>;
   presetId?: string;
   /** Agenda por profissional — fora do schema congelado. */
-  agendaEquipe?: Array<{ nome: string; dias: string[]; inicio?: string; fim?: string; nota?: string }>;
+  agendaEquipe?: Array<{
+    nome: string;
+    /** Legado: só ids de dia. Novo: grade com início/fim. */
+    dias: Array<string | { dia: string; inicio: string; fim: string }>;
+    inicio?: string;
+    fim?: string;
+    nota?: string;
+    ausencias?: Array<{ de: string; ate: string; motivo: string }>;
+  }>;
 }
 
 export interface Paleta {

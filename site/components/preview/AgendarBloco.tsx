@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { intervalosDoDia } from "@/lib/estudio/expediente";
+import {
+  intervalosDoDia,
+  intervalosDoProfissional,
+  normalizarAgendaPro,
+  type AgendaProVisual,
+} from "@/lib/estudio/expediente";
 
 type Servico = { id?: string; nome?: string; preco_label?: string; duracao_label?: string };
 type Pro = { id?: string; nome?: string; cargo?: string; whatsapp?: string };
@@ -23,7 +28,13 @@ export function AgendarBloco({
   servicos: Servico[];
   profissionais: Pro[];
   expediente: Expediente[];
-  agendaEquipe?: Array<{ nome: string; dias: string[] }>;
+  agendaEquipe?: Array<{
+    nome: string;
+    dias: Array<string | { dia: string; inicio?: string; fim?: string }>;
+    inicio?: string;
+    fim?: string;
+    ausencias?: Array<{ de: string; ate: string; motivo: string }>;
+  }>;
   whatsapp?: string;
   fechado?: string;
   studio?: boolean;
@@ -37,17 +48,30 @@ export function AgendarBloco({
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
 
-  const slots = useMemo(() => {
-    if (!data) return null;
-    const base = intervalosDoDia(expediente, data);
-    if (!base) return null;
-    if (!pro || pro === "Sem preferência" || !agendaEquipe?.length) return base;
-    const agenda = agendaEquipe.find((a) => a.nome === pro);
-    if (!agenda?.dias?.length) return base;
-    const js = new Date(Number(data.slice(0, 4)), Number(data.slice(5, 7)) - 1, Number(data.slice(8, 10))).getDay();
-    const mapa = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
-    return agenda.dias.includes(mapa[js] || "") ? base : null;
-  }, [data, expediente, pro, agendaEquipe]);
+  const agendas = useMemo(() => {
+    const map = new Map<string, AgendaProVisual>();
+    for (const a of agendaEquipe || []) {
+      if (!a.nome) continue;
+      map.set(a.nome, normalizarAgendaPro(a));
+    }
+    return map;
+  }, [agendaEquipe]);
+
+  const disponibilidade = useMemo(() => {
+    if (!data) return { slots: null as string[] | null, motivo: "" };
+    if (!pro || pro === "Sem preferência") {
+      const base = intervalosDoDia(expediente, data);
+      return { slots: base, motivo: base ? "" : fechado || "Fechado neste dia." };
+    }
+    const agenda = agendas.get(pro);
+    const r = intervalosDoProfissional(expediente, agenda, data);
+    return {
+      slots: r.slots,
+      motivo: r.motivo || fechado || "Fechado neste dia.",
+    };
+  }, [data, expediente, pro, agendas, fechado]);
+
+  const slots = disponibilidade.slots;
   const hoje = new Date().toISOString().slice(0, 10);
 
   function enviar() {
@@ -112,7 +136,10 @@ export function AgendarBloco({
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setPro("Sem preferência")}
+              onClick={() => {
+                setPro("Sem preferência");
+                setHora("");
+              }}
               className="rounded-full border px-3 py-1.5 text-sm"
               style={{
                 borderColor: pro === "Sem preferência" ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
@@ -125,7 +152,10 @@ export function AgendarBloco({
               <button
                 key={p.id || p.nome}
                 type="button"
-                onClick={() => setPro(p.nome || "")}
+                onClick={() => {
+                  setPro(p.nome || "");
+                  setHora("");
+                }}
                 className="rounded-full border px-3 py-1.5 text-sm"
                 style={{
                   borderColor: pro === p.nome ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
@@ -166,7 +196,7 @@ export function AgendarBloco({
               </p>
             ) : !slots ? (
               <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                {fechado || "Fechado neste dia. Combine o horário no WhatsApp."}
+                {disponibilidade.motivo || fechado || "Fechado neste dia. Combine o horário no WhatsApp."}
               </p>
             ) : (
               <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
