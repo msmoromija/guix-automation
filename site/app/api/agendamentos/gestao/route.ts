@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
         telefone: ag.telefone,
         criadoEm: ag.criadoEm,
         respostaNota: ag.respostaNota,
+        observacao: ag.observacao,
         manageToken: ag.manageToken,
       })),
     });

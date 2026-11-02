@@ -370,8 +370,9 @@ export async function POST(req: NextRequest) {
       expiraEm,
       horas: Math.round(PROTOTIPO_TTL_MS / 3600000),
       visualizarUrl: `/visualizar/${token}`,
-      contaUrl: `/conta/${token}?t=${token}`,
+      contaUrl: `/conta/${token}?t=${token}&novo=1`,
       downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
+      extratoUrl: `/conta/${token}/extrato?t=${token}`,
       avisos: gerado.avisos,
     });
   } catch (e) {

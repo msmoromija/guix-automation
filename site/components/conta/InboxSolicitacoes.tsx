@@ -16,6 +16,7 @@ type Item = {
   criadoEm: string;
   manageToken: string;
   respostaNota?: string;
+  observacao?: string;
 };
 
 const campo =
@@ -134,6 +135,12 @@ export function InboxSolicitacoes({ siteId, token }: { siteId: string; token: st
             <dt className="text-[11px] uppercase tracking-wide text-muted">Serviço</dt>
             <dd className="font-medium">{item.servico}</dd>
           </div>
+          {item.observacao ? (
+            <div className="sm:col-span-2">
+              <dt className="text-[11px] uppercase tracking-wide text-muted">Observação do cliente</dt>
+              <dd className="font-medium">{item.observacao}</dd>
+            </div>
+          ) : null}
         </dl>
         {pendente ? (
           <div className="mt-4 space-y-3">

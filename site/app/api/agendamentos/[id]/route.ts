@@ -8,9 +8,9 @@ import {
 } from "@/lib/agendamentos/cofre";
 import { ANTECEDENCIA_CANCEL_HORAS, rotuloStatus } from "@/lib/agendamentos/tipos";
 import {
-  enviarEmailCliente,
   enviarEmailNegocio,
   linkWhatsappNegocio,
+  notificarClienteResposta,
   urlCancelamento,
   urlGestao,
 } from "@/lib/agendamentos/notificar";
@@ -85,12 +85,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const res = await responderAgendamento(siteId, id, tokenGestao, acao, nota);
     if (!res.ok) return NextResponse.json({ erro: res.erro }, { status: 400 });
     const tipo = acao === "aceitar" ? "confirmado" : "recusado";
-    await enviarEmailCliente(res.ag, tipo);
+    const enviosCliente = await notificarClienteResposta(res.ag, tipo);
     return NextResponse.json({
       ok: true,
       status: res.ag.status,
       statusRotulo: rotuloStatus(res.ag.status),
       whatsappUrl: linkWhatsappNegocio(res.ag, tipo),
+      enviosCliente,
     });
   }
 

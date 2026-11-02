@@ -1,3 +1,4 @@
+import { enviarSmsTexto } from "./sms";
 import type { Agendamento } from "./tipos";
 import { rotuloStatus } from "./tipos";
 
@@ -34,6 +35,7 @@ export function mensagemAgendamento(ag: Agendamento, tipo: TipoAvisoAgenda) {
     `Dia: ${ag.data.split("-").reverse().join("/")}`,
     `Horário: ${ag.hora}`,
   ];
+  if (ag.observacao) linhas.push(`Observação do cliente: ${ag.observacao}`);
   if (ag.respostaNota) linhas.push(`Nota: ${ag.respostaNota}`);
   if (tipo === "solicitacao") {
     linhas.push(`Responder (aceitar/recusar): ${urlGestao(ag)}`);
@@ -113,4 +115,50 @@ export async function enviarEmailCliente(ag: Agendamento, tipo: TipoAvisoAgenda)
         ? `Horário indisponível — ${ag.negocioNome}`
         : `Atualização do agendamento — ${ag.negocioNome}`;
   return enviarResend({ para, assunto, texto: mensagemAgendamento(ag, tipo) });
+}
+
+async function enviarWhatsappTexto(telefoneDigitos: string, mensagem: string) {
+  const url = (process.env.AGENDAR_WHATSAPP_OTP_URL || process.env.GUIX_WHATSAPP_NOTIFY_URL || "").trim();
+  if (!url) {
+    const tel = telefoneDigitos.startsWith("55") ? telefoneDigitos : `55${telefoneDigitos}`;
+    return {
+      ok: false as const,
+      motivo: "WhatsApp webhook ausente",
+      waMe: `https://wa.me/${tel}?text=${encodeURIComponent(mensagem)}`,
+    };
+  }
+  const token = (process.env.AGENDAR_WHATSAPP_OTP_TOKEN || process.env.GUIX_WHATSAPP_NOTIFY_TOKEN || "").trim();
+  const tel = telefoneDigitos.startsWith("55") ? telefoneDigitos : `55${telefoneDigitos}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ telefone: tel, mensagem, tipo: "agendamento_cliente" }),
+    });
+    if (!res.ok) return { ok: false as const, motivo: (await res.text()).slice(0, 160), waMe: "" };
+    return { ok: true as const, waMe: "" };
+  } catch (e) {
+    return { ok: false as const, motivo: e instanceof Error ? e.message : "Falha WA", waMe: "" };
+  }
+}
+
+/** Avisa o cliente por e-mail + SMS + WhatsApp (quando configurados). */
+export async function notificarClienteResposta(ag: Agendamento, tipo: "confirmado" | "recusado") {
+  const texto = mensagemAgendamento(ag, tipo);
+  const email = await enviarEmailCliente(ag, tipo);
+  const digitos = String(ag.telefone || "").replace(/\D/g, "");
+  let sms: { ok: boolean; motivo?: string } = { ok: false, motivo: "Telefone ausente" };
+  let whatsapp: { ok: boolean; motivo?: string; waMe?: string } = { ok: false, motivo: "Telefone ausente" };
+  if (digitos.length >= 10) {
+    const smsMsg =
+      tipo === "confirmado"
+        ? `GuiX: ${ag.negocioNome} confirmou ${ag.data.split("-").reverse().join("/")} as ${ag.hora}. ${urlCancelamento(ag)}`
+        : `GuiX: ${ag.negocioNome} nao pode no horario ${ag.data.split("-").reverse().join("/")} ${ag.hora}. Escolha outro no site.`;
+    sms = await enviarSmsTexto({ telefoneDigitos: digitos, mensagem: smsMsg });
+    whatsapp = await enviarWhatsappTexto(digitos, texto);
+  }
+  return { email, sms, whatsapp };
 }

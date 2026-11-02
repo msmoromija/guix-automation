@@ -1091,7 +1091,8 @@ export function EstudioForm() {
         setErro(data.erro || "Não foi possível gerar o protótipo.");
         return;
       }
-      router.push(`/visualizar/${data.token}`);
+      const t = String(data.token || "");
+      router.push(data.contaUrl || `/conta/${t}?t=${encodeURIComponent(t)}&novo=1`);
     } catch {
       setErro("Falha de conexão. Tente de novo.");
     } finally {

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     const negocioWhatsapp = String(body.negocioWhatsapp || "").replace(/\D/g, "");
     const negocioEmail = String(body.negocioEmail || "").trim();
     const nicho = String(body.nicho || "").trim().slice(0, 40);
+    const observacao = String(body.observacao || "").trim().slice(0, 280);
 
     if (!siteId) return NextResponse.json({ erro: "Site inválido." }, { status: 400 });
     const sessao = await validarSessaoCliente(siteId, sessaoToken);
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
       nomeCompleto,
       email,
       telefone,
+      observacao: observacao || undefined,
       status: "pendente",
       criadoEm: new Date().toISOString(),
     };

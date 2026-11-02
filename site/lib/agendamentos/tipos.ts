@@ -22,6 +22,8 @@ export type Agendamento = {
   nomeCompleto: string;
   email: string;
   telefone: string;
+  /** Pedido livre do cliente (alergia, preferência, etc.). */
+  observacao?: string;
   status: StatusAgendamento;
   criadoEm: string;
   canceladoEm?: string;

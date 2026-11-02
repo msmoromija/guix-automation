@@ -175,11 +175,17 @@ function ExtratoInner() {
       </article>
 
       <div className="mt-6 flex flex-wrap gap-3 print:hidden">
-        <button type="button" onClick={() => void baixarPng()} className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white">
+        <a
+          href={`/api/prototipo/${dados.id}/extrato.pdf?t=${encodeURIComponent(token)}`}
+          className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white"
+        >
+          Baixar PDF
+        </a>
+        <button type="button" onClick={() => void baixarPng()} className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold">
           Baixar imagem PNG
         </button>
         <button type="button" onClick={imprimirPdf} className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold">
-          Imprimir / salvar PDF
+          Imprimir
         </button>
         <Link href={dados.contratarUrl} className="rounded-full bg-orange-400 px-5 py-2.5 text-sm font-semibold text-slate-950">
           Comprar · PIX ou cartão

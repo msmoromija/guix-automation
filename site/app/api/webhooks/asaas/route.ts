@@ -1,9 +1,9 @@
 import { timingSafeEqual } from "crypto";
 import { marcarPreviewPago } from "@/lib/previews/store";
-import { atualizarStatusJob } from "@/lib/prototipos/ops";
-import { gravarPacote, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
+import { executarPosPagamento } from "@/lib/automacao/pos-pagamento";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function tokenConfere(recebido: string, esperado: string) {
   const a = Buffer.from(recebido);
@@ -38,6 +38,7 @@ export async function POST(requisicao: Request) {
   const ref = corpo.payment?.externalReference || "";
   console.info(`asaas ${corpo.id ?? "sem-evento"} ${evento} ${pagamento} ${status} ${ref}`);
 
+  let pos: unknown = null;
   if (PAGOS.has(status) && pagamento !== "sem-id") {
     const pv = ref.startsWith("pv:") ? ref.split(":")[1] : "";
     if (pv) {
@@ -47,21 +48,13 @@ export async function POST(requisicao: Request) {
         console.error("preview pago", e);
       }
       try {
-        await atualizarStatusJob(pv, "pago");
-      } catch {
-        /* ops opcional */
-      }
-      try {
-        const tok = sanitizarToken(pv);
-        const pacote = await lerPacote(tok);
-        if (pacote) {
-          await gravarPacote({ ...pacote, status: "pago" });
-        }
+        pos = await executarPosPagamento({ previewId: pv, cobrancaId: pagamento });
       } catch (e) {
-        console.error("pacote pago", e);
+        console.error("pos pagamento", e);
+        pos = { ok: false, erro: e instanceof Error ? e.message : "falha" };
       }
     }
   }
 
-  return Response.json({ received: true });
+  return Response.json({ received: true, pos });
 }

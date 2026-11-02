@@ -30,6 +30,7 @@ function Conta() {
   const params = useParams<{ id: string }>();
   const sp = useSearchParams();
   const token = sp.get("t") || "";
+  const novo = sp.get("novo") === "1";
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
   const [origem, setOrigem] = useState("");
@@ -129,6 +130,28 @@ function Conta() {
           </>
         ) : null}
       </p>
+
+      {novo ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-950">
+          <p className="font-semibold">Protótipo pronto</p>
+          <p className="mt-1">
+            Token: <strong className="font-mono tracking-wide">{dados.id}</strong> — guarde este link. Aprove abaixo para
+            receber o token no e-mail/SMS/WhatsApp, baixar o extrato e contratar com PIX ou cartão.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href={`/visualizar/${dados.id}`} className="font-semibold text-accent underline">
+              Abrir preview do site
+            </Link>
+            <button
+              type="button"
+              className="font-semibold text-accent underline"
+              onClick={() => void navigator.clipboard.writeText(dados.id)}
+            >
+              Copiar token
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-8">
         <AprovarPrototipo

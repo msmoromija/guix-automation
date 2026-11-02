@@ -101,6 +101,7 @@ export function AgendarBloco({
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
   const [cancelUrl, setCancelUrl] = useState("");
+  const [observacao, setObservacao] = useState("");
 
   useEffect(() => {
     setSessao(lerSessao(siteId));
@@ -304,6 +305,7 @@ export function AgendarBloco({
           negocioNome: negocioNome || "Negócio",
           negocioWhatsapp: whatsapp || "",
           negocioEmail: emailNegocio || "",
+          observacao: observacao.trim(),
         }),
       });
       const j = (await res.json()) as {
@@ -594,6 +596,20 @@ export function AgendarBloco({
                 )}
               </div>
             </div>
+
+            <label className="block text-sm">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                05 · Observação para o profissional
+              </span>
+              <textarea
+                rows={2}
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value.slice(0, 280))}
+                placeholder="Ex.: preferência de horário, alergia, primeira visita…"
+                className={campo}
+                style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+              />
+            </label>
 
             <button
               type="button"
