@@ -1417,18 +1417,20 @@ export function EstudioForm() {
                 </div>
 
                 <div className="gx-form-card p-5 sm:p-6">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">Horário de trabalho</h3>
-                      <p className="mt-1 text-xs text-muted">Marque os dias, o expediente e a pausa de almoço — o agendar respeita os buracos.</p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-semibold tracking-tight">Horário de trabalho</h3>
+                      <p className="mt-1 text-sm text-muted">Toque nos dias, defina o expediente uma vez e, se quiser, a pausa de almoço.</p>
                     </div>
-                    <p className="max-w-[13rem] text-right text-[11px] text-muted">{horario}</p>
+                    <p className="max-w-[14rem] rounded-full bg-slate-50 px-3 py-1.5 text-right text-[11px] font-medium text-muted shadow-sm ring-1 ring-line/70">
+                      {horario}
+                    </p>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-5">
                     <GradeExpediente value={expediente} onChange={setExpediente} />
                   </div>
-                  <label className="mt-4 block text-xs font-medium text-muted">
-                    Resumo no site (opcional)
+                  <label className="mt-5 block text-xs font-medium text-muted">
+                    Texto no site (opcional)
                     <input className={campo} value={horario} onChange={(e) => setHorario(e.target.value.slice(0, 160))} placeholder="Segunda a sexta, 9h às 18h (almoço 12h–13h)" />
                   </label>
                 </div>

@@ -74,12 +74,13 @@ html {
 }
 
 .gx-form-card {
-  border-radius: 1rem;
-  border: 1px solid var(--color-line);
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 88%, #94a3b8);
   background: #fff;
   box-shadow:
-    0 14px 36px -22px rgba(15, 23, 42, 0.45),
-    0 4px 12px -6px rgba(15, 23, 42, 0.12);
+    0 22px 48px -28px rgba(15, 23, 42, 0.55),
+    0 10px 24px -16px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
   transition:
     box-shadow 0.28s ease,
     transform 0.28s ease,
@@ -128,17 +129,305 @@ html {
   animation: gx-rise 0.35s ease both;
 }
 
+.gx-grade-exp {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.gx-grade-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.gx-dia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 6px 16px -12px rgba(15, 23, 42, 0.35);
+  transition:
+    background 0.22s ease,
+    color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s ease;
+  animation: gx-rise 0.4s ease both;
+}
+
+.gx-dia-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-line));
+}
+
+.gx-dia-chip.is-on {
+  background: color-mix(in srgb, var(--color-accent) 12%, white);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, white);
+  color: var(--color-ink);
+  box-shadow:
+    0 10px 22px -14px rgba(234, 88, 12, 0.55),
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.gx-dia-chip__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.2s ease;
+}
+
+.gx-dia-chip.is-on .gx-dia-chip__dot {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.gx-grade-painel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background:
+    linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  box-shadow:
+    0 16px 34px -24px rgba(15, 23, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: gx-pop 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.gx-grade-linha,
+.gx-grade-almoco {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.gx-grade-rotulo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.gx-grade-horas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.55rem;
+}
+
+.gx-grade-campo {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.gx-grade-sep {
+  align-self: end;
+  padding-bottom: 0.55rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.gx-grade-almoco {
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px dashed #cbd5e1;
+  background: #fff;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.gx-grade-almoco.is-on {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, #cbd5e1);
+  background: color-mix(in srgb, var(--color-accent) 8%, white);
+  box-shadow: 0 10px 24px -18px rgba(234, 88, 12, 0.5);
+}
+
+.gx-grade-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: min(100%, 16rem);
+  cursor: pointer;
+}
+
+.gx-grade-toggle input {
+  margin-top: 0.2rem;
+}
+
+.gx-grade-toggle strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+
+.gx-grade-toggle em {
+  display: block;
+  margin-top: 0.1rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+}
+
+.gx-grade-horas--almoco {
+  opacity: 0.4;
+  filter: grayscale(0.4);
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    filter 0.25s ease;
+}
+
+.gx-grade-horas--almoco.is-visivel {
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+}
+
+.gx-grade-detalhe {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 80%, transparent);
+  padding-top: 0.55rem;
+}
+
+.gx-grade-detalhe__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  transition: color 0.2s ease;
+}
+
+.gx-grade-detalhe__btn:hover {
+  color: var(--color-ink);
+}
+
+.gx-grade-tabela {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  animation: gx-rise 0.35s ease both;
+}
+
+.gx-grade-linha-dia {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  background: #fff;
+  opacity: 0.55;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gx-grade-linha-dia.is-on {
+  opacity: 1;
+  border-color: var(--color-line);
+  box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.45);
+}
+
+.gx-grade-dia-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.gx-grade-horas--mini {
+  align-items: center;
+}
+
+.gx-grade-horas--mini .gx-grade-sep {
+  padding-bottom: 0;
+}
+
+.gx-grade-mini-almoco {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: end;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.gx-grade-fechado {
+  justify-self: end;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.gx-grade-vazio {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  border: 1px dashed var(--color-line);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+.gx-grade-exp--compacto .gx-dia-chip {
+  min-height: 2.1rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+}
+
+.gx-grade-exp--compacto .gx-grade-painel {
+  padding: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .gx-grade-linha-dia {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .gx-grade-mini-almoco,
+  .gx-grade-fechado {
+    justify-self: start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gx-form-card,
   .gx-dia-row,
   .gx-almoco,
+  .gx-dia-chip,
+  .gx-grade-painel,
+  .gx-grade-tabela,
   .gx-step,
   .gx-card-in,
   .gx-pulse-cep {
     animation: none !important;
   }
 
-  .gx-form-card:focus-within {
+  .gx-form-card:focus-within,
+  .gx-dia-chip:hover {
     transform: none;
   }
 }

@@ -294,3 +294,31 @@ export function aplicarAlmocoNosAbertos(dias: DiaExpediente[], ligado: boolean, 
       : { ...d, pausa: false },
   );
 }
+
+/** Espelha horário de abertura/fechamento em todos os dias abertos. */
+export function aplicarExpedienteNosAbertos(dias: DiaExpediente[], inicio: string, fim: string): DiaExpediente[] {
+  return dias.map((d) => (d.aberto ? { ...d, inicio, fim } : d));
+}
+
+export function horarioCompartilhado(dias: DiaExpediente[]) {
+  const abertos = dias.filter((d) => d.aberto);
+  if (!abertos.length) {
+    return { inicio: "09:00", fim: "18:00", pausa: false, pausaInicio: "12:00", pausaFim: "13:00", homogeneo: true };
+  }
+  const ref = abertos[0];
+  const homogeneo = abertos.every(
+    (d) =>
+      d.inicio === ref.inicio &&
+      d.fim === ref.fim &&
+      d.pausa === ref.pausa &&
+      (!d.pausa || (d.pausaInicio === ref.pausaInicio && d.pausaFim === ref.pausaFim)),
+  );
+  return {
+    inicio: ref.inicio,
+    fim: ref.fim,
+    pausa: abertos.every((d) => d.pausa),
+    pausaInicio: ref.pausaInicio || "12:00",
+    pausaFim: ref.pausaFim || "13:00",
+    homogeneo,
+  };
+}
