@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SiteLivePreview } from "@/components/preview/SiteLivePreview";
+import type { VisualConfig } from "@/lib/estudio/visual";
 
 export default function VisualizarRascunhoPage() {
   const params = useParams<{ token: string }>();
   const token = String(params.token || "").toLowerCase();
   const [site, setSite] = useState<Record<string, unknown> | null>(null);
+  const [visual, setVisual] = useState<VisualConfig | undefined>();
   const [meta, setMeta] = useState<{
     nome?: string;
     nicho?: string;
@@ -42,6 +44,7 @@ export default function VisualizarRascunhoPage() {
       setNome(ja.nome || "");
       setCidade(ja.cidade || "");
       if (jb.site) setSite(jb.site);
+      if (jb.visual) setVisual(jb.visual);
     })();
   }, [token]);
 
@@ -155,7 +158,7 @@ export default function VisualizarRascunhoPage() {
         </button>
       </form>
 
-      <SiteLivePreview site={site} />
+      <SiteLivePreview site={site as Parameters<typeof SiteLivePreview>[0]["site"]} visual={visual} />
     </div>
   );
 }

@@ -17,5 +17,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     status: "rascunho",
     expiraEm: pacote.expiraEm,
     site: pacote.site,
+    visual: pacote.visual,
   });
 }

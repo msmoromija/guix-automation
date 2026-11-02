@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gerarSiteCliente } from "@/lib/automacao/gerar-site";
+import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import type { Nicho } from "@/lib/media/tipos";
 import {
   gravarPacote,
-  horasRestantes,
   novoToken,
   PROTOTIPO_TTL_MS,
   sanitizarToken,
@@ -55,6 +56,12 @@ export async function POST(req: NextRequest) {
     const cidade = String(body.cidade || "").trim() || undefined;
     const whatsapp = String(body.whatsapp || "").trim() || undefined;
     const email = String(body.email || "").trim() || undefined;
+    const slogan = String(body.slogan || "").trim() || undefined;
+    const instagram = String(body.instagram || "").trim() || undefined;
+    const visual: VisualConfig = { ...visualPadrao(nicho), ...(body.visual || {}) };
+    const logoSrc = sanitizarLogoSrc(body.logoSrc);
+    const servicos = Array.isArray(body.servicos) ? body.servicos : [];
+    const profissionais = Array.isArray(body.profissionais) ? body.profissionais : [];
 
     if (!nome || nome.length < 2) {
       return NextResponse.json({ erro: "informe o nome do negócio" }, { status: 400 });
@@ -68,10 +75,28 @@ export async function POST(req: NextRequest) {
       clienteId: `t${token}`,
       nicho,
       nome,
+      slogan,
       cidade,
       whatsapp,
       email,
+      instagram,
       tom: "profissional e acolhedor",
+    });
+    aplicarEstudio(gerado.site, {
+      entrada: {
+        clienteId: `t${token}`,
+        nicho,
+        nome,
+        slogan,
+        cidade,
+        whatsapp,
+        email,
+        instagram,
+      },
+      visual,
+      logoSrc,
+      servicos,
+      profissionais,
     });
 
     const agora = Date.now();
@@ -85,6 +110,8 @@ export async function POST(req: NextRequest) {
       criadoEm: new Date(agora).toISOString(),
       expiraEm: new Date(agora + PROTOTIPO_TTL_MS).toISOString(),
       site: gerado.site,
+      visual,
+      slogan,
     });
 
     return NextResponse.json({

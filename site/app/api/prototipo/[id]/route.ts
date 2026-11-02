@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
-import { aplicarDadosCliente } from "@/lib/automacao/aplicar-cliente";
+import { aplicarEstudio, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import type { Nicho } from "@/lib/media/tipos";
 
 export const runtime = "nodejs";
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
     demoUrl: `/casas/${pacote.nicho}/`,
     contratarUrl: `/contratar?plano=simples&nicho=${pacote.nicho}&preview=${token}&t=${token}`,
+    visual: pacote.visual,
     resumo: {
       empresa: empresa?.nome || pacote.nome,
       slogan: empresa?.slogan,
@@ -60,13 +62,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const nome = String(body.nome || pacote.nome).trim();
   const cidade = String(body.cidade || pacote.cidade || "").trim() || undefined;
   const whatsapp = String(body.whatsapp || pacote.whatsapp || "").trim() || undefined;
+  const slogan = String(body.slogan || pacote.slogan || "").trim() || undefined;
+  const visual: VisualConfig = {
+    ...visualPadrao(pacote.nicho),
+    ...(pacote.visual || {}),
+    ...(body.visual || {}),
+  };
 
-  let site = aplicarDadosCliente(pacote.site, {
-    clienteId: `t${token}`,
-    nicho: pacote.nicho as Nicho,
-    nome,
-    cidade,
-    whatsapp,
+  const site = aplicarEstudio(pacote.site, {
+    entrada: {
+      clienteId: `t${token}`,
+      nicho: pacote.nicho as Nicho,
+      nome,
+      cidade,
+      whatsapp,
+      slogan,
+    },
+    visual,
+    logoSrc: sanitizarLogoSrc(body.logoSrc),
   });
 
   const atualizado = {
@@ -74,6 +87,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     nome,
     cidade,
     whatsapp,
+    slogan,
+    visual,
     site,
   };
   await gravarPacote(atualizado);

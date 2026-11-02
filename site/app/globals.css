@@ -17,6 +17,26 @@ html {
   scroll-behavior: smooth;
 }
 
+[data-anim="media"] h1,
+[data-anim="intensa"] h1 {
+  animation: gx-rise 0.7s ease both;
+}
+
+[data-anim="intensa"] header {
+  animation: gx-rise 0.45s ease both;
+}
+
+@keyframes gx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);

@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { baixarObjeto, enviarBuffer } from "@/lib/media/r2";
+import type { VisualConfig } from "@/lib/estudio/visual";
 import type { Nicho } from "@/lib/media/tipos";
 
 /** Rascunho grátis: só JSON + token. Nada fica “no ar”. */
@@ -15,6 +16,8 @@ export interface PacotePrototipo {
   criadoEm: string;
   expiraEm: string;
   site: Record<string, unknown>;
+  visual?: VisualConfig;
+  slogan?: string;
 }
 
 function chave(token: string) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { googleFontsHref, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+
 type Img = { src?: string; alt?: string; origem?: string; credito?: { texto?: string; perfil_url?: string; fotografo?: string } };
 type ItemServico = {
   id?: string;
@@ -21,6 +23,7 @@ type Site = {
     horario_resumo?: string;
     endereco?: { completo?: string };
     logo?: Img;
+    redes?: { id?: string; url?: string; label?: string }[];
   };
   tema?: {
     color_primary?: string;
@@ -30,6 +33,8 @@ type Site = {
     color_surface?: string;
     color_text?: string;
     color_text_muted?: string;
+    font_heading?: string;
+    font_body?: string;
     radius?: string;
   };
   header?: { botao_agendar?: string; menu?: { id: string; label: string; href: string }[] };
@@ -97,9 +102,13 @@ function wa(digitos?: string, msg?: string) {
 }
 
 /** Vitrine ao vivo a partir do site.json do cliente. */
-export function SiteLivePreview({ site }: { site: Site }) {
+export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualConfig }) {
+  const vis = visual || visualPadrao();
   const t = site.tema || {};
   const e = site.empresa || {};
+  const heading = t.font_heading || "Oswald";
+  const body = t.font_body || "Manrope";
+  const ig = e.redes?.find((r) => r.id === "instagram");
   const style = {
     ["--p"]: t.color_primary || "#111",
     ["--s"]: t.color_secondary || "#C6A15B",
@@ -111,27 +120,44 @@ export function SiteLivePreview({ site }: { site: Site }) {
     ["--r"]: raio[t.radius || "sm"] || "8px",
   } as React.CSSProperties;
 
+  const marca = (
+    <span className={`flex min-w-0 items-center gap-2 ${vis.cabecalho === "centralizado" ? "flex-col text-center" : ""}`}>
+      {e.logo?.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={e.logo.src} alt={e.logo.alt || e.nome || ""} className="h-9 max-w-[160px] object-contain" />
+      ) : (
+        <strong className="truncate text-sm tracking-wide" style={{ fontFamily: heading }}>
+          {e.nome}
+        </strong>
+      )}
+      {vis.cabecalho === "logo-slogan" && e.slogan ? (
+        <span className="hidden truncate text-xs opacity-70 sm:block">{e.slogan}</span>
+      ) : e.logo?.src ? (
+        <strong className="truncate text-sm tracking-wide" style={{ fontFamily: heading }}>
+          {e.nome}
+        </strong>
+      ) : null}
+    </span>
+  );
+
   return (
-    <div
-      style={style}
-      className="overflow-hidden"
-      data-preview="site"
-    >
+    <div style={style} className="overflow-hidden" data-preview="site" data-anim={vis.animacao}>
+      {/* eslint-disable-next-line @next/next/no-css-tags */}
+      <link rel="stylesheet" href={googleFontsHref(vis)} />
       <div
+        className="relative"
         style={{
           background: "var(--bg)",
           color: "var(--tx)",
-          fontFamily: "system-ui, sans-serif",
+          fontFamily: `${body}, system-ui, sans-serif`,
         }}
       >
-        <header className="flex items-center justify-between gap-3 px-4 py-3 md:px-8">
-          <span className="flex min-w-0 items-center gap-2">
-            {e.logo?.src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={e.logo.src} alt={e.logo.alt || e.nome || ""} className="h-8 w-8 object-contain" />
-            ) : null}
-            <strong className="truncate text-sm tracking-wide">{e.nome}</strong>
-          </span>
+        <header
+          className={`flex items-center gap-3 px-4 py-3 md:px-8 ${
+            vis.cabecalho === "centralizado" ? "flex-col justify-center text-center" : "justify-between"
+          }`}
+        >
+          {marca}
           <nav className="hidden gap-4 text-xs opacity-80 md:flex">
             {(site.header?.menu || []).slice(0, 6).map((m) => (
               <a key={m.id} href={m.href} className="hover:opacity-100">
@@ -139,17 +165,26 @@ export function SiteLivePreview({ site }: { site: Site }) {
               </a>
             ))}
           </nav>
-          <a
-            href="#agendar"
-            className="rounded-full px-3 py-1.5 text-xs font-semibold"
-            style={{ background: "var(--a)", color: "var(--bg)" }}
-          >
-            {site.header?.botao_agendar || "Agendar"}
-          </a>
+          {vis.agendamento ? (
+            <a
+              href="#agendar"
+              className="px-3 py-1.5 text-xs font-semibold"
+              style={{
+                background: vis.botao === "sem-contorno" ? "transparent" : "var(--a)",
+                color: vis.botao === "sem-contorno" ? "var(--tx)" : "var(--bg)",
+                borderRadius: "var(--r)",
+                border: vis.botao === "sem-contorno" ? "none" : undefined,
+              }}
+            >
+              {site.header?.botao_agendar || "Agendar"}
+            </a>
+          ) : (
+            <span />
+          )}
         </header>
 
         <section id="inicio" className="relative min-h-[70vh] overflow-hidden">
-          {site.hero?.imagem?.src ? (
+          {vis.banner !== "solido" && vis.banner !== "degrade" && site.hero?.imagem?.src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={site.hero.imagem.src}
@@ -157,7 +192,15 @@ export function SiteLivePreview({ site }: { site: Site }) {
               className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0" style={{ background: "var(--sf)" }} />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  vis.banner === "degrade"
+                    ? "linear-gradient(135deg, var(--p), var(--sf), var(--a))"
+                    : "var(--sf)",
+              }}
+            />
           )}
           <div
             className="absolute inset-0"
@@ -169,7 +212,12 @@ export function SiteLivePreview({ site }: { site: Site }) {
             <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--s)" }}>
               {e.slogan}
             </p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-[1.05] md:text-6xl">{site.hero?.titulo}</h1>
+            <h1
+              className="mt-3 max-w-3xl text-4xl font-bold leading-[1.05] md:text-6xl"
+              style={{ fontFamily: heading }}
+            >
+              {site.hero?.titulo}
+            </h1>
             <p className="mt-4 max-w-xl text-base" style={{ color: "var(--mt)" }}>
               {site.hero?.subtitulo}
             </p>
@@ -341,8 +389,25 @@ export function SiteLivePreview({ site }: { site: Site }) {
 
         <footer className="px-4 py-8 text-center text-xs md:px-8" style={{ color: "var(--mt)" }}>
           <p>{site.rodape?.texto || e.nome}</p>
+          {vis.instagram && ig?.url ? (
+            <p className="mt-2">
+              <a href={ig.url} className="underline" target="_blank" rel="noreferrer">
+                Instagram
+              </a>
+            </p>
+          ) : null}
           <CreditosDoSite site={site} />
         </footer>
+
+        {vis.whatsappFlutuante && e.whatsapp ? (
+          <a
+            href={wa(e.whatsapp, e.whatsapp_mensagem)}
+            className="fixed bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg"
+            style={{ background: "#25D366", color: "#052e16", borderRadius: "var(--r)" }}
+          >
+            WhatsApp
+          </a>
+        ) : null}
       </div>
     </div>
   );

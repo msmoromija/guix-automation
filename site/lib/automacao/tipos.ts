@@ -14,6 +14,7 @@ export interface EntradaAutomacao {
   telefone?: string;
   whatsapp?: string;
   email?: string;
+  instagram?: string;
   cnpj?: string;
   servicos?: string[];
   tom?: string;
