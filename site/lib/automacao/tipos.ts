@@ -15,6 +15,10 @@ export interface EntradaAutomacao {
   whatsapp?: string;
   email?: string;
   instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  youtube?: string;
+  linkedin?: string;
   cnpj?: string;
   servicos?: string[];
   tom?: string;

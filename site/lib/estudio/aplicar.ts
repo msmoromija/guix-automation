@@ -6,11 +6,41 @@ export interface LinhaServico {
   nome: string;
   preco?: string;
   duracao?: string;
+  descricao?: string;
 }
 
 export interface LinhaPro {
   nome: string;
   cargo?: string;
+  descricao?: string;
+  fotoSrc?: string;
+}
+
+const REDES_SCHEMA = ["instagram", "facebook", "tiktok", "youtube"] as const;
+
+function urlRede(id: string, raw: string) {
+  const s = raw.trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  const handle = s.replace(/^@/, "").replace(/^\/+/, "");
+  if (id === "instagram") return `https://instagram.com/${handle}`;
+  if (id === "facebook") return `https://facebook.com/${handle}`;
+  if (id === "tiktok") return `https://tiktok.com/@${handle}`;
+  if (id === "youtube") return `https://youtube.com/@${handle}`;
+  if (id === "linkedin") return handle.includes("linkedin.com") ? `https://${handle.replace(/^https?:\/\//, "")}` : `https://linkedin.com/company/${handle}`;
+  return s;
+}
+
+function upsertRede(redes: Record<string, unknown>[], id: string, label: string, raw?: string) {
+  const url = raw ? urlRede(id, raw) : "";
+  const idx = redes.findIndex((r) => r.id === id);
+  if (!url) {
+    if (idx >= 0) redes.splice(idx, 1);
+    return;
+  }
+  const item = { id, label, url };
+  if (idx >= 0) redes[idx] = { ...redes[idx], ...item };
+  else redes.push(item);
 }
 
 export function aplicarEstudio(
@@ -37,18 +67,21 @@ export function aplicarEstudio(
     delete logo.credito;
   }
   empresa.logo = logo;
-  const ig = String(opts.entrada.instagram || "").replace(/^@/, "").trim();
-  if (ig) {
-    const redes = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
-    const idx = redes.findIndex((r) => r.id === "instagram");
-    const item = {
-      id: "instagram",
-      label: "Instagram",
-      url: `https://instagram.com/${ig}`,
-    };
-    if (idx >= 0) redes[idx] = { ...redes[idx], ...item };
-    else redes.push(item);
-    empresa.redes = redes;
+
+  const redes = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
+  const mapa: Array<[string, string, string | undefined]> = [
+    ["instagram", "Instagram", opts.entrada.instagram],
+    ["facebook", "Facebook", opts.entrada.facebook],
+    ["tiktok", "TikTok", opts.entrada.tiktok],
+    ["youtube", "YouTube", opts.entrada.youtube],
+  ];
+  for (const [id, label, raw] of mapa) {
+    if (!REDES_SCHEMA.includes(id as (typeof REDES_SCHEMA)[number])) continue;
+    upsertRede(redes, id, label, raw);
+  }
+  empresa.redes = redes.slice(0, 4);
+  if (opts.entrada.linkedin) {
+    opts.visual.linkedinUrl = urlRede("linkedin", opts.entrada.linkedin);
   }
   site.empresa = empresa;
 
@@ -59,9 +92,10 @@ export function aplicarEstudio(
       const base = atuais[i] || {};
       return {
         ...base,
-        id: String(base.id || `srv-${i + 1}`),
+        id: String(base.id || `srv_${i + 1}`),
         nome: s.nome,
-        preco_label: s.preco || base.preco_label || "",
+        descricao: s.descricao || base.descricao || "",
+        preco_label: s.preco || base.preco_label || "Sob consulta",
         duracao_label: s.duracao || base.duracao_label || "",
       };
     });
@@ -73,11 +107,22 @@ export function aplicarEstudio(
     const atuais = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
     bloco.itens = opts.profissionais.map((p, i) => {
       const base = atuais[i] || {};
+      const foto = { ...((base.foto as Record<string, unknown>) || {}) };
+      if (p.fotoSrc) {
+        if (!foto.id) foto.id = `img_pro${i + 1}`;
+        foto.src = p.fotoSrc;
+        foto.alt = p.nome;
+        foto.categoria = "profissional";
+        foto.origem = "upload";
+        delete foto.credito;
+      }
       return {
         ...base,
-        id: String(base.id || `pro-${i + 1}`),
+        id: String(base.id || `pro_${i + 1}`),
         nome: p.nome,
         cargo: p.cargo || base.cargo || "",
+        descricao: p.descricao || base.descricao || "",
+        foto,
       };
     });
     site.profissionais = bloco;
@@ -89,7 +134,7 @@ export function aplicarEstudio(
 export function sanitizarLogoSrc(raw: unknown) {
   const s = String(raw || "");
   if (!s) return undefined;
-  if (s.length > 380_000) return undefined;
+  if (s.length > 900_000) return undefined;
   if (!s.startsWith("data:image/")) return undefined;
   return s;
 }

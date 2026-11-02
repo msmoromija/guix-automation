@@ -18,7 +18,12 @@ export interface VisualConfig {
   animacao: Animacao;
   whatsappFlutuante: boolean;
   instagram: boolean;
+  facebook: boolean;
+  linkedin: boolean;
+  tiktok: boolean;
+  youtube: boolean;
   agendamento: boolean;
+  linkedinUrl?: string;
   presetId?: string;
 }
 
@@ -232,6 +237,10 @@ export function visualPadrao(nicho?: string): VisualConfig {
     animacao: "suave",
     whatsappFlutuante: true,
     instagram: true,
+    facebook: true,
+    linkedin: false,
+    tiktok: false,
+    youtube: false,
     agendamento: true,
     presetId: preset.id,
     ...preset.visual,

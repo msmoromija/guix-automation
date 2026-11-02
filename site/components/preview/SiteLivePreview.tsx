@@ -108,7 +108,16 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
   const e = site.empresa || {};
   const heading = t.font_heading || "Oswald";
   const body = t.font_body || "Manrope";
-  const ig = e.redes?.find((r) => r.id === "instagram");
+  const redes = (e.redes || []).filter((r) => {
+    if (r.id === "instagram") return vis.instagram;
+    if (r.id === "facebook") return vis.facebook;
+    if (r.id === "tiktok") return vis.tiktok;
+    if (r.id === "youtube") return vis.youtube;
+    return true;
+  });
+  if (vis.linkedin && vis.linkedinUrl) {
+    redes.push({ id: "linkedin", label: "LinkedIn", url: vis.linkedinUrl });
+  }
   const style = {
     ["--p"]: t.color_primary || "#111",
     ["--s"]: t.color_secondary || "#C6A15B",
@@ -389,11 +398,13 @@ export function SiteLivePreview({ site, visual }: { site: Site; visual?: VisualC
 
         <footer className="px-4 py-8 text-center text-xs md:px-8" style={{ color: "var(--mt)" }}>
           <p>{site.rodape?.texto || e.nome}</p>
-          {vis.instagram && ig?.url ? (
-            <p className="mt-2">
-              <a href={ig.url} className="underline" target="_blank" rel="noreferrer">
-                Instagram
-              </a>
+          {redes.length ? (
+            <p className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1">
+              {redes.map((r) => (
+                <a key={r.id} href={r.url} className="underline" target="_blank" rel="noreferrer">
+                  {r.label || r.id}
+                </a>
+              ))}
             </p>
           ) : null}
           <CreditosDoSite site={site} />

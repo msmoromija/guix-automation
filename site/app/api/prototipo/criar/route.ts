@@ -57,7 +57,16 @@ export async function POST(req: NextRequest) {
     const whatsapp = String(body.whatsapp || "").trim() || undefined;
     const email = String(body.email || "").trim() || undefined;
     const slogan = String(body.slogan || "").trim() || undefined;
-    const instagram = String(body.instagram || "").trim() || undefined;
+    const instagram = String(body.instagram || body.redes?.instagram || "").trim() || undefined;
+    const facebook = String(body.facebook || body.redes?.facebook || "").trim() || undefined;
+    const tiktok = String(body.tiktok || body.redes?.tiktok || "").trim() || undefined;
+    const youtube = String(body.youtube || body.redes?.youtube || "").trim() || undefined;
+    const linkedin = String(body.linkedin || body.redes?.linkedin || "").trim() || undefined;
+    const logradouro = String(body.logradouro || body.endereco?.logradouro || "").trim() || undefined;
+    const numero = String(body.numero || body.endereco?.numero || "").trim() || undefined;
+    const bairro = String(body.bairro || body.endereco?.bairro || "").trim() || undefined;
+    const estado = String(body.estado || body.endereco?.estado || "").trim() || undefined;
+    const cep = String(body.cep || body.endereco?.cep || "").trim() || undefined;
     const visual: VisualConfig = { ...visualPadrao(nicho), ...(body.visual || {}) };
     const logoSrc = sanitizarLogoSrc(body.logoSrc);
     const servicos = Array.isArray(body.servicos) ? body.servicos : [];
@@ -80,6 +89,15 @@ export async function POST(req: NextRequest) {
       whatsapp,
       email,
       instagram,
+      facebook,
+      tiktok,
+      youtube,
+      linkedin,
+      logradouro,
+      numero,
+      bairro,
+      estado,
+      cep,
       tom: "profissional e acolhedor",
     });
     aplicarEstudio(gerado.site, {
@@ -92,6 +110,15 @@ export async function POST(req: NextRequest) {
         whatsapp,
         email,
         instagram,
+        facebook,
+        tiktok,
+        youtube,
+        linkedin,
+        logradouro,
+        numero,
+        bairro,
+        estado,
+        cep,
       },
       visual,
       logoSrc,
