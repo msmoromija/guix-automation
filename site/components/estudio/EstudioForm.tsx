@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EstudioPreview } from "@/components/estudio/EstudioPreview";
 import { propostasEstudio } from "@/lib/estudio/marca";
 import { montarRascunho } from "@/lib/estudio/rascunho";
+import { equipeDoNicho, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
   PALETAS,
   PRESETS,
@@ -67,8 +68,10 @@ export function EstudioForm() {
   const [propostaId, setPropostaId] = useState("");
   const [logoUpload, setLogoUpload] = useState("");
   const [gerandoIa, setGerandoIa] = useState(false);
-  const [servicos, setServicos] = useState([{ nome: "", preco: "", duracao: "", descricao: "" }]);
-  const [pros, setPros] = useState([{ nome: "", cargo: "", descricao: "", fotoSrc: "" }]);
+  const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
+  const [pros, setPros] = useState(() => equipeDoNicho(nichoInicial));
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [cepOk, setCepOk] = useState("");
   const [tom, setTom] = useState(() => tomDoEstilo(visualPadrao(nichoInicial).estilo));
   const [destaque, setDestaque] = useState("");
   const [iaEscreve, setIaEscreve] = useState(true);
@@ -117,6 +120,40 @@ export function EstudioForm() {
     setEtapa(n);
     setErro("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function buscarCep(raw?: string) {
+    const d = soDigitosCep(raw ?? cep);
+    if (d.length !== 8) {
+      setErro("O CEP precisa ter 8 números.");
+      return;
+    }
+    setErro("");
+    setBuscandoCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+      const data = (await res.json()) as {
+        erro?: boolean;
+        logradouro?: string;
+        bairro?: string;
+        localidade?: string;
+        uf?: string;
+      };
+      if (!res.ok || data.erro) {
+        setErro("CEP não encontrado. Confira os números.");
+        setCepOk("");
+        return;
+      }
+      setLogradouro(data.logradouro || "");
+      setBairro(data.bairro || "");
+      setCidade(data.localidade || "");
+      setEstado((data.uf || "").toUpperCase().slice(0, 2));
+      setCepOk(`${data.logradouro || "Rua"} · ${data.bairro || ""} · ${data.localidade}/${data.uf}`);
+    } catch {
+      setErro("Não deu para consultar o CEP agora.");
+    } finally {
+      setBuscandoCep(false);
+    }
   }
 
   async function gerarComIa() {
@@ -251,6 +288,8 @@ export function EstudioForm() {
                       const v = visualPadrao(slug);
                       setVisual(v);
                       setTom(tomDoEstilo(v.estilo));
+                      setServicos(servicosDoNicho(slug));
+                      setPros(equipeDoNicho(slug));
                     }}
                   >
                     {nichos.map((n) => (
@@ -499,16 +538,43 @@ export function EstudioForm() {
                     <input type="email" className={campo} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contato@negocio.com" />
                   </CartaoCanal>
                 </div>
-                <div className="mt-5 rounded-2xl bg-canvas p-4">
-                  <p className="text-sm font-semibold">Endereço</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-6">
+                <div className="gx-pulse-cep mt-5 rounded-2xl border-2 border-accent/40 bg-gradient-to-br from-orange-50 to-white p-5">
+                  <p className="text-[11px] font-semibold tracking-[0.16em] text-accent">ENDEREÇO PELO CEP</p>
+                  <p className="mt-1 text-sm text-muted">Digite o CEP: rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <label className="block min-w-0 flex-1 text-sm font-medium">
+                      CEP
+                      <input
+                        className={`${campo} text-lg tracking-[0.18em]`}
+                        value={cep}
+                        inputMode="numeric"
+                        placeholder="49000-000"
+                        onChange={(e) => {
+                          const fmt = formatarCep(e.target.value);
+                          setCep(fmt);
+                          setCepOk("");
+                          if (soDigitosCep(fmt).length === 8) void buscarCep(fmt);
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => void buscarCep()}
+                      disabled={buscandoCep}
+                      className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {buscandoCep ? "Buscando…" : "Buscar endereço"}
+                    </button>
+                  </div>
+                  {cepOk ? <p className="gx-pulse-cep mt-3 text-sm font-medium text-ink">{cepOk}</p> : null}
+                  <div className={`mt-4 grid gap-3 sm:grid-cols-6 ${cepOk || logradouro ? "gx-pulse-cep" : ""}`}>
                     <label className="block text-sm sm:col-span-4">
                       Rua
                       <input className={campo} value={logradouro} onChange={(e) => setLogradouro(e.target.value)} />
                     </label>
                     <label className="block text-sm sm:col-span-2">
                       Número
-                      <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} />
+                      <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="120" />
                     </label>
                     <label className="block text-sm sm:col-span-2">
                       Bairro
@@ -516,15 +582,11 @@ export function EstudioForm() {
                     </label>
                     <label className="block text-sm sm:col-span-2">
                       Cidade
-                      <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Aracaju" />
+                      <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} />
                     </label>
-                    <label className="block text-sm">
+                    <label className="block text-sm sm:col-span-2">
                       UF
                       <input className={campo} value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} />
-                    </label>
-                    <label className="block text-sm">
-                      CEP
-                      <input className={campo} value={cep} onChange={(e) => setCep(e.target.value)} />
                     </label>
                   </div>
                 </div>
@@ -533,30 +595,59 @@ export function EstudioForm() {
               <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold">Serviços</h2>
-                    <p className="mt-1 text-sm text-muted">A prévia já mostra um exemplo. Preencha o seu para substituir.</p>
+                    <h2 className="text-base font-semibold">Cardápio de {nichoAtual.nome.toLowerCase()}</h2>
+                    <p className="mt-1 text-sm text-muted">Já geramos três. Ajuste preço se quiser — não precisa inventar o texto.</p>
                   </div>
-                  <button type="button" className="rounded-full border border-line px-4 py-2 text-sm" onClick={() => setServicos((s) => [...s, { nome: "", preco: "", duracao: "", descricao: "" }])}>
-                    Adicionar
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full bg-ink px-4 py-2 text-sm text-white"
+                      onClick={() => setServicos(servicosDoNicho(nicho))}
+                    >
+                      Gerar de novo
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-line px-4 py-2 text-sm"
+                      onClick={() => setServicos((s) => [...s, { nome: "Novo serviço", preco: "R$ 0", duracao: "30 min", descricao: "" }])}
+                    >
+                      + Serviço
+                    </button>
+                  </div>
                 </div>
-                <div className={`mt-4 grid gap-4 ${servicos.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   {servicos.map((s, i) => (
-                    <article key={i} className="rounded-2xl border border-line p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Serviço {i + 1}</p>
+                    <article key={`${s.nome}-${i}`} className="gx-card-in flex flex-col rounded-2xl border border-line bg-canvas/50 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <input
+                          className="w-full bg-transparent text-base font-semibold outline-none"
+                          value={s.nome}
+                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                        />
                         {servicos.length > 1 ? (
                           <button type="button" className="text-xs text-muted" onClick={() => setServicos((rows) => rows.filter((_, j) => j !== i))}>
-                            Remover
+                            ×
                           </button>
                         ) : null}
                       </div>
-                      <input className={campo} value={s.nome} placeholder="Ex.: Corte clássico" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
-                      <textarea rows={2} className={`${campo} resize-none`} value={s.descricao} placeholder="Ex.: Máquina + tesoura, toalha quente." onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input className={campo} value={s.preco} placeholder="Ex.: R$ 45" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))} />
-                        <input className={campo} value={s.duracao} placeholder="Ex.: 40 min" onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))} />
-                      </div>
+                      <p className="mt-3 text-2xl font-bold tracking-tight text-accent">
+                        <input
+                          className="w-full bg-transparent outline-none"
+                          value={s.preco}
+                          onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, preco: e.target.value } : r)))}
+                        />
+                      </p>
+                      <input
+                        className="mt-1 w-full bg-transparent text-xs text-muted outline-none"
+                        value={s.duracao}
+                        onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, duracao: e.target.value } : r)))}
+                      />
+                      <textarea
+                        rows={2}
+                        className="mt-3 w-full resize-none bg-transparent text-sm leading-5 text-muted outline-none"
+                        value={s.descricao}
+                        onChange={(e) => setServicos((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
+                      />
                     </article>
                   ))}
                 </div>
@@ -565,22 +656,31 @@ export function EstudioForm() {
               <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold">Equipe</h2>
-                    <p className="mt-1 text-sm text-muted">Foto opcional. Sem foto, a prévia usa a inicial no círculo — como a Ana de exemplo.</p>
+                    <h2 className="text-base font-semibold">Quem atende</h2>
+                    <p className="mt-1 text-sm text-muted">Dois nomes do segmento. Troque ou ponha uma foto — a inicial já vale.</p>
                   </div>
-                  <button type="button" className="rounded-full border border-line px-4 py-2 text-sm" onClick={() => setPros((p) => [...p, { nome: "", cargo: "", descricao: "", fotoSrc: "" }])}>
-                    Adicionar
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rounded-full bg-ink px-4 py-2 text-sm text-white" onClick={() => setPros(equipeDoNicho(nicho))}>
+                      Gerar de novo
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-line px-4 py-2 text-sm"
+                      onClick={() => setPros((p) => [...p, { nome: "Novo nome", cargo: "", descricao: "", fotoSrc: "" }])}
+                    >
+                      + Pessoa
+                    </button>
+                  </div>
                 </div>
-                <div className={`mt-4 grid gap-4 ${pros.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   {pros.map((p, i) => (
-                    <article key={i} className="flex gap-4 rounded-2xl border border-line p-4">
-                      <label className="flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-canvas text-center text-[11px] text-muted">
+                    <article key={`${p.nome}-${i}`} className="gx-card-in flex gap-4 rounded-2xl border border-line p-4">
+                      <label className="flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-canvas text-2xl font-semibold text-ink/50">
                         {p.fotoSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.fotoSrc} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <span className="text-2xl font-semibold text-ink/40">{(p.nome || "A").slice(0, 1)}</span>
+                          (p.nome || "?").slice(0, 1)
                         )}
                         <input
                           type="file"
@@ -594,9 +694,21 @@ export function EstudioForm() {
                         />
                       </label>
                       <div className="min-w-0 flex-1">
-                        <input className={campo} placeholder="Ex.: Ana Souza" value={p.nome} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))} />
-                        <input className={campo} placeholder="Ex.: Barbeira" value={p.cargo} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))} />
-                        <textarea rows={2} className={`${campo} resize-none`} placeholder="Uma linha sobre o trabalho." value={p.descricao} onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))} />
+                        <input
+                          className="w-full bg-transparent text-base font-semibold outline-none"
+                          value={p.nome}
+                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                        />
+                        <input
+                          className="mt-1 w-full bg-transparent text-sm text-accent outline-none"
+                          value={p.cargo}
+                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
+                        />
+                        <input
+                          className="mt-2 w-full bg-transparent text-sm text-muted outline-none"
+                          value={p.descricao}
+                          onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
+                        />
                       </div>
                     </article>
                   ))}

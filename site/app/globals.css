@@ -37,6 +37,38 @@ html {
   }
 }
 
+@keyframes gx-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gx-card-in {
+  animation: gx-pop 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.gx-card-in:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.gx-card-in:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.gx-card-in:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.gx-card-in:nth-child(4) {
+  animation-delay: 0.28s;
+}
+
+.gx-pulse-cep {
+  animation: gx-rise 0.45s ease both;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
