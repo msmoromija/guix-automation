@@ -15,7 +15,7 @@ function rateLimit(ip: string) {
     hits.set(ip, { n: 1, reset: agora + 60 * 60 * 1000 });
     return true;
   }
-  if (cur.n >= 20) return false;
+  if (cur.n >= 40) return false;
   cur.n += 1;
   return true;
 }
@@ -27,9 +27,10 @@ export async function GET(req: NextRequest) {
   }
   const nicho = (req.nextUrl.searchParams.get("nicho") || "barbearia") as Nicho;
   const cfg = BUSCA_FOTO[nicho] || BUSCA_FOTO.generico;
+  const buscaLivre = (req.nextUrl.searchParams.get("busca") || "").trim().slice(0, 80);
   const chave = req.nextUrl.searchParams.get("q") || "servico";
   const mapa = cfg.query as Record<string, string>;
-  const q = mapa[chave] || (chave.includes(" ") ? chave : mapa.servico || mapa.hero);
+  const q = buscaLivre || mapa[chave] || mapa.servico || mapa.hero;
   try {
     const fotos = await buscarUnsplash(q, 12);
     return NextResponse.json({
