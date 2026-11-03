@@ -9,6 +9,7 @@ import {
   agendaProParaVisual,
   expedienteParaSchema,
   normalizarDiaExpediente,
+  normalizarPassoMinutos,
   resumoDoExpediente,
   schemaParaExpediente,
   type AusenciaPro,
@@ -108,6 +109,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
   const [pros, setPros] = useState<ProLinha[]>([]);
   const [proAberto, setProAberto] = useState(0);
   const [aba, setAba] = useState<"grade" | "solicitacoes">("solicitacoes");
+  const [passoMin, setPassoMin] = useState(30);
 
   const qs = useMemo(() => `t=${encodeURIComponent(token)}`, [token]);
 
@@ -127,6 +129,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
       const casa = schemaParaExpediente(emp.expediente);
       setEmpresa(emp.nome || "");
       setExpediente(casa);
+      setPassoMin(normalizarPassoMinutos(visual?.duracaoSlotMinutos));
       setPros(carregarPros(site, visual, casa));
       setFechado(Boolean(json.edicaoFechada));
       setProAberto(0);
@@ -154,8 +157,9 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           somenteAgenda: true,
-          expediente: expedienteParaSchema(expediente),
+          expediente: expedienteParaSchema(expediente, passoMin),
           agendaEquipe,
+          duracaoSlotMinutos: passoMin,
         }),
       });
       const json = await res.json();
@@ -253,6 +257,19 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
         <h2 className="text-base font-semibold">Horário da casa</h2>
         <p className="mt-1 text-sm text-muted">Dias e intervalos em que o negócio atende. Base do agendamento.</p>
         <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Vagas a cada</p>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {[15, 20, 30, 45, 60].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${passoMin === n ? "bg-ink text-white" : "border border-line bg-white"}`}
+                onClick={() => setPassoMin(n)}
+              >
+                {n} min
+              </button>
+            ))}
+          </div>
           <GradeExpediente
             atalhos
             value={expediente}

@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { minutosDeRotulo } from "@/lib/estudio/aplicar";
 import {
   intervalosDoDia,
   intervalosDoProfissional,
   normalizarAgendaPro,
+  normalizarPassoMinutos,
+  slotsNecessarios,
   type AgendaProVisual,
 } from "@/lib/estudio/expediente";
 
-type Servico = { id?: string; nome?: string; preco_label?: string; duracao_label?: string };
+type Servico = { id?: string; nome?: string; preco_label?: string; duracao_label?: string; duracao_minutos?: number };
 type Pro = { id?: string; nome?: string; cargo?: string; whatsapp?: string };
 type Expediente = { dia: string; label?: string; intervalos: string[] };
 type Canal = "email" | "telefone";
@@ -55,6 +58,7 @@ export function AgendarBloco({
   profissionais,
   expediente,
   agendaEquipe,
+  duracaoSlotMinutos,
   whatsapp,
   emailNegocio,
   negocioNome,
@@ -75,6 +79,8 @@ export function AgendarBloco({
     fim?: string;
     ausencias?: Array<{ de: string; ate: string; motivo: string }>;
   }>;
+  /** Passo da grade (ex.: 30). */
+  duracaoSlotMinutos?: number;
   whatsapp?: string;
   emailNegocio?: string;
   negocioNome?: string;
@@ -83,6 +89,7 @@ export function AgendarBloco({
   fechado?: string;
   studio?: boolean;
 }) {
+  const passo = normalizarPassoMinutos(duracaoSlotMinutos);
   const listaSrv = servicos.filter((s) => s.nome);
   const listaPro = profissionais.filter((p) => p.nome && p.nome !== "Sem preferência");
   const [servico, setServico] = useState(listaSrv[0]?.nome || "");
@@ -127,10 +134,35 @@ export function AgendarBloco({
     return { slots: r.slots, motivo: r.motivo || fechado || "Fechado neste dia." };
   }, [data, expediente, pro, agendas, fechado]);
 
+  const duracaoServicoMin = useMemo(() => {
+    const s = listaSrv.find((x) => x.nome === servico);
+    if (!s) return passo;
+    return Number(s.duracao_minutos) || minutosDeRotulo(s.duracao_label) || passo;
+  }, [listaSrv, servico, passo]);
+
   const slots = useMemo(() => {
     if (!disponibilidade.slots) return null;
-    return disponibilidade.slots.filter((h) => !ocupados.includes(h));
-  }, [disponibilidade.slots, ocupados]);
+    const livres = disponibilidade.slots.filter((h) => !ocupados.includes(h));
+    const precisa = slotsNecessarios(duracaoServicoMin, passo);
+    if (precisa <= 1) return livres;
+    const ordem = disponibilidade.slots;
+    return livres.filter((h) => {
+      const idx = ordem.indexOf(h);
+      if (idx < 0) return false;
+      for (let k = 0; k < precisa; k++) {
+        const slot = ordem[idx + k];
+        if (!slot || ocupados.includes(slot)) return false;
+        if (k > 0) {
+          // slots devem ser consecutivos no passo
+          const prev = ordem[idx + k - 1];
+          const [ph, pm] = prev.split(":").map(Number);
+          const [ch, cm] = slot.split(":").map(Number);
+          if (ch * 60 + cm - (ph * 60 + pm) !== passo) return false;
+        }
+      }
+      return true;
+    });
+  }, [disponibilidade.slots, ocupados, duracaoServicoMin, passo]);
 
   const hoje = new Date().toISOString().slice(0, 10);
   const verificado = Boolean(sessao?.token) || Boolean(studio);

@@ -56,8 +56,12 @@ export default async function ExemploModeloPage({
       </header>
 
       <p className="border-b border-white/10 bg-slate-900 px-4 py-2 text-center text-xs text-slate-400">
-        Demonstração pública. Gere um protótipo com o nome do seu negócio — grátis, antes de pagar — e baixe o{" "}
-        <code className="text-orange-200">site.json</code>.
+        Demonstração pública. Role até <strong className="text-orange-200">Agendar</strong> para marcar horário. Depois da
+        compra, o dono usa o{" "}
+        <Link href="/demo/controle" className="font-semibold text-orange-200 underline">
+          controle do administrador
+        </Link>{" "}
+        (equipe, avisos, serviços, FAQ) — sem IA.
       </p>
 
       <iframe

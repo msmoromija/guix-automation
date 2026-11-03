@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
 import { aprovarPrototipo, type CanalAprovacao } from "@/lib/prototipos/aprovar";
-import { aplicarEstudio, aplicarSrcNoSlot, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { aplicarEstudio, aplicarSrcNoSlot, minutosDeRotulo, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
+import { normalizarPassoMinutos } from "@/lib/estudio/expediente";
+import { urlCanal } from "@/lib/estudio/canais";
 import { aplicarPedido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { AVISO_FECHADO, AVISO_LIMITE, LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
     extratoUrl: `/conta/${token}/extrato?t=${token}`,
     agendaUrl: `/conta/${token}/agenda?t=${token}`,
+    adminUrl: `/conta/${token}/admin?t=${token}`,
     demoUrl: `/casas/${pacote.nicho}/`,
     contratarUrl: `/contratar?plano=simples&nicho=${pacote.nicho}&preview=${token}&t=${token}`,
     agendarUrl: `/visualizar/${token}#agendar`,
@@ -107,7 +110,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     });
   }
 
-  if (pacote.edicaoFechada && body.fechar !== true && body.somenteAgenda !== true) {
+  if (pacote.edicaoFechada && body.fechar !== true && body.somenteAgenda !== true && body.somenteAdmin !== true) {
     return NextResponse.json({
       aviso: AVISO_FECHADO,
       edicaoFechada: true,
@@ -275,7 +278,234 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         .filter(Boolean)
         .slice(0, 24) as NonNullable<VisualConfig["agendaEquipe"]>;
     }
-    const visual: VisualConfig = { ...visualBase, agendaEquipe };
+    const passoAgenda = normalizarPassoMinutos(
+      Number(body.duracaoSlotMinutos) || visualBase.duracaoSlotMinutos,
+    );
+    const visual: VisualConfig = { ...visualBase, agendaEquipe, duracaoSlotMinutos: passoAgenda };
+    await gravarPacote({ ...pacote, site, visual });
+    return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
+  }
+
+  /** Painel administrador pós-venda (sem IA): equipe, avisos, serviços, FAQ, contato, horário. */
+  if (body.somenteAdmin === true) {
+    const site = structuredClone(pacote.site);
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const passo = normalizarPassoMinutos(Number(body.duracaoSlotMinutos) || (pacote.visual as VisualConfig | undefined)?.duracaoSlotMinutos);
+
+    if (Array.isArray(body.expediente)) {
+      empresa.expediente = body.expediente
+        .map((raw) => {
+          const d = raw as { dia?: string; label?: string; intervalos?: string[] };
+          const dia = String(d.dia || "").slice(0, 3);
+          const intervalos = Array.isArray(d.intervalos)
+            ? d.intervalos.map((h) => String(h).slice(0, 5)).filter((h) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(h)).slice(0, 48)
+            : [];
+          if (!dia || !intervalos.length) return null;
+          return { dia, label: String(d.label || dia).slice(0, 24), intervalos };
+        })
+        .filter(Boolean)
+        .slice(0, 7);
+    }
+    if (typeof body.horarioResumo === "string") {
+      empresa.horario_resumo = String(body.horarioResumo).slice(0, 160);
+    }
+    if (typeof body.whatsapp === "string") {
+      const dig = body.whatsapp.replace(/\D/g, "");
+      if (dig.length >= 10) empresa.whatsapp = dig.startsWith("55") ? dig : `55${dig}`;
+    }
+    if (typeof body.email === "string") {
+      empresa.email = String(body.email).trim().slice(0, 120);
+    }
+    if (body.endereco && typeof body.endereco === "object") {
+      const end = body.endereco as Record<string, string>;
+      const atual = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+      for (const k of ["logradouro", "numero", "bairro", "cidade", "estado", "cep", "mapa_embed_url"] as const) {
+        if (end[k] !== undefined) atual[k] = String(end[k] || "").slice(0, k === "mapa_embed_url" ? 500 : 120);
+      }
+      empresa.endereco = atual;
+    }
+    if (body.redes && typeof body.redes === "object") {
+      const redesIn = body.redes as { instagram?: string; facebook?: string };
+      const redes = Array.isArray(empresa.redes) ? [...(empresa.redes as Record<string, unknown>[])] : [];
+      const upsert = (id: string, label: string, raw?: string) => {
+        const url = raw ? urlCanal(id, raw) : "";
+        const idx = redes.findIndex((r) => r.id === id);
+        if (!url) {
+          if (idx >= 0) redes.splice(idx, 1);
+          return;
+        }
+        const item = { id, label, url };
+        if (idx >= 0) redes[idx] = { ...redes[idx], ...item };
+        else redes.push(item);
+      };
+      upsert("instagram", "Instagram", redesIn.instagram);
+      upsert("facebook", "Facebook", redesIn.facebook);
+      empresa.redes = redes;
+    }
+    site.empresa = empresa;
+
+    if (Array.isArray(body.profissionais)) {
+      const itens = body.profissionais
+        .map((raw, i) => {
+          const p = raw as { nome?: string; cargo?: string; descricao?: string; fotoSrc?: string; whatsapp?: string };
+          const nome = String(p.nome || "").trim().slice(0, 80);
+          if (!nome) return null;
+          const fotoSrc = sanitizarFotoSrc(p.fotoSrc) || "";
+          const wa = String(p.whatsapp || "").replace(/\D/g, "");
+          return {
+            id: `pro_p${i + 1}`,
+            nome,
+            cargo: String(p.cargo || "").slice(0, 80),
+            descricao: String(p.descricao || "").slice(0, 400),
+            whatsapp: wa.length >= 10 ? (wa.startsWith("55") ? wa : `55${wa}`) : "",
+            foto: {
+              id: `img_pro_p${i + 1}`,
+              src: fotoSrc,
+              alt: nome,
+              categoria: "profissional",
+              origem: fotoSrc.startsWith("data:") ? "upload" : fotoSrc ? "unsplash" : "biblioteca",
+            },
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 24);
+      site.profissionais = {
+        titulo: "Equipe",
+        subtitulo: itens.length ? "Escolha quem prefere no agendamento." : "O agendamento não destina profissional.",
+        itens: itens.length
+          ? itens
+          : [
+              {
+                id: "pro_sempref",
+                nome: "Sem preferência",
+                cargo: "",
+                descricao: "O horário não destina um profissional.",
+                whatsapp: "",
+                foto: { id: "img_pro_sempref", src: "", alt: "Sem preferência", categoria: "profissional" },
+              },
+            ],
+      };
+    }
+
+    if (Array.isArray(body.avisos)) {
+      site.eventos = {
+        titulo: "Avisos",
+        itens: body.avisos
+          .map((raw, i) => {
+            const a = raw as { titulo?: string; descricao?: string; dataLabel?: string; horario?: string };
+            const titulo = String(a.titulo || "").trim().slice(0, 80);
+            if (!titulo) return null;
+            return {
+              id: `evt_${i + 1}`,
+              titulo,
+              descricao: String(a.descricao || "").slice(0, 400),
+              data: "",
+              data_label: String(a.dataLabel || "").slice(0, 40),
+              horario: String(a.horario || "09:00").slice(0, 5),
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 4),
+      };
+    }
+
+    if (Array.isArray(body.servicos)) {
+      const atuais = Array.isArray((site.servicos as { itens?: unknown[] } | undefined)?.itens)
+        ? ([...((site.servicos as { itens: Record<string, unknown>[] }).itens)] as Record<string, unknown>[])
+        : [];
+      site.servicos = {
+        titulo: String((site.servicos as { titulo?: string } | undefined)?.titulo || "Serviços"),
+        subtitulo: String((site.servicos as { subtitulo?: string } | undefined)?.subtitulo || ""),
+        itens: body.servicos
+          .map((raw, i) => {
+            const s = raw as { nome?: string; preco?: string; duracao?: string; descricao?: string };
+            const nome = String(s.nome || "").trim().slice(0, 80);
+            if (!nome) return null;
+            const dur = String(s.duracao || `${passo} min`).slice(0, 32);
+            const mins = minutosDeRotulo(dur) || passo;
+            const base = { ...(atuais[i] || {}) };
+            return {
+              ...base,
+              id: String(base.id || `srv_${i + 1}`),
+              nome,
+              descricao: String(s.descricao || "").slice(0, 400),
+              preco_label: String(s.preco || "").slice(0, 40),
+              duracao_label: dur,
+              duracao_minutos: mins,
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 24),
+      };
+    }
+
+    if (body.faq && typeof body.faq === "object") {
+      const faq = body.faq as { titulo?: string; itens?: Array<{ pergunta?: string; resposta?: string }> };
+      site.faq = {
+        titulo: String(faq.titulo || "Dúvidas").slice(0, 80),
+        itens: (faq.itens || [])
+          .map((item, i) => {
+            const pergunta = String(item.pergunta || "").trim().slice(0, 160);
+            const resposta = String(item.resposta || "").trim().slice(0, 800);
+            if (!pergunta || !resposta) return null;
+            return { id: `faq_${i + 1}`, pergunta, resposta };
+          })
+          .filter(Boolean)
+          .slice(0, 10),
+      };
+    }
+
+    if (typeof body.comoEncontrar === "string") {
+      const contato = { ...((site.contato as Record<string, unknown>) || {}) };
+      contato.texto = String(body.comoEncontrar).slice(0, 400);
+      site.contato = contato;
+    }
+
+    const visualBase = { ...visualPadrao(pacote.nicho), ...(pacote.visual || {}) };
+    let agendaEquipe = visualBase.agendaEquipe || [];
+    if (Array.isArray(body.agendaEquipe)) {
+      agendaEquipe = body.agendaEquipe
+        .map((raw) => {
+          const a = raw as {
+            nome?: string;
+            dias?: Array<string | { dia?: string; inicio?: string; fim?: string; pausa?: boolean; pausaInicio?: string; pausaFim?: string }>;
+            ausencias?: Array<{ de?: string; ate?: string; motivo?: string }>;
+          };
+          const nome = String(a.nome || "").trim().slice(0, 80);
+          if (!nome) return null;
+          const dias = (a.dias || [])
+            .map((item) => {
+              if (typeof item === "string") {
+                if (!["dom", "seg", "ter", "qua", "qui", "sex", "sab"].includes(item)) return null;
+                return { dia: item, inicio: "09:00", fim: "18:00" };
+              }
+              const dia = String(item?.dia || "");
+              if (!["dom", "seg", "ter", "qua", "qui", "sex", "sab"].includes(dia)) return null;
+              return {
+                dia,
+                inicio: String(item.inicio || "09:00").slice(0, 5),
+                fim: String(item.fim || "18:00").slice(0, 5),
+                pausa: Boolean(item.pausa),
+                pausaInicio: String(item.pausaInicio || "12:00").slice(0, 5),
+                pausaFim: String(item.pausaFim || "13:00").slice(0, 5),
+              };
+            })
+            .filter(Boolean)
+            .slice(0, 7);
+          const ausencias = (a.ausencias || [])
+            .map((u) => ({
+              de: String(u.de || "").slice(0, 10),
+              ate: String(u.ate || u.de || "").slice(0, 10),
+              motivo: String(u.motivo || "Ausente").slice(0, 80),
+            }))
+            .filter((u) => /^\d{4}-\d{2}-\d{2}$/.test(u.de))
+            .slice(0, 24);
+          return { nome, dias, ausencias };
+        })
+        .filter(Boolean)
+        .slice(0, 24) as NonNullable<VisualConfig["agendaEquipe"]>;
+    }
+    const visual: VisualConfig = { ...visualBase, agendaEquipe, duracaoSlotMinutos: passo };
     await gravarPacote({ ...pacote, site, visual });
     return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
   }

@@ -98,41 +98,60 @@ function minParaHora(n: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function intervalosEntre(inicio: string, fim: string) {
+/** Passo da grade (ex.: 30 = vagas de 30 em 30 min). */
+export function normalizarPassoMinutos(passo?: number) {
+  const n = Number(passo);
+  if (![15, 20, 30, 45, 60, 90, 120].includes(n)) return 30;
+  return n;
+}
+
+export function intervalosEntre(inicio: string, fim: string, passoMin = 30) {
   const a = horaParaMin(inicio);
   const b = horaParaMin(fim);
   if (b <= a) return [];
+  const passo = normalizarPassoMinutos(passoMin);
   const out: string[] = [];
-  for (let t = a; t < b; t += 60) out.push(minParaHora(t));
+  for (let t = a; t < b; t += passo) out.push(minParaHora(t));
   return out;
 }
 
-/** Gera slots de 1h respeitando pausa de almoço. */
-export function slotsDoDia(d: Pick<DiaExpediente, "aberto" | "inicio" | "fim" | "pausa" | "pausaInicio" | "pausaFim">) {
+/** Gera vagas no expediente respeitando pausa de almoço. */
+export function slotsDoDia(
+  d: Pick<DiaExpediente, "aberto" | "inicio" | "fim" | "pausa" | "pausaInicio" | "pausaFim">,
+  passoMin = 30,
+) {
   if (!d.aberto) return [];
   if (d.pausa) {
-    const manha = intervalosEntre(d.inicio, d.pausaInicio || "12:00");
-    const tarde = intervalosEntre(d.pausaFim || "13:00", d.fim);
+    const manha = intervalosEntre(d.inicio, d.pausaInicio || "12:00", passoMin);
+    const tarde = intervalosEntre(d.pausaFim || "13:00", d.fim, passoMin);
     const juntos = [...manha, ...tarde];
-    return juntos.length ? juntos : intervalosEntre(d.inicio, d.fim);
+    return juntos.length ? juntos : intervalosEntre(d.inicio, d.fim, passoMin);
   }
-  const continuo = intervalosEntre(d.inicio, d.fim);
+  const continuo = intervalosEntre(d.inicio, d.fim, passoMin);
   return continuo.length ? continuo : [d.inicio];
 }
 
-export function expedienteParaSchema(dias: DiaExpediente[]) {
+export function expedienteParaSchema(dias: DiaExpediente[], passoMin = 30) {
+  const passo = normalizarPassoMinutos(passoMin);
   const lista = dias
     .filter((d) => d.aberto)
     .slice(0, 7)
     .map((d) => ({
       dia: d.dia,
       label: d.label,
-      intervalos: slotsDoDia(d),
+      intervalos: slotsDoDia(d, passo),
     }))
     .filter((d) => d.intervalos.length);
   return lista.length
     ? lista
-    : [{ dia: "seg" as const, label: "Segunda", intervalos: intervalosEntre("09:00", "18:00") }];
+    : [{ dia: "seg" as const, label: "Segunda", intervalos: intervalosEntre("09:00", "18:00", passo) }];
+}
+
+/** Quantos slots consecutivos um serviço ocupa a partir da duração. */
+export function slotsNecessarios(duracaoMinutos: number, passoMin = 30) {
+  const passo = normalizarPassoMinutos(passoMin);
+  const mins = Math.max(passo, Number(duracaoMinutos) || passo);
+  return Math.max(1, Math.ceil(mins / passo));
 }
 
 export function resumoDoExpediente(dias: DiaExpediente[]) {
@@ -337,15 +356,25 @@ export function schemaParaExpediente(
       return normalizarDiaExpediente({ dia: meta.dia, label: meta.label, aberto: false });
     }
     const inicio = slots[0];
-    const fim = minParaHora(horaParaMin(slots[slots.length - 1]) + 60);
+    let passoInferido = 30;
+    if (slots.length >= 2) {
+      const diffs = [];
+      for (let i = 1; i < slots.length; i++) {
+        const gap = horaParaMin(slots[i]) - horaParaMin(slots[i - 1]);
+        if (gap > 0 && gap <= 120) diffs.push(gap);
+      }
+      const comum = diffs.sort((a, b) => a - b)[Math.floor(diffs.length / 2)];
+      if (comum) passoInferido = normalizarPassoMinutos(comum);
+    }
+    const fim = minParaHora(horaParaMin(slots[slots.length - 1]) + passoInferido);
     let pausa = false;
     let pausaInicio = "12:00";
     let pausaFim = "13:00";
     for (let i = 1; i < slots.length; i++) {
       const gap = horaParaMin(slots[i]) - horaParaMin(slots[i - 1]);
-      if (gap > 60) {
+      if (gap > passoInferido) {
         pausa = true;
-        pausaInicio = minParaHora(horaParaMin(slots[i - 1]) + 60);
+        pausaInicio = minParaHora(horaParaMin(slots[i - 1]) + passoInferido);
         pausaFim = slots[i];
         break;
       }

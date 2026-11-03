@@ -70,14 +70,21 @@ function Conta() {
 
   const editarUrl = `/visualizar/${dados.id}`;
   const agendaUrl = `/conta/${dados.id}/agenda?t=${encodeURIComponent(token)}`;
+  const adminUrl = `/conta/${dados.id}/admin?t=${encodeURIComponent(token)}`;
   const extratoUrl = dados.extratoUrl || `/conta/${dados.id}/extrato?t=${encodeURIComponent(token)}`;
   const agendarAbsoluto = `${origem}${dados.agendarUrl || `/visualizar/${dados.id}#agendar`}`;
   const jaAprovado = dados.status === "aprovado" || dados.status === "pago" || Boolean(dados.aprovadoEm);
 
   const cards = [
     {
+      titulo: "Administrador do site",
+      texto: "Profissionais, avisos e recessos, serviços, FAQ, endereço, redes, horário e vagas da agenda — sem IA.",
+      href: adminUrl,
+      cta: "Abrir controle",
+    },
+    {
       titulo: "Agenda e solicitações",
-      texto: "Grade por profissional, ausências e caixa de pedidos — aceite ou recuse com horário e dados do cliente.",
+      texto: "Caixa de pedidos e grade fina — aceite ou recuse com horário e dados do cliente.",
       href: agendaUrl,
       cta: "Abrir agenda",
     },

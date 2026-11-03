@@ -36,6 +36,8 @@ export interface VisualConfig {
   redesExtra?: { id: string; label: string; url: string }[];
   rotulosRede?: Record<string, string>;
   presetId?: string;
+  /** Duração de cada vaga na agenda (15–120). Padrão 30. */
+  duracaoSlotMinutos?: number;
   /** Agenda por profissional — fora do schema congelado. */
   agendaEquipe?: Array<{
     nome: string;
@@ -287,6 +289,7 @@ export function visualPadrao(nicho?: string): VisualConfig {
     banner: "automatico",
     botao: "arredondado",
     animacao: "suave",
+    duracaoSlotMinutos: 30,
     whatsappFlutuante: true,
     instagram: true,
     facebook: true,

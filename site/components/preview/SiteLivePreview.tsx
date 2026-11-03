@@ -896,6 +896,7 @@ export function SiteLivePreview({
             profissionais={equipeVisivel}
             expediente={e.expediente || []}
             agendaEquipe={vis.agendaEquipe}
+            duracaoSlotMinutos={vis.duracaoSlotMinutos || 30}
             whatsapp={e.whatsapp}
             emailNegocio={e.email}
             negocioNome={e.nome}

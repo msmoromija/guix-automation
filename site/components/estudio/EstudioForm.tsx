@@ -36,7 +36,6 @@ import {
   resumoDoExpediente,
   type AusenciaPro,
   type DiaExpediente,
-  type NotaAgenda,
 } from "@/lib/estudio/expediente";
 import { dicasDoNicho, fotoModelo, formatarCep, servicosDoNicho, soDigitosCep } from "@/lib/estudio/sugeridos";
 import {
@@ -161,7 +160,6 @@ export function EstudioForm() {
     servicos: Array<{ nome: string; preco: string; duracao: string; descricao: string; imagemSrc: string }>;
     pros: ProForm[];
     expediente: DiaExpediente[];
-    notasAgenda: NotaAgenda[];
     copia: CopiaViva | null;
     menuLivre: { id: string; label: string; href: string }[] | null;
     botaoLivre: string;
@@ -180,9 +178,8 @@ export function EstudioForm() {
   const [gerandoIa, setGerandoIa] = useState(false);
   const [servicos, setServicos] = useState(() => servicosDoNicho(nichoInicial));
   const [pros, setPros] = useState<ProForm[]>([]);
-  /** Aba ativa por profissional: identidade | grade | ausencias */
-  const [proAba, setProAba] = useState<Record<number, "identidade" | "grade" | "ausencias">>({});
   const [proAberto, setProAberto] = useState(0);
+  const [fotoProIndice, setFotoProIndice] = useState<number | null>(null);
   /** Acordeão da etapa Contato (um bloco aberto por vez — menos scroll no mobile). */
   const [blocoAberto, setBlocoAberto] = useState("contato");
   const [srvAberto, setSrvAberto] = useState(0);
@@ -199,7 +196,6 @@ export function EstudioForm() {
   const [difsLivre, setDifsLivre] = useState<{ titulo: string; descricao: string }[] | null>(null);
   const [horario, setHorario] = useState(() => resumoDoExpediente(expedientePadrao()));
   const [expediente, setExpediente] = useState<DiaExpediente[]>(() => expedientePadrao());
-  const [notasAgenda, setNotasAgenda] = useState<NotaAgenda[]>([]);
   const [enderecoLivre, setEnderecoLivre] = useState("");
   const [eventos, setEventos] = useState<Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>>([]);
   const [avulsos, setAvulsos] = useState<Record<string, string>>({});
@@ -261,12 +257,9 @@ export function EstudioForm() {
       },
       copia,
       horario,
-      expediente: expedienteParaSchema(expediente),
+      expediente: expedienteParaSchema(expediente, visual.duracaoSlotMinutos || 30),
       enderecoCompleto: enderecoLivre,
-      eventos: [
-                        ...notasAgenda.map((n) => ({ titulo: n.titulo, descricao: n.descricao, dataLabel: n.dataLabel, horario: "09:00" })),
-        ...eventos,
-      ],
+      eventos,
       faqs: faqs || undefined,
       menu: menuLivre || undefined,
       botaoAgendar: botaoLivre || undefined,
@@ -305,7 +298,6 @@ export function EstudioForm() {
     expediente,
     enderecoLivre,
     eventos,
-    notasAgenda,
     faqs,
     menuLivre,
     botaoLivre,
@@ -647,7 +639,6 @@ export function EstudioForm() {
       servicos,
       pros,
       expediente,
-      notasAgenda,
       copia,
       menuLivre,
       botaoLivre,
@@ -686,7 +677,6 @@ export function EstudioForm() {
       })),
     );
     setExpediente((m.expediente || expedientePadrao()).map((d) => normalizarDiaExpediente(d)));
-    setNotasAgenda(m.notasAgenda);
     setCopia(m.copia);
     setMenuLivre(m.menuLivre);
     setBotaoLivre(m.botaoLivre);
@@ -757,8 +747,16 @@ export function EstudioForm() {
       const lista = eventosDoSite(resultado.site).filter((e) => e.titulo && e.descricao);
       setEventos(lista);
     }
-    if (resultado.tocou.avisos && resultado.avisos) {
-      setNotasAgenda(resultado.avisos.map((a) => ({ titulo: a.titulo, descricao: a.descricao, dataLabel: a.dataLabel })));
+    if (resultado.tocou.avisos && resultado.avisos?.length) {
+      setEventos((lista) => {
+        const avisos = resultado.avisos!.map((a) => ({
+          titulo: a.titulo,
+          descricao: a.descricao,
+          dataLabel: a.dataLabel,
+          horario: "09:00",
+        }));
+        return [...avisos, ...lista].slice(0, 4);
+      });
     }
     if (resultado.tocou.redes && resultado.redes) {
       setRedes((atual) => ({ ...atual, ...resultado.redes }));
@@ -1094,13 +1092,10 @@ export function EstudioForm() {
           email,
           slogan,
           horario,
-          expediente: expedienteParaSchema(expediente),
+          expediente: expedienteParaSchema(expediente, visual.duracaoSlotMinutos || 30),
           enderecoLivre,
           faqs,
-          eventos: [
-            ...notasAgenda.map((n) => ({ titulo: n.titulo, descricao: n.descricao, dataLabel: n.dataLabel, horario: "09:00" })),
-            ...eventos,
-          ],
+          eventos,
           menu: menuLivre || undefined,
           botaoAgendar: botaoLivre || undefined,
           rodapeTexto: rodapeLivre?.texto,
@@ -1161,9 +1156,13 @@ export function EstudioForm() {
   useEffect(() => {
     setVisual((v) => ({
       ...v,
-      agendaEquipe: pros.filter((p) => p.nome.trim()).map((p) => agendaProParaVisual(p.nome, p.expediente, p.ausencias)),
+      duracaoSlotMinutos: v.duracaoSlotMinutos || 30,
+      /** Na criação, cada profissional herda o horário da casa; grade fina fica no admin. */
+      agendaEquipe: pros
+        .filter((p) => p.nome.trim())
+        .map((p) => agendaProParaVisual(p.nome, expediente, [])),
     }));
-  }, [pros]);
+  }, [pros, expediente]);
 
   const visualPreview = {
     ...visual,
@@ -1555,46 +1554,6 @@ export function EstudioForm() {
                 </SecaoColapsavel>
 
                 <SecaoColapsavel
-                  id="bloco-avisos"
-                  titulo="Avisos e recessos"
-                  resumo={notasAgenda.length ? `${notasAgenda.length} aviso(s)` : "Opcional"}
-                  aberto={blocoAberto === "avisos"}
-                  onToggle={() => toggleBloco("avisos")}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-muted">Ex.: “25/12 não atenderemos — Natal”.</p>
-                    <button
-                      type="button"
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
-                      onClick={() =>
-                        setNotasAgenda((lista) =>
-                          lista.length >= 4
-                            ? lista
-                            : [...lista, { titulo: "Natal", descricao: "Atenção: não atenderemos devido ao Natal.", dataLabel: "25/12" }],
-                        )
-                      }
-                    >
-                      Incluir aviso
-                    </button>
-                  </div>
-                  <div className="mt-3 space-y-3">
-                    {notasAgenda.length === 0 ? (
-                      <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">Nenhum aviso. Opcional — aparece na agenda do site.</p>
-                    ) : null}
-                    {notasAgenda.map((nota, i) => (
-                      <div key={`nota-${i}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
-                        <input className={campo} value={nota.titulo} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, titulo: e.target.value } : n)))} placeholder="Natal / Recesso" />
-                        <input className={campo} value={nota.dataLabel} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, dataLabel: e.target.value } : n)))} placeholder="25/12 a 01/01" />
-                        <textarea className={`${campo} sm:col-span-2`} rows={2} value={nota.descricao} onChange={(e) => setNotasAgenda((lista) => lista.map((n, j) => (j === i ? { ...n, descricao: e.target.value } : n)))} placeholder="Atenção: não atenderemos devido ao Natal." />
-                        <button type="button" className="text-xs text-muted" onClick={() => setNotasAgenda((lista) => lista.filter((_, j) => j !== i))}>
-                          Remover
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </SecaoColapsavel>
-
-                <SecaoColapsavel
                   id="bloco-redes"
                   titulo="Redes sociais"
                   resumo={canaisAtivos.length ? `${canaisAtivos.length} rede(s)` : "Opcional"}
@@ -1953,14 +1912,14 @@ export function EstudioForm() {
 
               <SecaoColapsavel
                 id="bloco-equipe"
-                titulo="Equipe e agenda"
-                resumo={pros.length ? `${pros.length} profissional(is)` : "Opcional · Sem preferência"}
+                titulo="Equipe"
+                resumo={pros.length ? `${pros.length} profissional(is)` : "Opcional"}
                 aberto={blocoAberto === "equipe"}
                 onToggle={() => toggleBloco("equipe")}
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <p className="max-w-xl text-sm leading-relaxed text-muted">
-                    Cadastre quem atende, o horário de cada um e as ausências.
+                    Só nome, especialidade e foto. Horários, ausências e avisos ficam no painel do administrador depois da compra.
                   </p>
                   <button
                     type="button"
@@ -1969,7 +1928,6 @@ export function EstudioForm() {
                       setPros((p) => {
                         const prox = [...p, proVazio()];
                         setProAberto(prox.length - 1);
-                        setProAba((m) => ({ ...m, [prox.length - 1]: "identidade" }));
                         return prox;
                       });
                     }}
@@ -1982,363 +1940,103 @@ export function EstudioForm() {
                   <div className="gx-pro-empty mt-6">
                     <p className="text-sm font-medium text-ink">Ninguém na equipe ainda</p>
                     <p className="mt-1 text-sm text-muted">
-                      Sem profissionais, o cliente agenda com “Sem preferência” no horário da casa. Inclua alguém para personalizar a agenda.
+                      Opcional na criação. Sem profissionais, o cliente agenda com “Sem preferência”. Você completa a grade no admin.
                     </p>
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
-                    {pros.length > 1 ? (
-                      <div className="gx-pro-tabs" role="tablist" aria-label="Profissionais">
-                        {pros.map((p, i) => (
-                          <button
-                            key={`pro-tab-${i}`}
-                            type="button"
-                            role="tab"
-                            aria-selected={proAberto === i}
-                            className={`gx-pro-tab ${proAberto === i ? "is-on" : ""}`}
-                            onClick={() => setProAberto(i)}
-                          >
-                            <span className="gx-pro-tab__avatar" aria-hidden>
+                    {pros.map((p, i) => (
+                      <article key={`pro-${i}`} className="gx-pro-card">
+                        <header className="gx-pro-card__head">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="gx-pro-avatar" aria-hidden>
                               {p.fotoSrc ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={p.fotoSrc} alt="" />
                               ) : (
-                                (p.nome.trim() || `P${i + 1}`).slice(0, 1).toUpperCase()
+                                <span>{(p.nome.trim() || `${i + 1}`).slice(0, 1).toUpperCase()}</span>
                               )}
-                            </span>
-                            <span className="min-w-0 truncate">{p.nome.trim() || `Profissional ${i + 1}`}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
+                              <p className="truncate text-xs text-muted">{p.cargo.trim() || "Sem especialidade"}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
+                            onClick={() => {
+                              setPros((rows) => {
+                                const prox = rows.filter((_, j) => j !== i);
+                                setProAberto(Math.max(0, Math.min(proAberto, prox.length - 1)));
+                                return prox;
+                              });
+                            }}
+                          >
+                            Remover
                           </button>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {pros.map((p, i) => {
-                      if (pros.length > 1 && i !== proAberto) return null;
-                      const aba = proAba[i] || "identidade";
-                      const diasAbertos = p.expediente.filter((d) => d.aberto).length;
-                      return (
-                        <article key={`pro-${i}`} className="gx-pro-card">
-                          <header className="gx-pro-card__head">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="gx-pro-avatar" aria-hidden>
+                        </header>
+                        <div className="gx-pro-card__body">
+                          <div className="gx-pro-identidade">
+                            <div className="space-y-2">
+                              <label className="gx-pro-foto">
                                 {p.fotoSrc ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={p.fotoSrc} alt="" />
                                 ) : (
-                                  <span>{(p.nome.trim() || `${i + 1}`).slice(0, 1).toUpperCase()}</span>
+                                  <span className="gx-pro-foto__placeholder">
+                                    <span className="text-xl font-semibold">+</span>
+                                    <span>Foto</span>
+                                  </span>
                                 )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
-                                <p className="truncate text-xs text-muted">
-                                  {p.cargo.trim() || "Sem função"} · {diasAbertos} dia{diasAbertos === 1 ? "" : "s"} ·{" "}
-                                  {p.ausencias.length} ausência{p.ausencias.length === 1 ? "" : "s"}
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
-                              onClick={() => {
-                                setPros((rows) => {
-                                  const prox = rows.filter((_, j) => j !== i);
-                                  setProAberto(Math.max(0, Math.min(proAberto, prox.length - 1)));
-                                  return prox;
-                                });
-                              }}
-                            >
-                              Remover
-                            </button>
-                          </header>
-
-                          <nav className="gx-pro-nav" aria-label="Seções do profissional">
-                            {(
-                              [
-                                ["identidade", "1 · Identidade"],
-                                ["grade", "2 · Horários"],
-                                ["ausencias", "3 · Ausências"],
-                              ] as const
-                            ).map(([id, label]) => (
-                              <button
-                                key={id}
-                                type="button"
-                                className={`gx-pro-nav__btn ${aba === id ? "is-on" : ""}`}
-                                onClick={() => setProAba((m) => ({ ...m, [i]: id }))}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </nav>
-
-                          <div className="gx-pro-card__body">
-                            {aba === "identidade" ? (
-                              <div className="gx-pro-identidade">
-                                <label className="gx-pro-foto">
-                                  {p.fotoSrc ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={p.fotoSrc} alt="" />
-                                  ) : (
-                                    <span className="gx-pro-foto__placeholder">
-                                      <span className="text-xl font-semibold">+</span>
-                                      <span>Foto</span>
-                                    </span>
-                                  )}
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(ev) => {
-                                      const f = ev.target.files?.[0];
-                                      if (!f) return;
-                                      void arquivoParaDataUrl(f, 360).then((src) =>
-                                        setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))),
-                                      );
-                                    }}
-                                  />
-                                </label>
-                                <div className="gx-pro-campos">
-                                  <label className="gx-pro-label">
-                                    Nome
-                                    <input
-                                      className={campo}
-                                      value={p.nome}
-                                      placeholder="Quem atende"
-                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
-                                    />
-                                  </label>
-                                  <label className="gx-pro-label">
-                                    Função
-                                    <input
-                                      className={campo}
-                                      value={p.cargo}
-                                      placeholder={dicas.cargo}
-                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
-                                    />
-                                  </label>
-                                  <label className="gx-pro-label">
-                                    WhatsApp
-                                    <span className="relative block">
-                                      <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 pt-0.5">
-                                        <IconeRede id="whatsapp" className="h-4 w-4 text-[#128C7E]" />
-                                      </span>
-                                      <input
-                                        className={`${campo} !pl-10`}
-                                        value={p.whatsapp}
-                                        placeholder="79 99999-0000"
-                                        inputMode="tel"
-                                        onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, whatsapp: e.target.value } : r)))}
-                                      />
-                                    </span>
-                                  </label>
-                                  <label className="gx-pro-label gx-pro-label--full">
-                                    Sobre o atendimento
-                                    <textarea
-                                      className={`${campo} min-h-[4.5rem] resize-y`}
-                                      rows={3}
-                                      value={p.descricao}
-                                      placeholder="Especialidade, estilo, experiência…"
-                                      onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, descricao: e.target.value } : r)))}
-                                    />
-                                  </label>
-                                </div>
-                                <div className="gx-pro-next">
-                                  <button
-                                    type="button"
-                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white"
-                                    onClick={() => setProAba((m) => ({ ...m, [i]: "grade" }))}
-                                  >
-                                    Continuar para horários
-                                  </button>
-                                </div>
-                              </div>
-                            ) : null}
-
-                            {aba === "grade" ? (
-                              <div className="space-y-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                  <div className="min-w-0 max-w-md">
-                                    <p className="text-sm font-medium text-ink">Horário desta pessoa</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                                      Independente do horário da casa. Use os atalhos ou ajuste dia a dia.
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink"
-                                    onClick={() =>
-                                      setPros((rows) =>
-                                        rows.map((r, j) =>
-                                          j === i ? { ...r, expediente: expediente.map((d) => normalizarDiaExpediente(d)) } : r,
-                                        ),
-                                      )
-                                    }
-                                  >
-                                    Copiar horário da casa
-                                  </button>
-                                </div>
-                                <GradeExpediente
-                                  atalhos
-                                  compacto
-                                  vazio="Marque os dias em que esta pessoa atende."
-                                  value={p.expediente}
-                                  onChange={(prox) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, expediente: prox } : r)))}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(ev) => {
+                                    const f = ev.target.files?.[0];
+                                    if (!f) return;
+                                    void arquivoParaDataUrl(f, 360).then((src) =>
+                                      setPros((rows) => rows.map((r, j) => (j === i ? { ...r, fotoSrc: src } : r))),
+                                    );
+                                  }}
                                 />
-                                <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">{resumoDoExpediente(p.expediente)}</p>
-                                <div className="gx-pro-next">
-                                  <button
-                                    type="button"
-                                    className="rounded-full border border-line px-4 py-2 text-sm font-medium"
-                                    onClick={() => setProAba((m) => ({ ...m, [i]: "identidade" }))}
-                                  >
-                                    Voltar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white"
-                                    onClick={() => setProAba((m) => ({ ...m, [i]: "ausencias" }))}
-                                  >
-                                    Continuar para ausências
-                                  </button>
-                                </div>
-                              </div>
-                            ) : null}
-
-                            {aba === "ausencias" ? (
-                              <div className="space-y-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                  <div className="min-w-0 max-w-md">
-                                    <p className="text-sm font-medium text-ink">Ausências</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                                      Férias, folga ou consulta — nesses dias o site não oferece esta pessoa.
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium"
-                                    disabled={p.ausencias.length >= 24}
-                                    onClick={() =>
-                                      setPros((rows) =>
-                                        rows.map((r, j) =>
-                                          j === i
-                                            ? {
-                                                ...r,
-                                                ausencias: [...r.ausencias, { de: "", ate: "", motivo: "Ausente" }],
-                                              }
-                                            : r,
-                                        ),
-                                      )
-                                    }
-                                  >
-                                    Incluir ausência
-                                  </button>
-                                </div>
-                                {p.ausencias.length === 0 ? (
-                                  <p className="rounded-xl border border-dashed border-line bg-canvas px-4 py-6 text-center text-sm text-muted">
-                                    Nenhuma ausência. Pode seguir — você altera depois na área do cliente.
-                                  </p>
-                                ) : (
-                                  <div className="space-y-3">
-                                    {p.ausencias.map((a, ai) => (
-                                      <div key={`aus-${i}-${ai}`} className="gx-pro-ausencia">
-                                        <label className="gx-pro-label">
-                                          De
-                                          <input
-                                            type="date"
-                                            className={campo}
-                                            value={a.de}
-                                            onChange={(e) =>
-                                              setPros((rows) =>
-                                                rows.map((r, j) =>
-                                                  j === i
-                                                    ? {
-                                                        ...r,
-                                                        ausencias: r.ausencias.map((x, k) =>
-                                                          k === ai ? { ...x, de: e.target.value, ate: x.ate || e.target.value } : x,
-                                                        ),
-                                                      }
-                                                    : r,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <label className="gx-pro-label">
-                                          Até
-                                          <input
-                                            type="date"
-                                            className={campo}
-                                            value={a.ate || a.de}
-                                            min={a.de || undefined}
-                                            onChange={(e) =>
-                                              setPros((rows) =>
-                                                rows.map((r, j) =>
-                                                  j === i
-                                                    ? {
-                                                        ...r,
-                                                        ausencias: r.ausencias.map((x, k) =>
-                                                          k === ai ? { ...x, ate: e.target.value } : x,
-                                                        ),
-                                                      }
-                                                    : r,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <label className="gx-pro-label gx-pro-label--full">
-                                          Motivo
-                                          <input
-                                            className={campo}
-                                            value={a.motivo}
-                                            placeholder="Ex.: férias · folga · consulta"
-                                            onChange={(e) =>
-                                              setPros((rows) =>
-                                                rows.map((r, j) =>
-                                                  j === i
-                                                    ? {
-                                                        ...r,
-                                                        ausencias: r.ausencias.map((x, k) =>
-                                                          k === ai ? { ...x, motivo: e.target.value } : x,
-                                                        ),
-                                                      }
-                                                    : r,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </label>
-                                        <button
-                                          type="button"
-                                          className="justify-self-start text-xs text-muted underline"
-                                          onClick={() =>
-                                            setPros((rows) =>
-                                              rows.map((r, j) =>
-                                                j === i ? { ...r, ausencias: r.ausencias.filter((_, k) => k !== ai) } : r,
-                                              ),
-                                            )
-                                          }
-                                        >
-                                          Remover
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                <div className="gx-pro-next">
-                                  <button
-                                    type="button"
-                                    className="rounded-full border border-line px-4 py-2 text-sm font-medium"
-                                    onClick={() => setProAba((m) => ({ ...m, [i]: "grade" }))}
-                                  >
-                                    Voltar
-                                  </button>
-                                </div>
-                              </div>
-                            ) : null}
+                              </label>
+                              <button
+                                type="button"
+                                className="w-full rounded-full border border-line px-3 py-1.5 text-xs font-medium"
+                                onClick={() => {
+                                  setFotoProIndice(i);
+                                  setSlotFoto({ tipo: "sobre" });
+                                }}
+                              >
+                                Biblioteca / busca
+                              </button>
+                            </div>
+                            <div className="gx-pro-campos">
+                              <label className="gx-pro-label">
+                                Nome
+                                <input
+                                  className={campo}
+                                  value={p.nome}
+                                  placeholder="Quem atende"
+                                  onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
+                                />
+                              </label>
+                              <label className="gx-pro-label">
+                                Especialidade
+                                <input
+                                  className={campo}
+                                  value={p.cargo}
+                                  placeholder={dicas.cargo}
+                                  onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
+                                />
+                              </label>
+                            </div>
                           </div>
-                        </article>
-                      );
-                    })}
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 )}
               </SecaoColapsavel>
@@ -2425,9 +2123,17 @@ export function EstudioForm() {
         nicho={nicho}
         slot={slotFoto}
         onEscolher={(src) => {
+          if (fotoProIndice != null) {
+            setPros((rows) => rows.map((r, j) => (j === fotoProIndice ? { ...r, fotoSrc: src } : r)));
+            setFotoProIndice(null);
+            return;
+          }
           if (slotFoto) aplicarFoto(slotFoto, src);
         }}
-        onFechar={() => setSlotFoto(null)}
+        onFechar={() => {
+          setFotoProIndice(null);
+          setSlotFoto(null);
+        }}
       />
       <button
         type="button"
