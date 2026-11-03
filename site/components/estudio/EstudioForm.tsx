@@ -149,7 +149,7 @@ export function EstudioForm() {
     email: string;
     horario: string;
     enderecoLivre: string;
-    eventos: Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>;
+    eventos: Array<{ titulo: string; descricao: string; dataLabel: string; horario: string; imagemSrc?: string }>;
     slogan: string;
     logradouro: string;
     numero: string;
@@ -180,6 +180,7 @@ export function EstudioForm() {
   const [pros, setPros] = useState<ProForm[]>([]);
   const [proAberto, setProAberto] = useState(0);
   const [fotoProIndice, setFotoProIndice] = useState<number | null>(null);
+  const [fotoEventoIndice, setFotoEventoIndice] = useState<number | null>(null);
   /** Acordeão da etapa Contato (um bloco aberto por vez — menos scroll no mobile). */
   const [blocoAberto, setBlocoAberto] = useState("contato");
   const [srvAberto, setSrvAberto] = useState(0);
@@ -197,7 +198,9 @@ export function EstudioForm() {
   const [horario, setHorario] = useState(() => resumoDoExpediente(expedientePadrao()));
   const [expediente, setExpediente] = useState<DiaExpediente[]>(() => expedientePadrao());
   const [enderecoLivre, setEnderecoLivre] = useState("");
-  const [eventos, setEventos] = useState<Array<{ titulo: string; descricao: string; dataLabel: string; horario: string }>>([]);
+  const [eventos, setEventos] = useState<
+    Array<{ titulo: string; descricao: string; dataLabel: string; horario: string; imagemSrc?: string }>
+  >([]);
   const [avulsos, setAvulsos] = useState<Record<string, string>>({});
   const [faqs, setFaqs] = useState<FaqLivre | null>(null);
   const [avisoIa, setAvisoIa] = useState("");
@@ -583,7 +586,7 @@ export function EstudioForm() {
       setEventos((lista) =>
         lista.length >= 4
           ? lista
-          : [...lista, { titulo, descricao: valor.trim() ? `Venha participar: ${titulo}.` : "", dataLabel: "", horario: "19:00" }],
+          : [...lista, { titulo, descricao: valor.trim() ? `Venha participar: ${titulo}.` : "", dataLabel: "", horario: "19:00", imagemSrc: "" }],
       );
       return;
     }
@@ -593,7 +596,7 @@ export function EstudioForm() {
       const chave = ev[2] === "data" ? "dataLabel" : ev[2] === "horario" ? "horario" : ev[2] === "descricao" ? "descricao" : "titulo";
       setEventos((lista) => {
         const next = [...lista];
-        while (next.length <= i) next.push({ titulo: "Evento", descricao: "", dataLabel: "", horario: "19:00" });
+        while (next.length <= i) next.push({ titulo: "Evento", descricao: "", dataLabel: "", horario: "19:00", imagemSrc: "" });
         next[i] = { ...next[i], [chave]: valor };
         return next;
       });
@@ -1699,28 +1702,130 @@ export function EstudioForm() {
                   aberto={blocoAberto === "eventos"}
                   onToggle={() => toggleBloco("eventos")}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-muted">Noites especiais, workshops, lançamentos.</p>
+                  <div className="gx-evt">
+                    <p className="gx-evt__intro">Noites especiais, workshops, lançamentos. Pode colocar foto da biblioteca, da busca ou do seu arquivo.</p>
                     <button
                       type="button"
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-medium"
-                      onClick={() => setEventos((lista) => (lista.length >= 4 ? lista : [...lista, { titulo: "Novo evento", descricao: "", dataLabel: "", horario: "19:00" }]))}
+                      className="gx-evt__add"
+                      onClick={() =>
+                        setEventos((lista) =>
+                          lista.length >= 4
+                            ? lista
+                            : [...lista, { titulo: "", descricao: "", dataLabel: "", horario: "19:00", imagemSrc: "" }],
+                        )
+                      }
                     >
                       Incluir evento
                     </button>
-                  </div>
-                  <div className="mt-3 space-y-3">
-                    {eventos.map((ev, i) => (
-                      <div key={`ev-${i}`} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-2">
-                        <input className={campo} value={ev.titulo} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, titulo: e.target.value } : item)))} placeholder="Nome do evento" />
-                        <input className={campo} value={ev.dataLabel} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, dataLabel: e.target.value } : item)))} placeholder="Sábado, 12 de dezembro" />
-                        <input className={campo} value={ev.horario} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, horario: e.target.value } : item)))} placeholder="19:00" />
-                        <button type="button" className="text-xs text-muted" onClick={() => setEventos((lista) => lista.filter((_, j) => j !== i))}>
-                          Remover
-                        </button>
-                        <textarea className={`${campo} sm:col-span-2`} rows={2} value={ev.descricao} onChange={(e) => setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, descricao: e.target.value } : item)))} placeholder="O que acontece" />
-                      </div>
-                    ))}
+
+                    {eventos.length === 0 ? (
+                      <p className="gx-evt__vazio">Nenhum evento. Opcional — aparece na agenda do site.</p>
+                    ) : (
+                      <ul className="gx-evt__lista">
+                        {eventos.map((ev, i) => (
+                          <li key={`ev-${i}`} className="gx-evt__card">
+                            <div className="gx-evt__topo">
+                              <span className="gx-evt__indice">{i + 1}</span>
+                              <strong className="gx-evt__nome">{ev.titulo.trim() || `Evento ${i + 1}`}</strong>
+                              <button
+                                type="button"
+                                className="gx-evt__remover"
+                                onClick={() => setEventos((lista) => lista.filter((_, j) => j !== i))}
+                              >
+                                Remover
+                              </button>
+                            </div>
+
+                            <div className="gx-evt__corpo">
+                              <div className="gx-evt__foto-col">
+                                <label className="gx-evt__foto">
+                                  {ev.imagemSrc ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={ev.imagemSrc} alt="" />
+                                  ) : (
+                                    <span>
+                                      <em>+</em>
+                                      Foto
+                                    </span>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (!f) return;
+                                      void arquivoParaDataUrl(f, 900).then((src) =>
+                                        setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, imagemSrc: src } : item))),
+                                      );
+                                    }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  className="gx-evt__busca"
+                                  onClick={() => {
+                                    setFotoEventoIndice(i);
+                                    setFotoProIndice(null);
+                                    setSlotFoto({ tipo: "galeria", indice: 0 });
+                                  }}
+                                >
+                                  Biblioteca / busca
+                                </button>
+                              </div>
+
+                              <div className="gx-evt__campos">
+                                <label className="gx-evt__label gx-evt__label--full">
+                                  Nome
+                                  <input
+                                    className="gx-equipe__input"
+                                    value={ev.titulo}
+                                    placeholder="Nome do evento"
+                                    onChange={(e) =>
+                                      setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, titulo: e.target.value } : item)))
+                                    }
+                                  />
+                                </label>
+                                <label className="gx-evt__label">
+                                  Dia
+                                  <input
+                                    className="gx-equipe__input"
+                                    value={ev.dataLabel}
+                                    placeholder="Sábado, 12 de dezembro"
+                                    onChange={(e) =>
+                                      setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, dataLabel: e.target.value } : item)))
+                                    }
+                                  />
+                                </label>
+                                <label className="gx-evt__label">
+                                  Horário
+                                  <input
+                                    className="gx-equipe__input"
+                                    value={ev.horario}
+                                    placeholder="19:00"
+                                    onChange={(e) =>
+                                      setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, horario: e.target.value } : item)))
+                                    }
+                                  />
+                                </label>
+                                <label className="gx-evt__label gx-evt__label--full">
+                                  O que acontece
+                                  <textarea
+                                    className="gx-evt__area"
+                                    rows={3}
+                                    value={ev.descricao}
+                                    placeholder="Conte o que acontece"
+                                    onChange={(e) =>
+                                      setEventos((lista) => lista.map((item, j) => (j === i ? { ...item, descricao: e.target.value } : item)))
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </SecaoColapsavel>
               </section>
@@ -2114,14 +2219,22 @@ export function EstudioForm() {
         nicho={nicho}
         slot={slotFoto}
         onEscolher={(src) => {
+          if (fotoEventoIndice != null) {
+            setEventos((lista) => lista.map((item, j) => (j === fotoEventoIndice ? { ...item, imagemSrc: src } : item)));
+            setFotoEventoIndice(null);
+            setSlotFoto(null);
+            return;
+          }
           if (fotoProIndice != null) {
             setPros((rows) => rows.map((r, j) => (j === fotoProIndice ? { ...r, fotoSrc: src } : r)));
             setFotoProIndice(null);
+            setSlotFoto(null);
             return;
           }
           if (slotFoto) aplicarFoto(slotFoto, src);
         }}
         onFechar={() => {
+          setFotoEventoIndice(null);
           setFotoProIndice(null);
           setSlotFoto(null);
         }}

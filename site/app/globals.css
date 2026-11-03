@@ -798,6 +798,215 @@ html {
   color: #94a3b8;
 }
 
+/* —— Eventos da casa (criação) —— */
+.gx-evt {
+  display: grid;
+  gap: 1rem;
+}
+
+.gx-evt__intro {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.gx-evt__add {
+  justify-self: start;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0.55rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.gx-evt__vazio {
+  margin: 0;
+  border-radius: 0.9rem;
+  border: 1px dashed var(--color-line);
+  background: #f8fafc;
+  padding: 0.9rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.gx-evt__lista {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gx-evt__card {
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 1rem;
+}
+
+.gx-evt__topo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 85%, transparent);
+}
+
+.gx-evt__indice {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  background: #eef2f7;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.gx-evt__nome {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gx-evt__remover {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gx-evt__corpo {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 420px) {
+  .gx-evt__corpo {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1.1rem;
+  }
+}
+
+.gx-evt__foto-col {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.gx-evt__foto {
+  display: block;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 0.9rem;
+  border: 1.5px dashed #cbd5e1;
+  background: #f8fafc;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.gx-evt__foto:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, #cbd5e1);
+  background: color-mix(in srgb, var(--color-accent) 7%, #fff);
+}
+
+.gx-evt__foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gx-evt__foto span {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.gx-evt__foto em {
+  font-style: normal;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gx-evt__busca {
+  width: 6.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.gx-evt__campos {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 520px) {
+  .gx-evt__campos {
+    grid-template-columns: 1fr 7.5rem;
+  }
+
+  .gx-evt__label--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.gx-evt__label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-muted);
+}
+
+.gx-evt__area {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--color-ink);
+  resize: vertical;
+  outline: none;
+}
+
+.gx-evt__area:focus {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
 /* —— Equipe / profissional (estúdio legado / admin) —— */
 .gx-pro-empty {
   border-radius: 1rem;

@@ -30,7 +30,7 @@ export function construirAoVivo(
     horario?: string;
     expediente?: { dia: string; label: string; intervalos: string[] }[];
     enderecoCompleto?: string;
-    eventos?: { titulo: string; descricao: string; dataLabel: string; horario: string }[];
+    eventos?: { titulo: string; descricao: string; dataLabel: string; horario: string; imagemSrc?: string }[];
     faqs?: { titulo: string; itens: { pergunta: string; resposta: string }[] };
     menu?: { id: string; label: string; href: string }[];
     botaoAgendar?: string;
@@ -174,15 +174,24 @@ export function construirAoVivo(
       eventosOk.length > 0 &&
       eventosOk.every((item) => /recesso|natal|aviso|aten[cç][aã]o|fechado|n[aã]o atender/i.test(`${item.titulo} ${item.descricao}`));
     eventos.titulo = eventosOk.length ? (soAvisos ? "Avisos" : "Agenda") : String(eventos.titulo || "Agenda");
-    eventos.itens = eventosOk.slice(0, 4).map((item, i) => ({
-      id: `evt_cliente_${i + 1}`,
-      titulo: item.titulo.trim(),
-      descricao: item.descricao.trim(),
-      data: "2026-12-01",
-      data_label: item.dataLabel.trim() || "A definir",
-      horario: /^\d{2}:\d{2}$/.test(item.horario) ? item.horario : "19:00",
-      imagem: { id: `img_evt_cliente_${i + 1}`, src: "", alt: item.titulo || "Evento", categoria: "evento" },
-    }));
+    eventos.itens = eventosOk.slice(0, 4).map((item, i) => {
+      const src = String(item.imagemSrc || "").trim();
+      return {
+        id: `evt_cliente_${i + 1}`,
+        titulo: item.titulo.trim(),
+        descricao: item.descricao.trim(),
+        data: "2026-12-01",
+        data_label: item.dataLabel.trim() || "A definir",
+        horario: /^\d{2}:\d{2}$/.test(item.horario) ? item.horario : "19:00",
+        imagem: {
+          id: `img_evt_cliente_${i + 1}`,
+          src,
+          alt: item.titulo || "Evento",
+          categoria: "evento",
+          origem: src.startsWith("data:") ? "upload" : src ? "unsplash" : "biblioteca",
+        },
+      };
+    });
   } else {
     eventos.itens = [];
   }

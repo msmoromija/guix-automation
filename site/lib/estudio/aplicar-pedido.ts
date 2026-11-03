@@ -440,12 +440,16 @@ export function profissionaisDoSite(site: Record<string, unknown>) {
 export function eventosDoSite(site: Record<string, unknown>) {
   const bloco = obj(site.eventos);
   const itens = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
-  return itens.slice(0, 4).map((e) => ({
-    titulo: corta(e.titulo, 80) || "Evento",
-    descricao: corta(e.descricao, 320),
-    dataLabel: corta(e.data_label, 80),
-    horario: /^\d{2}:\d{2}$/.test(String(e.horario || "")) ? String(e.horario) : "19:00",
-  }));
+  return itens.slice(0, 4).map((e) => {
+    const img = (e.imagem || {}) as { src?: string };
+    return {
+      titulo: corta(e.titulo, 80) || "Evento",
+      descricao: corta(e.descricao, 320),
+      dataLabel: corta(e.data_label, 80),
+      horario: /^\d{2}:\d{2}$/.test(String(e.horario || "")) ? String(e.horario) : "19:00",
+      imagemSrc: String(img.src || ""),
+    };
+  });
 }
 
 const LIMITE_EVENTOS = 4;
