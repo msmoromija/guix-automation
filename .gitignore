@@ -10,9 +10,13 @@ dist/
 .DS_Store
 Thumbs.db
 *.log
-clientes/
+# Pacotes de clientes no disco (não a rota Next.js /clientes)
+/clientes/
 site/data/
 data/
+# Página pública do site
+!site/app/clientes/
+!site/app/clientes/**
 tmp-ffmpeg/
 *.zip
 # Rotas Next.js cujo segmento de URL é pacote.zip (não são arquivos ZIP)
