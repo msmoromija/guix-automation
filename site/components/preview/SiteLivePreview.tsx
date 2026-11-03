@@ -301,12 +301,19 @@ export function SiteLivePreview({
 
   const logoArquivo = Boolean(e.logo?.src?.startsWith("/marcas/"));
   const tamLogo = vis.logoTamanho || "medio";
+  const pintaArquivo = Boolean(logoArquivo && (vis.logoCorIcone || vis.logoCorAcento || t.color_accent));
   const classeLogo = logoArquivo
     ? tamLogo === "pequeno"
-      ? "gx-logo-arquivo h-10 w-auto max-w-[72px] object-contain"
-    : tamLogo === "grande"
-      ? "gx-logo-arquivo h-20 w-auto max-w-[160px] object-contain"
-      : "gx-logo-arquivo h-14 w-auto max-w-[104px] object-contain"
+      ? pintaArquivo
+        ? "gx-logo-arquivo h-10 w-10"
+        : "gx-logo-arquivo h-10 w-auto max-w-[72px] object-contain"
+      : tamLogo === "grande"
+        ? pintaArquivo
+          ? "gx-logo-arquivo h-20 w-20"
+          : "gx-logo-arquivo h-20 w-auto max-w-[160px] object-contain"
+        : pintaArquivo
+          ? "gx-logo-arquivo h-14 w-14"
+          : "gx-logo-arquivo h-14 w-auto max-w-[104px] object-contain"
     : tamLogo === "pequeno"
       ? "h-9 w-auto max-w-[180px] object-contain"
       : tamLogo === "grande"
@@ -329,8 +336,8 @@ export function SiteLivePreview({
           src={e.logo.src}
           alt={e.logo.alt || e.nome || ""}
           className={classeLogo}
-          cor={logoArquivo ? vis.logoCorIcone || vis.logoCorAcento || t.color_accent : undefined}
-          inverter={logoArquivo && !vis.logoCorIcone && !vis.logoCorAcento && tintaClara(t.color_text)}
+          cor={pintaArquivo ? vis.logoCorIcone || vis.logoCorAcento || t.color_accent : undefined}
+          inverter={logoArquivo && !pintaArquivo && tintaClara(t.color_text)}
         />
       ) : null}
       {mostraTextoForaDoSvg ? (

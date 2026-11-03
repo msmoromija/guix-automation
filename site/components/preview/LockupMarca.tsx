@@ -7,9 +7,11 @@ function IconeArquivo({ src, cor, className }: { src: string; cor: string; class
     <span
       role="img"
       aria-hidden
-      className={`shrink-0 ${className || ""}`}
+      className={`inline-block shrink-0 ${className || ""}`}
       style={{
         backgroundColor: cor,
+        aspectRatio: "1 / 1",
+        minWidth: "2.5rem",
         WebkitMaskImage: `url(${src})`,
         maskImage: `url(${src})`,
         WebkitMaskSize: "contain",

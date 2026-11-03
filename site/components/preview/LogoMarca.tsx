@@ -53,15 +53,18 @@ export function LogoMarca({
       />
     );
   }
+  // Máscara em span vazio precisa de lado definido — w-auto colapsa para 0.
   if (cor && hexOk(cor) && !src.startsWith("data:")) {
     return (
       <span
         role="img"
         aria-label={alt || ""}
-        className={className}
+        className={`inline-block shrink-0 ${className || ""}`}
         style={{
-          display: "inline-block",
           backgroundColor: cor,
+          aspectRatio: "1 / 1",
+          width: "auto",
+          minWidth: "2.75rem",
           WebkitMaskImage: `url(${src})`,
           maskImage: `url(${src})`,
           WebkitMaskSize: "contain",

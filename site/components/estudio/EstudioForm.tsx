@@ -294,7 +294,7 @@ export function EstudioForm() {
       email,
       redes,
       visual,
-      logoSrc: logoIa || etapa >= 3 ? logoSrc : undefined,
+      logoSrc: logoSrc || undefined,
       servicos,
       profissionais: pros,
       etapa,
