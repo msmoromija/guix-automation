@@ -62,6 +62,7 @@ export function MarcaStudio({
   const [corIcone, setCorIcone] = useState(acento || "#D4B483");
   const [corNome, setCorNome] = useState("");
   const [corAcento, setCorAcento] = useState(acento || "#D4B483");
+  const corpoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setEmblema(emblemasDoNicho(nicho)[0]?.id || "tesoura-disco");
@@ -76,6 +77,12 @@ export function MarcaStudio({
     // só ao abrir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto]);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const t = window.setTimeout(() => corpoRef.current?.scrollTo({ top: 0 }), 0);
+    return () => window.clearTimeout(t);
+  }, [aberto, avancado]);
 
   const specVivo = useMemo(
     () => specManual("", layout, fonteId, { corIcone, corNome: corNome || undefined, corAcento }, arquivo ? undefined : emblema, arquivo || undefined),
@@ -207,13 +214,6 @@ export function MarcaStudio({
   }
 
   if (!aberto) return null;
-
-  const corpoRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!aberto) return;
-    const t = window.setTimeout(() => corpoRef.current?.scrollTo({ top: 0 }), 0);
-    return () => window.clearTimeout(t);
-  }, [aberto, avancado]);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-ink/40 p-3 sm:items-center" onClick={onFechar}>

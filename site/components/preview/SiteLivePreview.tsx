@@ -426,7 +426,13 @@ export function SiteLivePreview({
             marca
           )}
           <nav className={`gap-4 text-xs opacity-80 ${cab === "menu-abaixo" && !estreito ? "flex flex-wrap" : estreito ? "hidden" : "hidden md:flex"}`}>
-            {(site.header?.menu || []).slice(0, 7).map((m, i) => (
+            {(site.header?.menu || [])
+              .filter((m) => {
+                if ((site.eventos?.itens?.length ?? 0) > 0) return true;
+                return !/#eventos\b/i.test(m.href || "") && !/^(encontros|eventos|agenda)$/i.test(String(m.label || "").trim());
+              })
+              .slice(0, 7)
+              .map((m, i) => (
               <a key={m.id} href={m.href} className="hover:opacity-100" onClickCapture={aoAncora}>
                 <TextoEditavel as="span" valor={m.label === "A casa" ? "Sobre" : m.label} campo={`menu.${i}.label`} onTexto={onTexto} />
               </a>
@@ -778,7 +784,7 @@ export function SiteLivePreview({
           </section>
         ) : null}
 
-        {!rascunho && ((site.eventos?.itens?.length ?? 0) > 0 || onTexto) ? (
+        {!rascunho && (site.eventos?.itens?.length ?? 0) > 0 ? (
           <section id="eventos" className="mx-auto max-w-5xl px-4 py-20 md:px-8">
             <TextoEditavel as="h2" valor={site.eventos?.titulo || "Agenda"} campo="eventos.titulo" onTexto={onTexto} className="text-3xl font-bold md:text-4xl" style={{ fontFamily: heading }} />
             <div className="mt-10 grid gap-6 md:grid-cols-2">
@@ -803,11 +809,6 @@ export function SiteLivePreview({
                 </article>
               ))}
             </div>
-            {onTexto && (site.eventos?.itens?.length || 0) < 4 ? (
-              <button type="button" className="mt-6 rounded-full border border-current px-4 py-2 text-sm" onClick={() => onTexto("evento.novo", "Novo evento")}>
-                Incluir evento
-              </button>
-            ) : null}
           </section>
         ) : null}
 
@@ -1004,13 +1005,14 @@ export function SiteLivePreview({
 
         <footer
           className={
-            (vis.rodapeLayout || "centralizado") === "dividido"
+            ((vis.rodapeLayout || "centralizado") === "dividido"
               ? "flex flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs md:px-8"
               : (vis.rodapeLayout || "centralizado") === "empilhado"
                 ? "flex flex-col items-start gap-3 px-4 py-10 text-left text-xs md:px-8"
                 : (vis.rodapeLayout || "centralizado") === "minimo"
                   ? "px-4 py-4 text-center text-xs md:px-8"
-                  : "px-4 py-8 text-center text-xs md:px-8"
+                  : "px-4 py-8 text-center text-xs md:px-8") +
+            (vis.whatsappFlutuante ? " pb-28 sm:pb-10" : "")
           }
           style={{ color: "var(--mt)", background: (vis.rodapeLayout || "centralizado") === "dividido" ? "var(--sf)" : undefined }}
         >
@@ -1050,7 +1052,7 @@ export function SiteLivePreview({
         {vis.whatsappFlutuante && wa(e.whatsapp) !== "#contato" ? (
           <a
             href={wa(e.whatsapp, e.whatsapp_mensagem)}
-            className={`${studio || rascunho ? "absolute" : "fixed"} bottom-5 right-5 z-40 px-4 py-3 text-sm font-semibold shadow-lg`}
+            className={`${studio || rascunho ? "absolute" : "fixed"} bottom-24 left-4 z-40 px-4 py-3 text-sm font-semibold shadow-lg sm:bottom-5 sm:left-auto sm:right-5`}
             style={{ background: "#25D366", color: "#052e16", borderRadius: "var(--r)" }}
             onClickCapture={aoAncora}
           >

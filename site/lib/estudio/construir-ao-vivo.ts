@@ -196,6 +196,19 @@ export function construirAoVivo(
     eventos.itens = [];
   }
   site.eventos = eventos;
+  // Sem eventos: some o item do menu para o site ir direto à seção seguinte.
+  if (!Array.isArray(eventos.itens) || !(eventos.itens as unknown[]).length) {
+    const header = { ...((site.header as Record<string, unknown>) || {}) };
+    const menu = Array.isArray(header.menu) ? (header.menu as { id?: string; label?: string; href?: string }[]) : [];
+    if (menu.length) {
+      header.menu = menu.filter(
+        (m) =>
+          !/#eventos\b/i.test(String(m.href || "")) &&
+          !/^(encontros|eventos|agenda)$/i.test(String(m.label || "").trim()),
+      );
+      site.header = header;
+    }
+  }
   if (opts.enderecoCompleto?.trim()) {
     const empresaEnd = { ...((site.empresa as Record<string, unknown>) || {}) };
     const end = { ...((empresaEnd.endereco as Record<string, unknown>) || {}) };

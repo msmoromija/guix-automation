@@ -230,11 +230,12 @@ const PALETA_NICHO: Record<string, { cores: string[]; fontes: string[]; layouts:
 };
 
 export function propostasBiblioteca(nicho: string): SpecLogo[] {
-  const paleta = PALETA_NICHO[nicho] || PALETA_NICHO.barbearia;
-  const arquivos = arquivosDoNicho(nicho);
+  const chave = PALETA_NICHO[nicho] ? nicho : "barbearia";
+  const paleta = PALETA_NICHO[chave] || PALETA_NICHO.barbearia;
+  const arquivos = arquivosDoNicho(chave);
   if (arquivos.length) {
     return arquivos.map((arquivo, i) => ({
-      id: `lib-${nicho}-arq-${i + 1}`,
+      id: `lib-${chave}-arq-${i + 1}`,
       origem: "biblioteca" as const,
       icone: "",
       arquivo,
@@ -244,25 +245,38 @@ export function propostasBiblioteca(nicho: string): SpecLogo[] {
       corAcento: paleta.cores[(i + 2) % paleta.cores.length],
     }));
   }
-  const marcas = emblemasDoNicho(nicho);
+  const marcas = emblemasDoNicho(chave);
   const layouts: LayoutLogo[] = ["lado", "empilhado", "selo", "marca"];
   const out: SpecLogo[] = [];
-  for (let i = 0; i < 20; i++) {
+  const total = Math.max(8, marcas.length);
+  for (let i = 0; i < total; i++) {
     const marca = marcas[i % Math.max(1, marcas.length)];
+    const emblema = marca?.id && emblemaExiste(marca.id) ? marca.id : "iniciais-disco";
     const cor = paleta.cores[i % paleta.cores.length];
     const acento = paleta.cores[(i + 2) % paleta.cores.length];
     out.push({
-      id: `lib-${nicho}-${i}-${marca?.id || "marca"}`,
+      id: `lib-${chave}-${i}-${emblema}`,
       origem: "biblioteca",
       icone: "",
-      emblema: marca?.id,
+      emblema,
       layout: layouts[i % layouts.length],
       fonteId: paleta.fontes[i % paleta.fontes.length],
       corIcone: cor,
       corAcento: acento,
     });
   }
-  return out;
+  return out.length ? out : [
+    {
+      id: `lib-${chave}-fallback`,
+      origem: "biblioteca",
+      icone: "",
+      emblema: "iniciais-disco",
+      layout: "lado",
+      fonteId: "georgia",
+      corIcone: "#D4B483",
+      corAcento: "#D4B483",
+    },
+  ];
 }
 
 export function specManual(

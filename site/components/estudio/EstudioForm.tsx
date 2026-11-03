@@ -98,6 +98,51 @@ function faqsDoSite(site: { faq?: { titulo?: string; itens?: { pergunta?: string
   };
 }
 
+function faqsGenericas(nomeNegocio: string): FaqLivre {
+  const casa = nomeNegocio.trim() || "a casa";
+  return {
+    titulo: "Dúvidas",
+    itens: [
+      {
+        pergunta: "Precisa marcar horário?",
+        resposta: `Sim. Em ${casa} o atendimento é com horário combinado pelo site ou pelo WhatsApp.`,
+      },
+      {
+        pergunta: "Como faço para agendar?",
+        resposta: "Escolha o serviço, envie a solicitação pelo site e confirme no WhatsApp.",
+      },
+      {
+        pergunta: "Posso chegar sem horário marcado?",
+        resposta: "Prefira marcar. Se houver vaga no dia, avisamos pelo WhatsApp.",
+      },
+      {
+        pergunta: "Onde vejo o endereço e o horário?",
+        resposta: "Ficam no bloco Contato do site. Se ainda não aparecerem, é porque ainda não foram preenchidos.",
+      },
+    ],
+  };
+}
+
+function faqsDaCopia(copia: CopiaViva | undefined, nomeNegocio: string): FaqLivre | null {
+  const itens = (copia?.faq?.itens || [])
+    .map((item) => ({
+      pergunta: String(item.pergunta || "").trim().slice(0, 180),
+      resposta: String(item.resposta || "").trim().slice(0, 400),
+    }))
+    .filter((item) => item.pergunta && item.resposta);
+  if (!itens.length) return null;
+  const base = faqsGenericas(nomeNegocio).itens;
+  const juntos = [...itens];
+  for (const item of base) {
+    if (juntos.length >= 4) break;
+    if (!juntos.some((j) => j.pergunta.toLowerCase() === item.pergunta.toLowerCase())) juntos.push(item);
+  }
+  return {
+    titulo: String(copia?.faq?.titulo || "Dúvidas").slice(0, 80) || "Dúvidas",
+    itens: juntos.slice(0, LIMITE_FAQ_FORM),
+  };
+}
+
 async function arquivoParaDataUrl(file: File, max = 640) {
   if (file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")) {
     const texto = await file.text();
@@ -388,20 +433,42 @@ export function EstudioForm() {
     iaEscreve,
   });
 
-  useEffect(() => {
-    if (!iaEscreve || nome.trim().length < 2) return;
-    porPedido.current.clear();
-    const ctrl = new AbortController();
-    const timer = window.setTimeout(() => {
-      setEscrevendo(true);
-      void fetch("/api/prototipo/textos", {
+  function aplicarRespostaTextos(data: { copia?: CopiaViva; aviso?: string; erro?: string }, nomeNegocio: string) {
+    if (!data.copia) {
+      if (data.erro) setAvisoIa(data.erro);
+      setFaqs((atual) => (atual && atual.itens.length >= 4 ? atual : faqsGenericas(nomeNegocio)));
+      return;
+    }
+    const travados = new Set([...manuais.current, ...porPedido.current]);
+    setCopia((atual) => mesclarCopia(atual, data.copia as CopiaViva, travados));
+    setServicos((rows) =>
+      rows.map((r, i) => {
+        if (travados.has(`srv.${i}.descricao`)) return r;
+        const desc = data.copia?.servicos?.itens?.[i]?.descricao;
+        return desc ? { ...r, descricao: desc } : r;
+      }),
+    );
+    const faqTravado = [...travados].some((c) => c.startsWith("faq."));
+    if (!faqTravado) {
+      const prontas = faqsDaCopia(data.copia, nomeNegocio) || faqsGenericas(nomeNegocio);
+      setFaqs(prontas);
+    }
+    if (data.aviso) setAvisoIa(data.aviso);
+  }
+
+  async function pedirTextosIa(opts?: { signal?: AbortSignal; imediato?: boolean }) {
+    const nomeNegocio = nome.trim();
+    if (!iaEscreve || nomeNegocio.length < 2) return;
+    setEscrevendo(true);
+    try {
+      const r = await fetch("/api/prototipo/textos", {
         method: "POST",
-        signal: ctrl.signal,
+        signal: opts?.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           modo: "escrever",
           nicho,
-          nome,
+          nome: nomeNegocio,
           slogan,
           cidade,
           bairro,
@@ -411,28 +478,23 @@ export function EstudioForm() {
           servicos,
           profissionais: pros,
         }),
-      })
-        .then(async (r) => r.json() as Promise<{ copia?: CopiaViva; aviso?: string; erro?: string }>)
-        .then((data) => {
-          if (!data.copia) {
-            if (data.erro) setAvisoIa(data.erro);
-            return;
-          }
-          const travados = new Set([...manuais.current, ...porPedido.current]);
-          setCopia((atual) => mesclarCopia(atual, data.copia as CopiaViva, travados));
-          setServicos((rows) =>
-            rows.map((r, i) => {
-              if (travados.has(`srv.${i}.descricao`)) return r;
-              const desc = data.copia?.servicos?.itens?.[i]?.descricao;
-              return desc ? { ...r, descricao: desc } : r;
-            }),
-          );
-          if (data.aviso) setAvisoIa(data.aviso);
-        })
-        .catch((e: unknown) => {
-          if ((e as { name?: string })?.name === "AbortError") return;
-        })
-        .finally(() => setEscrevendo(false));
+      });
+      const data = (await r.json()) as { copia?: CopiaViva; aviso?: string; erro?: string };
+      aplicarRespostaTextos(data, nomeNegocio);
+    } catch (e: unknown) {
+      if ((e as { name?: string })?.name === "AbortError") return;
+      setFaqs((atual) => (atual && atual.itens.length >= 4 ? atual : faqsGenericas(nomeNegocio)));
+    } finally {
+      setEscrevendo(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!iaEscreve || nome.trim().length < 2) return;
+    porPedido.current.clear();
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => {
+      void pedirTextosIa({ signal: ctrl.signal });
     }, 1100);
     return () => {
       ctrl.abort();
@@ -441,6 +503,14 @@ export function EstudioForm() {
     // A assinatura já resume os campos que devem reescrever a copy.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assinaturaTexto]);
+
+  useEffect(() => {
+    if (!previewAberta || !iaEscreve || nome.trim().length < 2) return;
+    const ctrl = new AbortController();
+    void pedirTextosIa({ signal: ctrl.signal, imediato: true });
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewAberta]);
 
   useEffect(() => {
     const seed = propostasBiblioteca(nicho);
@@ -1072,8 +1142,8 @@ export function EstudioForm() {
       return;
     }
     if (cidade.trim().length < 2 || !/^[A-Za-z]{2}$/.test(estado.trim())) {
-      setEtapa(4);
-      setErro("Informe a cidade e a UF. O site usa isso para dizer onde você atende.");
+      setEtapa(1);
+      setErro("Informe a cidade e a UF no primeiro quadro. O site usa isso para dizer onde você atende.");
       return;
     }
     setErro("");
@@ -1297,12 +1367,73 @@ export function EstudioForm() {
                 </span>
                 <input type="checkbox" className="h-5 w-5" checked={iaEscreve} onChange={(e) => setIaEscreve(e.target.checked)} />
               </label>
+
+              <div className="mt-6 border-t border-line pt-5">
+                <h3 className="text-sm font-semibold">Endereço</h3>
+                <p className="mt-1 text-xs text-muted">Entra no site e no mapa de contato. Digite o CEP — rua, bairro e cidade vêm sozinhos.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <label className="block min-w-0 flex-1 text-sm font-medium">
+                    CEP
+                    <input
+                      className={`${campo} text-lg tracking-[0.18em]`}
+                      value={cep}
+                      inputMode="numeric"
+                      placeholder="49000-000"
+                      onChange={(e) => {
+                        const fmt = formatarCep(e.target.value);
+                        setCep(fmt);
+                        setCepOk("");
+                        if (soDigitosCep(fmt).length === 8) void buscarCep(fmt);
+                      }}
+                    />
+                  </label>
+                  <label className="block w-full text-sm font-medium sm:w-20">
+                    UF
+                    <input
+                      className={`${campo} uppercase tracking-[0.12em]`}
+                      value={estado}
+                      maxLength={2}
+                      placeholder="UF"
+                      onChange={(e) => setEstado(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void buscarCep()}
+                    disabled={buscandoCep}
+                    className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {buscandoCep ? "Buscando…" : "Buscar"}
+                  </button>
+                </div>
+                {cepOk ? <p className="mt-2 text-sm font-medium text-ink">{cepOk}</p> : null}
+                <div className="mt-3 grid gap-3 sm:grid-cols-6">
+                  <label className="block text-sm sm:col-span-4">
+                    Rua
+                    <input className={campo} value={logradouro} onChange={(e) => { setEnderecoLivre(""); setLogradouro(e.target.value); }} />
+                  </label>
+                  <label className="block text-sm sm:col-span-2">
+                    Número
+                    <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="120" />
+                  </label>
+                  <label className="block text-sm sm:col-span-3">
+                    Bairro
+                    <input className={campo} value={bairro} onChange={(e) => setBairro(e.target.value)} />
+                  </label>
+                  <label className="block text-sm sm:col-span-3">
+                    Cidade
+                    <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} />
+                  </label>
+                </div>
+              </div>
+
               <div className="mt-4 rounded-xl bg-canvas px-4 py-3 text-xs leading-relaxed text-muted">
                 <p className="font-semibold text-ink">No site à direita agora</p>
                 <p className="mt-1">
                   {nome.trim() ? <span className="text-ink">{nome.trim()}</span> : "Nome ainda no modelo"}
                   {slogan.trim() ? <> · frase “{slogan.trim()}”</> : null}
                   {tom ? <> · tom {tom.split(",")[0]}</> : null}
+                  {cidade.trim() ? <> · {bairro.trim() ? `${bairro.trim()}, ` : ""}{cidade.trim()}{estado ? `/${estado}` : ""}</> : null}
                 </p>
                 {escrevendo ? <p className="mt-2 font-medium text-accent">Reescrevendo capa e sobre…</p> : null}
               </div>
@@ -1628,71 +1759,6 @@ export function EstudioForm() {
                       ))}
                     </select>
                   </label>
-                </SecaoColapsavel>
-
-                <SecaoColapsavel
-                  id="bloco-endereco"
-                  titulo="Endereço pelo CEP"
-                  resumo={[logradouro, cidade, estado].filter(Boolean).join(", ") || "Digite o CEP"}
-                  aberto={blocoAberto === "endereco"}
-                  onToggle={() => toggleBloco("endereco")}
-                  destaque
-                >
-                  <p className="text-sm text-muted">Rua, bairro, cidade e UF entram sozinhos. Só falta o número.</p>
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-                    <label className="block min-w-0 flex-1 text-sm font-medium">
-                      CEP
-                      <input
-                        className={`${campo} text-lg tracking-[0.18em]`}
-                        value={cep}
-                        inputMode="numeric"
-                        placeholder="49000-000"
-                        onChange={(e) => {
-                          const fmt = formatarCep(e.target.value);
-                          setCep(fmt);
-                          setCepOk("");
-                          if (soDigitosCep(fmt).length === 8) void buscarCep(fmt);
-                        }}
-                      />
-                    </label>
-                    <label className="block w-full text-sm font-medium sm:w-20">
-                      UF
-                      <input
-                        className={`${campo} uppercase tracking-[0.12em]`}
-                        value={estado}
-                        maxLength={2}
-                        placeholder="UF"
-                        onChange={(e) => setEstado(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => void buscarCep()}
-                      disabled={buscandoCep}
-                      className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {buscandoCep ? "Buscando…" : "Buscar endereço"}
-                    </button>
-                  </div>
-                  {cepOk ? <p className="mt-3 text-sm font-medium text-ink">{cepOk}</p> : null}
-                  <div className="mt-4 grid gap-3 sm:grid-cols-6">
-                    <label className="block text-sm sm:col-span-4">
-                      Rua
-                      <input className={campo} value={logradouro} onChange={(e) => { setEnderecoLivre(""); setLogradouro(e.target.value); }} />
-                    </label>
-                    <label className="block text-sm sm:col-span-2">
-                      Número
-                      <input className={campo} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="120" />
-                    </label>
-                    <label className="block text-sm sm:col-span-3">
-                      Bairro
-                      <input className={campo} value={bairro} onChange={(e) => setBairro(e.target.value)} />
-                    </label>
-                    <label className="block text-sm sm:col-span-3">
-                      Cidade
-                      <input className={campo} value={cidade} onChange={(e) => setCidade(e.target.value)} />
-                    </label>
-                  </div>
                 </SecaoColapsavel>
 
                 <SecaoColapsavel

@@ -106,7 +106,7 @@ export async function escreverCopiaSimulacao(entrada: {
   servicos: Array<{ nome: string; preco?: string; duracao?: string; descricao?: string }>;
   profissionais?: Array<{ nome: string; cargo?: string; descricao?: string }>;
 }) {
-  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} Responda só JSON. Escreva como quem atende no balcão: frase curta, concreta, sem "excelência", "compromisso" ou "qualidade" de enfeite. Nenhuma frase pode se repetir em outro bloco. Cada serviço descreve o que entra nele, com palavras diferentes dos outros. Se não houver horário ou endereço nos dados, não invente. Hero com promessa do ofício, não só o nome. Sobre com 2 parágrafos que não repetem a capa. FAQ com 4 perguntas deste negócio, cada resposta com um fato diferente. contato.titulo: Venha ao/à + bairro, ou Venha a + cidade se não houver bairro.`;
+  const sistema = `${ESCOPO} ${REGRA_NICHO[entrada.nicho] || REGRA_NICHO.generico} Responda só JSON. Escreva como quem atende no balcão: frase curta, concreta, sem "excelência", "compromisso" ou "qualidade" de enfeite. Nenhuma frase pode se repetir em outro bloco. Cada serviço descreve o que entra nele, com palavras diferentes dos outros. Se não houver horário ou endereço nos dados, não invente. Hero com promessa do ofício, não só o nome. Sobre com 2 parágrafos que não repetem a capa. OBRIGATÓRIO: faq.itens com exatamente 4 perguntas genéricas e úteis deste ofício (preço, horário, agendamento, o que levar), cada resposta com um fato diferente e sem inventar telefone/endereço. contato.titulo: Venha ao/à + bairro, ou Venha a + cidade se não houver bairro.`;
   const json = await completarJson(sistema, {
     nicho: entrada.nicho,
     nome: entrada.nome,
@@ -124,7 +124,15 @@ export async function escreverCopiaSimulacao(entrada: {
       sobre: { titulo: "", paragrafos: ["", ""] },
       servicos: { titulo: "Serviços", subtitulo: "", itens: [{ descricao: "" }] },
       contato: { titulo: "", subtitulo: "" },
-      faq: { titulo: "Dúvidas", itens: [{ pergunta: "", resposta: "" }] },
+      faq: {
+        titulo: "Dúvidas",
+        itens: [
+          { pergunta: "", resposta: "" },
+          { pergunta: "", resposta: "" },
+          { pergunta: "", resposta: "" },
+          { pergunta: "", resposta: "" },
+        ],
+      },
       profissionais: { titulo: "", subtitulo: "" },
     },
   }, 0.6);
