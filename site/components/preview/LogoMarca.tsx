@@ -1,5 +1,7 @@
 "use client";
 
+import { hexOk } from "@/lib/estudio/logo-spec";
+
 function svgDeDataUri(src: string): string | null {
   if (!src.startsWith("data:image/svg+xml")) return null;
   const comma = src.indexOf(",");
@@ -31,11 +33,14 @@ export function LogoMarca({
   alt,
   className,
   inverter,
+  cor,
 }: {
   src: string;
   alt?: string;
   className?: string;
   inverter?: boolean;
+  /** Pinta PNG monocromático (máscara). */
+  cor?: string;
 }) {
   const svg = svgDeDataUri(src);
   if (svg) {
@@ -45,6 +50,27 @@ export function LogoMarca({
         aria-label={alt || ""}
         className={`inline-flex items-center text-current [&_svg]:h-full [&_svg]:w-auto ${className || ""}`}
         dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    );
+  }
+  if (cor && hexOk(cor) && !src.startsWith("data:")) {
+    return (
+      <span
+        role="img"
+        aria-label={alt || ""}
+        className={className}
+        style={{
+          display: "inline-block",
+          backgroundColor: cor,
+          WebkitMaskImage: `url(${src})`,
+          maskImage: `url(${src})`,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+        }}
       />
     );
   }

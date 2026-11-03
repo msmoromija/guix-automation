@@ -259,7 +259,7 @@ export function MarcaStudio({
           <div className="sticky top-0 z-10 border-b border-line bg-white px-5 py-3 sm:px-6">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Como fica agora</p>
             <div className="flex h-[88px] items-center overflow-hidden rounded-xl px-4" style={{ background: fundoSite, color: tintaSite }}>
-              <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={tintaSite} acento={acento} className="h-16 w-full" />
+              <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={tintaSite} acento={corAcento || acento} className="h-16 w-full" />
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {(
@@ -272,7 +272,7 @@ export function MarcaStudio({
                 <div key={m.label}>
                   <p className="mb-1 text-[10px] uppercase tracking-wider text-muted">{m.label}</p>
                   <div className="flex h-12 items-center overflow-hidden rounded-lg px-2" style={{ background: m.fundo, color: m.tinta }}>
-                    <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={m.tinta} acento={acento} className="h-9 w-full" />
+                    <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={m.tinta} acento={corAcento || acento} className="h-9 w-full" />
                   </div>
                 </div>
               ))}

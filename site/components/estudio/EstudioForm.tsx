@@ -518,6 +518,17 @@ export function EstudioForm() {
     setSpecLogo(seed[0] || null);
   }, [nicho]);
 
+  useEffect(() => {
+    if (!specLogo) return;
+    setVisual((v) => {
+      const proxIcone = specLogo.corIcone || undefined;
+      const proxNome = specLogo.corNome || undefined;
+      const proxAcento = specLogo.corAcento || undefined;
+      if (v.logoCorIcone === proxIcone && v.logoCorNome === proxNome && v.logoCorAcento === proxAcento) return v;
+      return { ...v, logoCorIcone: proxIcone, logoCorNome: proxNome, logoCorAcento: proxAcento };
+    });
+  }, [specLogo]);
+
   function aplicarFoto(slot: SlotFoto, src: string) {
     if (slot.tipo === "hero") {
       fotosTocadas.current.hero = true;

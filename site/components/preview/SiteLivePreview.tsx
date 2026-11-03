@@ -329,7 +329,8 @@ export function SiteLivePreview({
           src={e.logo.src}
           alt={e.logo.alt || e.nome || ""}
           className={classeLogo}
-          inverter={logoArquivo && tintaClara(t.color_text)}
+          cor={logoArquivo ? vis.logoCorIcone || vis.logoCorAcento || t.color_accent : undefined}
+          inverter={logoArquivo && !vis.logoCorIcone && !vis.logoCorAcento && tintaClara(t.color_text)}
         />
       ) : null}
       {mostraTextoForaDoSvg ? (
@@ -340,7 +341,7 @@ export function SiteLivePreview({
             campo="nome"
             onTexto={onTexto}
             className="truncate text-base font-semibold tracking-wide"
-            style={{ fontFamily: heading }}
+            style={{ fontFamily: heading, color: vis.logoCorNome || undefined }}
           />
           {mostraSloganLockup ? (
             <TextoEditavel
@@ -348,7 +349,8 @@ export function SiteLivePreview({
               valor={e.slogan || "Frase da marca"}
               campo="slogan"
               onTexto={onTexto}
-              className="mt-0.5 truncate text-[11px] font-normal opacity-70"
+              className="mt-0.5 truncate text-[11px] font-normal"
+              style={{ color: vis.logoCorAcento || undefined, opacity: vis.logoCorAcento ? 1 : 0.7 }}
             />
           ) : null}
         </span>

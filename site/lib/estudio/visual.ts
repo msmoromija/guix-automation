@@ -24,6 +24,10 @@ export interface VisualConfig {
   logoTamanho: LogoTamanho;
   /** Ícone × texto do lockup no cabeçalho. */
   logoAlinhamento: LogoAlinhamento;
+  /** Cores do lockup (PNG da biblioteca / ajuste manual). */
+  logoCorIcone?: string;
+  logoCorNome?: string;
+  logoCorAcento?: string;
   banner: BannerLayout;
   botao: BotaoEstilo;
   animacao: Animacao;
