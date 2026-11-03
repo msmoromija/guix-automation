@@ -5,6 +5,7 @@ import { IconeRede } from "@/components/estudio/IconeRede";
 import { LogoMarca } from "@/components/preview/LogoMarca";
 import { TextoEditavel } from "@/components/preview/TextoEditavel";
 import { tintaClara } from "@/lib/estudio/logo-spec";
+import { marca } from "@/lib/marca";
 import { googleFontsHref, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 import { enquadrarFoto } from "@/lib/media/tratar-url";
 
@@ -112,6 +113,24 @@ function CreditosDoSite({ site }: { site: Site }) {
           )}
         </span>
       ))}
+    </p>
+  );
+}
+
+/** Assinatura fixa — não editável pelo cliente. */
+function AssinaturaGuix() {
+  return (
+    <p className="mx-auto mt-5 max-w-2xl text-center text-[11px] leading-5 tracking-wide opacity-70">
+      Desenvolvido por{" "}
+      <a
+        href={marca.site}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold underline decoration-current/30 underline-offset-2 hover:opacity-100"
+        style={{ color: "var(--a)" }}
+      >
+        {marca.nome}
+      </a>
     </p>
   );
 }
@@ -1055,6 +1074,7 @@ export function SiteLivePreview({
             </div>
           ) : null}
           <CreditosDoSite site={site} />
+          <AssinaturaGuix />
         </footer>
         </Bloco>
 

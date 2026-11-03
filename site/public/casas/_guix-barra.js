@@ -34,4 +34,16 @@
 
   document.body.appendChild(bar);
   document.body.style.paddingBottom = "72px";
+
+  if (!document.getElementById("guix-assinatura")) {
+    var credito = document.createElement("p");
+    credito.id = "guix-assinatura";
+    credito.style.cssText =
+      "margin:0;padding:14px 16px 88px;text-align:center;font:500 11px/1.5 system-ui,sans-serif;opacity:.72";
+    credito.innerHTML =
+      'Desenvolvido por <a href="https://guix.net.br" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline;text-underline-offset:2px;color:inherit">GuiX.net</a>';
+    var rodape = document.querySelector("footer");
+    if (rodape) rodape.appendChild(credito);
+    else document.body.appendChild(credito);
+  }
 })();
