@@ -57,7 +57,7 @@ const ETAPAS = [
   { id: 1, titulo: "Negócio", resumo: "Nome, frase e o tom da escrita." },
   { id: 2, titulo: "Aparência", resumo: "Cores, fonte, fotos e o formato dos botões." },
   { id: 3, titulo: "Marca", resumo: "Logo, tamanho e posição no topo." },
-  { id: 4, titulo: "Contato", resumo: "WhatsApp, agenda da semana, recessos, redes, serviços e equipe." },
+  { id: 4, titulo: "Contato e agenda", resumo: "WhatsApp, horários que o cliente pode marcar, serviços e equipe." },
   { id: 5, titulo: "Salvar", resumo: "Salva o rascunho e gera o link para o cliente." },
 ];
 
@@ -1056,7 +1056,16 @@ export function EstudioForm() {
   }
 
   function aoAncora(id: string) {
-    if (id === "contato") ir(4, "contato");
+    if (id === "agendar") {
+      setEtapa(4);
+      setBlocoAberto("horario");
+      setErro("");
+      window.setTimeout(() => {
+        const el = document.getElementById("bloco-horario");
+        if (el) scrollFormAoTopo(el);
+        else scrollFormAoTopo(null);
+      }, 50);
+    } else if (id === "contato") ir(4, "contato");
     else if (id === "servicos" || id === "faq") ir(4, id === "faq" ? "contato" : "servicos");
     else if (id === "profissionais") ir(4, "equipe");
     else if (id === "inicio" || id === "sobre") ir(1, "negocio");
@@ -1689,16 +1698,22 @@ export function EstudioForm() {
 
                     <label className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
                       <span>
-                        <span className="block text-sm font-semibold">Agendar no site</span>
-                        <span className="text-xs text-muted">Cliente informa nome, WhatsApp e e-mail e escolhe o horário.</span>
+                        <span className="block text-sm font-semibold">Agenda online no site</span>
+                        <span className="text-xs text-muted">
+                          Liga o bloco <strong className="text-ink">#agendar</strong> no preview — quem contrata o serviço
+                          marca dia e hora ali.
+                        </span>
                       </span>
                       <input type="checkbox" className="h-5 w-5" checked={visual.agendamento} onChange={(e) => setVisual((v) => ({ ...v, agendamento: e.target.checked }))} />
                     </label>
 
                     {visual.agendamento ? (
                       <fieldset className="rounded-2xl border border-line p-4">
-                        <legend className="px-1 text-sm font-semibold">Como confirmar o horário</legend>
-                        <p className="mt-1 text-xs text-muted">Escolha uma opção. O cliente sempre preenche nome, WhatsApp e e-mail.</p>
+                        <legend className="px-1 text-sm font-semibold">Como o dono confirma o horário</legend>
+                        <p className="mt-1 text-xs text-muted">
+                          Quem agenda sempre preenche nome, WhatsApp e e-mail. Você escolhe se confirma no painel, na
+                          hora ou pelo WhatsApp.
+                        </p>
                         <div className="mt-3 space-y-2">
                           {(
                             [
@@ -1742,12 +1757,19 @@ export function EstudioForm() {
 
                 <SecaoColapsavel
                   id="bloco-horario"
-                  titulo="Horário de trabalho"
+                  titulo="Horários da agenda (dono do negócio)"
                   resumo={horario || "Defina dias e expediente"}
                   aberto={blocoAberto === "horario"}
                   onToggle={() => toggleBloco("horario")}
                 >
-                  <p className="text-sm leading-relaxed text-muted">
+                  <div className="rounded-xl border border-accent/25 bg-[#FFF7ED] px-3 py-3 text-sm leading-6 text-ink">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Você define · o cliente escolhe</p>
+                    <p className="mt-1 text-sm text-muted">
+                      Estes dias e intervalos alimentam a grade do bloco <strong className="text-ink">Agendar</strong> no
+                      site. No preview, role até a agenda ou toque em <strong className="text-ink">Agendar</strong> no topo.
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">
                     Escolha os dias, o expediente e, se quiser, a pausa de almoço.
                   </p>
                   <div className="mt-4">

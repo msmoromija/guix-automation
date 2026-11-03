@@ -454,21 +454,28 @@ export function SiteLivePreview({
             marca
           )}
           <nav className={`gap-4 text-xs opacity-80 ${cab === "menu-abaixo" && !estreito ? "flex flex-wrap" : estreito ? "hidden" : "hidden md:flex"}`}>
-            {(site.header?.menu || [])
-              .filter((m) => {
+            {(() => {
+              const base = (site.header?.menu || []).filter((m) => {
+                // Esconde só o menu de eventos/encontros quando não há itens — nunca some com #agendar
+                if (/#agendar\b/i.test(m.href || "")) return vis.agendamento !== false;
                 if ((site.eventos?.itens?.length ?? 0) > 0) return true;
-                return !/#eventos\b/i.test(m.href || "") && !/^(encontros|eventos|agenda)$/i.test(String(m.label || "").trim());
-              })
-              .slice(0, 7)
-              .map((m, i) => (
-              <a key={m.id} href={m.href} className="hover:opacity-100" onClickCapture={aoAncora}>
-                <TextoEditavel as="span" valor={m.label === "A casa" ? "Sobre" : m.label} campo={`menu.${i}.label`} onTexto={onTexto} />
-              </a>
-            ))}
+                return !/#eventos\b/i.test(m.href || "") && !/^(encontros|eventos)$/i.test(String(m.label || "").trim());
+              });
+              const temAgendar = base.some((m) => /#agendar\b/i.test(m.href || ""));
+              const menu =
+                vis.agendamento !== false && !temAgendar
+                  ? [...base, { id: "agendar", label: "Agenda", href: "#agendar" }]
+                  : base;
+              return menu.slice(0, 7).map((m, i) => (
+                <a key={m.id} href={m.href} className="hover:opacity-100" onClickCapture={aoAncora}>
+                  <TextoEditavel as="span" valor={m.label === "A casa" ? "Sobre" : m.label} campo={`menu.${i}.label`} onTexto={onTexto} />
+                </a>
+              ));
+            })()}
           </nav>
-          {vis.agendamento ? (
+          {vis.agendamento !== false ? (
             <a
-              href={wa(e.whatsapp, e.whatsapp_mensagem)}
+              href="#agendar"
               className="px-3 py-1.5 text-xs font-semibold"
               style={{
                 background: vis.botao === "sem-contorno" ? "transparent" : "var(--a)",
@@ -618,7 +625,7 @@ export function SiteLivePreview({
               />
             ))}
             <a
-              href={wa(e.whatsapp, e.whatsapp_mensagem)}
+              href={vis.agendamento !== false ? "#agendar" : wa(e.whatsapp, e.whatsapp_mensagem)}
               className="mt-6 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold"
               style={{ background: "var(--a)", color: "var(--bg)", borderRadius: "var(--r)" }}
               onClickCapture={aoAncora}
@@ -918,23 +925,25 @@ export function SiteLivePreview({
         ) : null}
 
         {!rascunho && vis.agendamento !== false ? (
-          <AgendarBloco
-            titulo={site.agendamento?.titulo}
-            subtitulo={site.agendamento?.subtitulo}
-            servicos={site.servicos?.itens || []}
-            profissionais={equipeVisivel}
-            expediente={e.expediente || []}
-            agendaEquipe={vis.agendaEquipe}
-            duracaoSlotMinutos={vis.duracaoSlotMinutos || 30}
-            modoConfirmacao={vis.modoConfirmacaoAgenda || "manual"}
-            whatsapp={e.whatsapp}
-            emailNegocio={e.email}
-            negocioNome={e.nome}
-            siteId={siteId}
-            nicho={site.meta?.nicho}
-            fechado={site.agendamento?.fechado}
-            studio={Boolean(onTexto) && !siteId}
-          />
+          <div>
+            <AgendarBloco
+              titulo={site.agendamento?.titulo}
+              subtitulo={site.agendamento?.subtitulo}
+              servicos={site.servicos?.itens || []}
+              profissionais={equipeVisivel}
+              expediente={e.expediente || []}
+              agendaEquipe={vis.agendaEquipe}
+              duracaoSlotMinutos={vis.duracaoSlotMinutos || 30}
+              modoConfirmacao={vis.modoConfirmacaoAgenda || "manual"}
+              whatsapp={e.whatsapp}
+              emailNegocio={e.email}
+              negocioNome={e.nome}
+              siteId={siteId}
+              nicho={site.meta?.nicho}
+              fechado={site.agendamento?.fechado}
+              studio={studio || (Boolean(onTexto) && !siteId)}
+            />
+          </div>
         ) : null}
 
         <Bloco alvo="contato" label="contato" onEditar={onEditar} foco={foco} revelado={revelado}>
@@ -973,8 +982,15 @@ export function SiteLivePreview({
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 11H7v-2h4V6h2z"/></svg>
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>Horário</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
+                      {studio ? "Horário (resumo no site)" : "Horário"}
+                    </p>
                     <TextoEditavel valor={dadoVisivel(e.horario_resumo) || "Horário de funcionamento"} campo="horario" onTexto={onTexto} className="mt-1 text-sm" />
+                    {studio && vis.agendamento !== false ? (
+                      <a href="#agendar" onClickCapture={aoAncora} className="mt-2 inline-flex text-xs font-semibold underline" style={{ color: "var(--a)" }}>
+                        Ver grade de agendamento ↓
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               ) : null}

@@ -184,7 +184,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
         setExpediente(casa);
         setPros(carregarPros(json.site || {}, json.visual, casa));
       }
-      setOk("Agenda atualizada. O site de agendamento já usa estes horários.");
+      setOk("Agenda atualizada. Os horários livres do site (#agendar) já usam esta grade.");
     } catch {
       setErro("Falha de rede ao salvar.");
     } finally {
@@ -212,15 +212,24 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
     <main className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold tracking-[0.16em] text-accent">ÁREA DO CLIENTE</p>
+          <p className="text-xs font-semibold tracking-[0.16em] text-accent">DONO DO NEGÓCIO</p>
           <h1 className="mt-2 text-3xl font-bold tracking-[-0.03em]">Agenda e horários</h1>
-          <p className="mt-2 text-sm text-muted">
-            {empresa || "Seu negócio"} · altere a rotina da casa e de cada profissional quando mudar.
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+            {empresa || "Seu negócio"} — aqui você define o expediente e confirma pedidos. Quem agenda o serviço faz isso
+            no site, no bloco <strong className="text-ink">Agendar</strong>.
           </p>
         </div>
-        <Link href={`/conta/${id}?${qs}`} className="text-sm font-medium text-muted underline">
-          Voltar
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/visualizar/${id}#agendar`}
+            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold"
+          >
+            Ver agenda no site
+          </Link>
+          <Link href={`/conta/${id}?${qs}`} className="rounded-full border border-line px-4 py-2 text-sm font-medium text-muted">
+            Voltar
+          </Link>
+        </div>
       </div>
 
       {fechado ? (

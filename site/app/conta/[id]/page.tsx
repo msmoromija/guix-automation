@@ -113,10 +113,10 @@ function Conta() {
 
   const cards = [
     {
-      titulo: "1 · Ver o site",
-      texto: "Abra o protótipo como o cliente final vê — textos, agenda e WhatsApp.",
-      href: previewPath,
-      cta: "Abrir site de teste",
+      titulo: "1 · Ver o site (quem agenda)",
+      texto: "Abra o protótipo e role até Agenda — é ali que o cliente do serviço marca dia e horário.",
+      href: `${previewPath}#agendar`,
+      cta: "Abrir agenda no site",
     },
     {
       titulo: "2 · Comprar / publicar",
@@ -126,16 +126,16 @@ function Conta() {
       destaque: true,
     },
     {
-      titulo: "Administrador do site",
-      texto: "Equipe, avisos, serviços, FAQ, endereço, redes, horário e vagas — sem IA.",
-      href: adminUrl,
-      cta: "Abrir controle",
+      titulo: "Horários e confirmações (dono)",
+      texto: "Defina expediente, vagas e como você confirma — painel, automático ou WhatsApp.",
+      href: agendaUrl,
+      cta: "Gerenciar agenda",
     },
     {
-      titulo: "Agenda e solicitações",
-      texto: "Caixa de pedidos e grade — aceite ou recuse com horário e dados do cliente.",
-      href: agendaUrl,
-      cta: "Abrir agenda",
+      titulo: "Administrador do site",
+      texto: "Equipe, avisos, serviços, FAQ, endereço e redes — sem IA.",
+      href: adminUrl,
+      cta: "Abrir controle",
     },
     {
       titulo: "Extrato PDF",
@@ -255,9 +255,30 @@ function Conta() {
           </Link>
         </div>
 
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">Quem agenda o serviço</p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">
+              Entra no site → toca em <strong>Agendar</strong> → escolhe serviço, dia e horário.
+            </p>
+            <Link href={`${previewPath}#agendar`} className="mt-2 inline-flex text-sm font-semibold text-accent underline">
+              Ver no site de teste
+            </Link>
+          </div>
+          <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">Dono do domínio / negócio</p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">
+              Define expediente e confirma (ou recusa) os pedidos na agenda.
+            </p>
+            <Link href={agendaUrl} className="mt-2 inline-flex text-sm font-semibold text-accent underline">
+              Abrir minha agenda
+            </Link>
+          </div>
+        </div>
+
         <ol className="mt-5 space-y-1.5 text-sm leading-6 text-slate-700">
           <li>
-            <strong>1.</strong> Abra o site de teste e confira.
+            <strong>1.</strong> Abra o site de teste e confira a agenda.
           </li>
           <li>
             <strong>2.</strong> Envie o link do site (ou o WhatsApp) para o cliente.

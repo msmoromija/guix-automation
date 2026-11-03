@@ -384,8 +384,41 @@ export function AgendarBloco({
 
   if (!listaSrv.length) return null;
 
+  // No simulador (studio): mostra a grade de horários com cliente-exemplo,
+  // para ficar óbvio onde quem contrata o serviço marca o dia/hora.
+  const demoStudio = Boolean(studio);
+  const sessaoDemo: SessaoLocal | null = demoStudio
+    ? {
+        token: "demo-studio",
+        nomeCompleto: "Cliente exemplo",
+        email: "cliente@email.com",
+        telefone: "(11) 99999-0000",
+        expiraEm: new Date(Date.now() + 86400000).toISOString(),
+      }
+    : null;
+  const sessaoAtiva = sessao || sessaoDemo;
+  const verificadoEfetivo = demoStudio || Boolean(sessao?.token) || verificado;
+
   return (
-    <section id="agendar" className="mx-auto max-w-3xl px-4 py-16 md:px-8">
+    <section id="agendar" className="mx-auto max-w-3xl px-4 py-16 md:px-8" data-preview-alvo="agendar">
+      {demoStudio ? (
+        <div
+          className="mb-6 rounded-2xl border px-4 py-3 sm:px-5"
+          style={{
+            borderColor: "color-mix(in srgb, var(--a) 45%, transparent)",
+            background: "color-mix(in srgb, var(--a) 12%, transparent)",
+          }}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--a)" }}>
+            Agenda do site · visão de quem agenda
+          </p>
+          <p className="mt-1.5 text-sm leading-6" style={{ color: "var(--tx)" }}>
+            É aqui que o <strong>cliente do serviço</strong> escolhe dia e horário. Os horários livres vêm do expediente
+            que o <strong>dono do negócio</strong> define no painel (Horário de trabalho / Agenda).
+          </p>
+        </div>
+      ) : null}
+
       <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Solicitar horário"}</h2>
       <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
         {subtitulo ||
@@ -400,14 +433,14 @@ export function AgendarBloco({
         className="gx-agendar-card mt-8 space-y-6 rounded-2xl border p-5 shadow-[0_22px_48px_-28px_rgba(15,23,42,0.45)] sm:p-6"
         style={{ borderColor: "color-mix(in srgb, var(--tx) 12%, transparent)", background: "var(--sf)" }}
       >
-        {!verificado || (studio && !sessao) ? (
+        {!verificadoEfetivo ? (
           <div className="space-y-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-                Dados do cliente
+                Dados de quem agenda
               </p>
               <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
-                Nome, WhatsApp e e-mail — depois enviamos um código para liberar a agenda.
+                Nome, WhatsApp e e-mail — depois enviamos um código para liberar a escolha do horário.
               </p>
             </div>
 
@@ -525,16 +558,21 @@ export function AgendarBloco({
               style={{ borderColor: "color-mix(in srgb, var(--a) 35%, transparent)", background: "color-mix(in srgb, var(--a) 10%, transparent)" }}
             >
               <div className="min-w-0 text-sm">
-                <p className="font-semibold">{sessao?.nomeCompleto || nomeCompleto}</p>
+                <p className="font-semibold">{sessaoAtiva?.nomeCompleto || nomeCompleto}</p>
                 <p className="truncate text-xs" style={{ color: "var(--mt)" }}>
-                  {sessao?.email || email} · {sessao?.telefone || tel}
+                  {sessaoAtiva?.email || email} · {sessaoAtiva?.telefone || tel}
+                  {demoStudio ? " · simulação" : ""}
                 </p>
               </div>
               {!studio ? (
                 <button type="button" className="text-xs font-medium underline" style={{ color: "var(--a)" }} onClick={sairCadastro}>
                   Trocar cadastro
                 </button>
-              ) : null}
+              ) : (
+                <span className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ background: "var(--a)", color: "var(--bg)" }}>
+                  Demo
+                </span>
+              )}
             </div>
 
             <div>
@@ -668,12 +706,13 @@ export function AgendarBloco({
               {enviando
                 ? "Enviando solicitação…"
                 : studio
-                  ? "Solicitar (ativo no site publicado)"
+                  ? "No site publicado, o cliente solicita aqui"
                   : "Solicitar horário ao profissional"}
             </button>
             <p className="text-xs" style={{ color: "var(--mt)" }}>
-              O profissional recebe horário e seus dados e responde (aceitar ou recusar). Enquanto estiver pendente, o
-              horário fica reservado. Depois de confirmado, desmarque pelo link até 3 horas antes.
+              {studio
+                ? "Simulação: role os dias e veja os horários livres. Depois de publicar, o dono confirma (ou o sistema confirma sozinho) na área do cliente."
+                : "O profissional recebe horário e seus dados e responde (aceitar ou recusar). Enquanto estiver pendente, o horário fica reservado. Depois de confirmado, desmarque pelo link até 3 horas antes."}
             </p>
           </>
         )}

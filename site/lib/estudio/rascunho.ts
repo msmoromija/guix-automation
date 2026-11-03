@@ -40,6 +40,7 @@ export function montarRascunho(opts: {
         { id: "inicio", label: "Início", href: "#inicio" },
         { id: "servicos", label: "Serviços", href: "#servicos" },
         { id: "equipe", label: "Equipe", href: "#profissionais" },
+        { id: "agendar", label: "Agenda", href: "#agendar" },
       ],
     },
     hero: {

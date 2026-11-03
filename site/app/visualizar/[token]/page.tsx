@@ -355,6 +355,12 @@ export default function VisualizarRascunhoPage() {
               {copiado ? "Link copiado" : "Copiar link do site"}
             </button>
             <Link
+              href={`/conta/${token}/agenda?t=${token}`}
+              className="rounded-full border border-sky-400/50 bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-100"
+            >
+              Minha agenda · horários
+            </Link>
+            <Link
               href={meta?.contaUrl || `/conta/${token}?t=${token}`}
               className="rounded-full border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100"
             >
