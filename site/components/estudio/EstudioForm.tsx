@@ -2279,13 +2279,15 @@ export function EstudioForm() {
           setSlotFoto(null);
         }}
       />
-      <button
-        type="button"
-        className="fixed bottom-5 right-4 z-40 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white shadow-lg lg:hidden"
-        onClick={() => setPreviewAberta(true)}
-      >
-        Ver o site
-      </button>
+      {!previewAberta ? (
+        <button
+          type="button"
+          className="fixed bottom-5 right-4 z-40 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white shadow-lg lg:hidden"
+          onClick={() => setPreviewAberta(true)}
+        >
+          Ver o site
+        </button>
+      ) : null}
 
       <MarcaStudio
         aberto={studioAberto}

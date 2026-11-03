@@ -127,8 +127,8 @@ function Barra({
           </button>
         ) : null}
         {fechar ? (
-          <button type="button" className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-white" onClick={fechar}>
-            Fechar
+          <button type="button" className="rounded-full bg-ink px-3 py-1.5 text-[11px] font-semibold text-white" onClick={fechar}>
+            ← Configurar
           </button>
         ) : null}
       </div>
@@ -208,11 +208,11 @@ export function EstudioPreview({
     };
   }, [vista, zoom]);
 
-  function painel(opts: { ampliar?: boolean; fechar?: () => void }) {
+  function painel(opts: { ampliar?: boolean; fechar?: () => void; voltarConfig?: boolean }) {
     return (
       <div className="flex h-full min-h-0 flex-col bg-zinc-200">
         <Barra
-          dica={dica}
+          dica={opts.voltarConfig ? "Toque em Voltar para editar o formulário." : dica}
           vista={vista}
           zoom={zoom}
           onVista={setVista}
@@ -227,13 +227,28 @@ export function EstudioPreview({
           </div>
         </div>
         {pedido ? <div className="shrink-0 border-t border-zinc-400/40 bg-zinc-200">{pedido}</div> : null}
+        {opts.voltarConfig && opts.fechar ? (
+          <div className="shrink-0 border-t border-black/10 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              className="flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white"
+              onClick={opts.fechar}
+            >
+              Voltar às configurações
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }
 
   if (variante === "folha") {
     if (!aberto) return null;
-    return <div className="fixed inset-0 z-[70] flex flex-col bg-white lg:hidden">{painel({ fechar: onToggle })}</div>;
+    return (
+      <div className="fixed inset-0 z-[70] flex flex-col bg-white lg:hidden">
+        {painel({ fechar: onToggle, voltarConfig: true })}
+      </div>
+    );
   }
 
   return (
