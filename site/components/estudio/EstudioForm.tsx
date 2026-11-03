@@ -2024,8 +2024,48 @@ export function EstudioForm() {
               >
                 <div className="gx-equipe">
                   <p className="gx-equipe__intro">
-                    Só nome, especialidade e foto. Horários e avisos ficam no painel do administrador depois da compra.
+                    Só nome, especialidade e foto. A grade quebra em linhas (não estica a página). Horários e avisos ficam no admin.
                   </p>
+
+                  <div className="gx-equipe__visual">
+                    <p className="gx-equipe__visual-titulo">Como aparece no site</p>
+                    <div className="gx-equipe__opcoes" role="group" aria-label="Formato da foto">
+                      {(
+                        [
+                          ["circulo", "Círculo"],
+                          ["quadrado", "Quadrado"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`gx-equipe__chip ${(visual.equipeFotoForma || "circulo") === id ? "is-on" : ""}`}
+                          onClick={() => setVisual((v) => ({ ...v, equipeFotoForma: id }))}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="gx-equipe__opcoes" role="group" aria-label="Tamanho da foto">
+                      {(
+                        [
+                          ["pequeno", "Pequena"],
+                          ["medio", "Média"],
+                          ["grande", "Grande"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`gx-equipe__chip ${(visual.equipeFotoTamanho || "medio") === id ? "is-on" : ""}`}
+                          onClick={() => setVisual((v) => ({ ...v, equipeFotoTamanho: id }))}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     className="gx-equipe__add"

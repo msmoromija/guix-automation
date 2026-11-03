@@ -11,6 +11,8 @@ export type LogoAlinhamento = "centro" | "topo" | "base";
 export type BannerLayout = "automatico" | "solido" | "degrade";
 export type Animacao = "suave" | "media" | "intensa";
 export type BotaoEstilo = "arredondado" | "quadrado" | "pílula" | "sem-contorno";
+export type EquipeFotoForma = "circulo" | "quadrado";
+export type EquipeFotoTamanho = "pequeno" | "medio" | "grande";
 
 export interface VisualConfig {
   aparencia: ModoAparencia;
@@ -36,6 +38,10 @@ export interface VisualConfig {
   redesExtra?: { id: string; label: string; url: string }[];
   rotulosRede?: Record<string, string>;
   presetId?: string;
+  /** Moldura da foto na seção equipe. */
+  equipeFotoForma?: EquipeFotoForma;
+  /** Tamanho da foto na seção equipe. */
+  equipeFotoTamanho?: EquipeFotoTamanho;
   /** Duração de cada vaga na agenda (15–120). Padrão 30. */
   duracaoSlotMinutos?: number;
   /** Agenda por profissional — fora do schema congelado. */
@@ -289,6 +295,8 @@ export function visualPadrao(nicho?: string): VisualConfig {
     banner: "automatico",
     botao: "arredondado",
     animacao: "suave",
+    equipeFotoForma: "circulo",
+    equipeFotoTamanho: "medio",
     duracaoSlotMinutos: 30,
     whatsappFlutuante: true,
     instagram: true,

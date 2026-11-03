@@ -699,22 +699,22 @@ export function SiteLivePreview({
             className="mt-2 text-sm"
             style={{ color: "var(--mt)" }}
           />
-          <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {(site.profissionais?.itens || []).slice(0, 6).map((p, i) =>
+          <div className="gx-equipe-grade mt-10">
+            {(site.profissionais?.itens || []).slice(0, 12).map((p, i) =>
               p.nome && p.nome !== "Sem preferência" ? (
-              <article key={p.id || p.nome} className="text-center">
+              <article key={p.id || p.nome} className="gx-equipe-item text-center">
                 {p.foto?.src ? (
                   <Foto
                     src={p.foto.src}
                     alt={p.foto.alt || p.nome || ""}
-                    className="mx-auto h-36 w-36 rounded-full object-cover"
+                    className={`gx-equipe-foto gx-equipe-foto--${vis.equipeFotoTamanho || "medio"} gx-equipe-foto--${vis.equipeFotoForma || "circulo"} mx-auto object-cover`}
                     w={400}
                     h={400}
                     faces
                   />
                 ) : (
                   <div
-                    className="mx-auto flex h-36 w-36 items-center justify-center rounded-full text-3xl font-semibold"
+                    className={`gx-equipe-foto gx-equipe-foto--${vis.equipeFotoTamanho || "medio"} gx-equipe-foto--${vis.equipeFotoForma || "circulo"} mx-auto flex items-center justify-center text-3xl font-semibold`}
                     style={{ background: "var(--sf)", color: "var(--s)" }}
                   >
                     {(p.nome || "?").slice(0, 1)}
@@ -728,7 +728,7 @@ export function SiteLivePreview({
                     campo={`pro.${i}.descricao`}
                     onTexto={onTexto}
                     multiline
-                    className="mx-auto mt-2 max-w-xs text-xs leading-5"
+                    className="mx-auto mt-2 max-w-[11rem] text-xs leading-5"
                     style={{ color: "var(--mt)" }}
                   />
                 ) : null}

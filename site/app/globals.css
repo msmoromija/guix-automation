@@ -581,10 +581,90 @@ html {
   font-size: 0.8125rem;
 }
 
+/* —— Grade da equipe no site (preview) —— */
+.gx-equipe-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 11.5rem));
+  justify-content: center;
+  gap: 1.75rem 1.25rem;
+}
+
+.gx-equipe-item {
+  max-width: 11.5rem;
+  justify-self: center;
+}
+
+.gx-equipe-foto {
+  display: block;
+  object-fit: cover;
+}
+
+.gx-equipe-foto--pequeno {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.gx-equipe-foto--medio {
+  width: 8rem;
+  height: 8rem;
+}
+
+.gx-equipe-foto--grande {
+  width: 10.5rem;
+  height: 10.5rem;
+}
+
+.gx-equipe-foto--circulo {
+  border-radius: 999px;
+}
+
+.gx-equipe-foto--quadrado {
+  border-radius: 1rem;
+}
+
 /* —— Equipe simples (criação) —— */
 .gx-equipe {
   display: grid;
   gap: 1rem;
+}
+
+.gx-equipe__visual {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--color-line);
+  background: #f8fafc;
+}
+
+.gx-equipe__visual-titulo {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.gx-equipe__opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.gx-equipe__chip {
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.gx-equipe__chip.is-on {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-line));
+  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
 }
 
 .gx-equipe__intro {
