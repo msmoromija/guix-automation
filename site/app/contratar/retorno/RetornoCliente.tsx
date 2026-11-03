@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PainelCobranca } from "@/components/PainelCobranca";
 import { pagamentoConfirmado, type Cobranca } from "@/lib/cobranca";
@@ -8,12 +9,41 @@ import { linkWhatsapp } from "@/lib/contato";
 
 type PreviewLinks = { url?: string; downloadUrl?: string };
 
+function hrefVoltarFormulario() {
+  try {
+    const raw = sessionStorage.getItem("guix.contratar.rascunho");
+    const preview = sessionStorage.getItem("guix.preview");
+    const q = new URLSearchParams();
+    if (raw) {
+      const r = JSON.parse(raw) as { plano?: string; nicho?: string };
+      if (r.plano === "avancado" || r.plano === "simples") q.set("plano", r.plano);
+      if (r.nicho) q.set("nicho", r.nicho);
+    }
+    if (preview) {
+      const p = JSON.parse(preview) as { id?: string; token?: string };
+      if (p.id && p.token) {
+        q.set("preview", p.id);
+        q.set("t", p.token);
+      }
+    }
+    const s = q.toString();
+    return s ? `/contratar?${s}` : "/contratar";
+  } catch {
+    return "/contratar";
+  }
+}
+
 export function RetornoCliente() {
   const params = useSearchParams();
   const id = params.get("cobranca");
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [preview, setPreview] = useState<PreviewLinks | null>(null);
   const [erro, setErro] = useState("");
+  const [voltarHref, setVoltarHref] = useState("/contratar");
+
+  useEffect(() => {
+    setVoltarHref(hrefVoltarFormulario());
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +102,15 @@ export function RetornoCliente() {
           <a className="font-semibold text-accent" href={linkWhatsapp()}>
             Falar no WhatsApp
           </a>
+        </p>
+      ) : null}
+      {cobranca && !pagamentoConfirmado(cobranca.status) ? (
+        <p className="mt-6 text-sm leading-6 text-muted">
+          Quer PIX, boleto ou cartão de outro jeito?{" "}
+          <Link href={voltarHref} className="font-semibold text-accent underline">
+            Voltar ao formulário
+          </Link>
+          {" "}— seus dados ficam preenchidos.
         </p>
       ) : null}
     </div>

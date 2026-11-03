@@ -15,4 +15,7 @@ site/data/
 data/
 tmp-ffmpeg/
 *.zip
+# Rotas Next.js cujo segmento de URL é pacote.zip (não são arquivos ZIP)
+!**/pacote.zip/
+!**/pacote.zip/**
 *.tsbuildinfo

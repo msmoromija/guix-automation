@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { linkWhatsapp } from "@/lib/contato";
 import { formatarReais } from "@/lib/dinheiro";
-import { soDigitos } from "@/lib/documento";
+import { normalizarTelefoneBr, soDigitos } from "@/lib/documento";
 import {
   MAX_PARCELAS,
   TAXA_EQUIPE_CENTAVOS,
@@ -20,6 +20,47 @@ import {
 const campo =
   "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent";
 
+const RASCUNHO_KEY = "guix.contratar.rascunho";
+
+type Rascunho = {
+  plano: PlanoId;
+  nicho: string;
+  configuracao: Configuracao;
+  nome: string;
+  email: string;
+  telefone: string;
+  documento: string;
+  forma: "pix" | "boleto" | "cartao";
+  parcelas: number;
+  cupom?: string;
+};
+
+type CupomAplicado = {
+  codigo: string;
+  mensagem: string;
+  descontoCentavos: number;
+  totalCentavos: number;
+};
+
+function lerRascunho(): Partial<Rascunho> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(RASCUNHO_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<Rascunho>;
+  } catch {
+    return null;
+  }
+}
+
+function gravarRascunho(dados: Rascunho) {
+  try {
+    sessionStorage.setItem(RASCUNHO_KEY, JSON.stringify(dados));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function ContratarForm({
   planoInicial,
   nichoInicial,
@@ -32,6 +73,7 @@ export function ContratarForm({
   previewToken?: string;
 }) {
   const router = useRouter();
+  const [pronto, setPronto] = useState(false);
   const [plano, setPlano] = useState<PlanoId>(planoInicial);
   const opcoesIniciais = nichosDoPlano(planoInicial);
   const [nicho, setNicho] = useState(
@@ -46,16 +88,102 @@ export function ContratarForm({
   const [documento, setDocumento] = useState("");
   const [forma, setForma] = useState<"pix" | "boleto" | "cartao">("pix");
   const [parcelas, setParcelas] = useState(1);
+  const [cupom, setCupom] = useState("");
+  const [cupomAplicado, setCupomAplicado] = useState<CupomAplicado | null>(null);
+  const [cupomErro, setCupomErro] = useState("");
+  const [validandoCupom, setValidandoCupom] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
+  useEffect(() => {
+    const salvo = lerRascunho();
+    if (salvo) {
+      const planoSalvo: PlanoId =
+        salvo.plano === "avancado" || salvo.plano === "simples" ? salvo.plano : planoInicial;
+      const opcoesPlano = nichosDoPlano(planoSalvo);
+      const nichoSalvo =
+        (nichoInicial && opcoesPlano.some((i) => i.id === nichoInicial) && nichoInicial) ||
+        (salvo.nicho && opcoesPlano.some((i) => i.id === salvo.nicho) ? salvo.nicho : opcoesPlano[0]?.id) ||
+        "";
+      if (!nichoInicial) setPlano(planoSalvo);
+      setNicho(nichoSalvo);
+      if (salvo.configuracao === "ia" || salvo.configuracao === "equipe") setConfiguracao(salvo.configuracao);
+      if (typeof salvo.nome === "string") setNome(salvo.nome);
+      if (typeof salvo.email === "string") setEmail(salvo.email);
+      if (typeof salvo.telefone === "string") setTelefone(salvo.telefone);
+      if (typeof salvo.documento === "string") setDocumento(salvo.documento);
+      if (salvo.forma === "pix" || salvo.forma === "boleto" || salvo.forma === "cartao") setForma(salvo.forma);
+      if (typeof salvo.parcelas === "number" && salvo.parcelas >= 1 && salvo.parcelas <= MAX_PARCELAS) {
+        setParcelas(salvo.parcelas);
+      }
+      if (typeof salvo.cupom === "string" && salvo.cupom) setCupom(salvo.cupom);
+    }
+    setPronto(true);
+  }, [planoInicial, nichoInicial]);
+
+  useEffect(() => {
+    if (!pronto) return;
+    gravarRascunho({
+      plano,
+      nicho,
+      configuracao,
+      nome,
+      email,
+      telefone,
+      documento,
+      forma,
+      parcelas,
+      cupom,
+    });
+  }, [pronto, plano, nicho, configuracao, nome, email, telefone, documento, forma, parcelas, cupom]);
+
+  useEffect(() => {
+    setCupomAplicado(null);
+    setCupomErro("");
+  }, [plano, configuracao]);
+
   const opcoes = nichosDoPlano(plano);
-  const total = calcularTotal(plano, configuracao);
+  const subtotal = calcularTotal(plano, configuracao);
+  const total = cupomAplicado?.totalCentavos ?? subtotal;
   const nichoAtual = useMemo(() => (opcoes.some((item) => item.id === nicho) ? nicho : opcoes[0]?.id ?? ""), [opcoes, nicho]);
 
   function trocarPlano(proximo: PlanoId) {
     setPlano(proximo);
     setNicho(nichosDoPlano(proximo)[0]?.id ?? "");
+  }
+
+  async function aplicarCupom() {
+    setCupomErro("");
+    setCupomAplicado(null);
+    const codigo = cupom.trim();
+    if (!codigo) {
+      setCupomErro("Digite o código do cupom.");
+      return;
+    }
+    setValidandoCupom(true);
+    try {
+      const res = await fetch("/api/cupons/validar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo, plano, configuracao }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCupomErro(json.erro || "Cupom inválido.");
+        return;
+      }
+      setCupomAplicado({
+        codigo: json.codigo,
+        mensagem: json.mensagem,
+        descontoCentavos: json.descontoCentavos,
+        totalCentavos: json.totalCentavos,
+      });
+      setCupom(json.codigo);
+    } catch {
+      setCupomErro("Não foi possível validar o cupom agora.");
+    } finally {
+      setValidandoCupom(false);
+    }
   }
 
   async function enviar(evento: React.FormEvent) {
@@ -72,12 +200,13 @@ export function ContratarForm({
           configuracao,
           nome,
           email,
-          telefone: soDigitos(telefone),
+          telefone: normalizarTelefoneBr(telefone) || soDigitos(telefone),
           documento,
           forma,
           parcelas: forma === "cartao" ? parcelas : 1,
           previewId: previewId || undefined,
           previewToken: previewToken || undefined,
+          cupom: cupomAplicado?.codigo || cupom.trim() || undefined,
         }),
       });
       const json = await resposta.json();
@@ -166,6 +295,37 @@ export function ContratarForm({
           </label>
         </div>
 
+        <div>
+          <label className="block text-sm font-semibold">
+            Cupom de desconto
+            <span className="ml-1 font-normal text-muted">(opcional)</span>
+          </label>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            <input
+              className={`${campo} mt-0 min-w-[12rem] flex-1`}
+              name="cupom"
+              autoComplete="off"
+              placeholder="Código que o comercial enviou"
+              value={cupom}
+              onChange={(evento) => {
+                setCupom(evento.target.value.toUpperCase());
+                setCupomAplicado(null);
+                setCupomErro("");
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void aplicarCupom()}
+              disabled={validandoCupom}
+              className="rounded-full border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-accent disabled:opacity-60"
+            >
+              {validandoCupom ? "Validando…" : "Aplicar"}
+            </button>
+          </div>
+          {cupomAplicado ? <p className="mt-2 text-sm text-emerald-800">{cupomAplicado.mensagem}</p> : null}
+          {cupomErro ? <p className="mt-2 text-sm text-rose-700">{cupomErro}</p> : null}
+        </div>
+
         <fieldset>
           <legend className="text-sm font-semibold">Como pagar</legend>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -232,6 +392,12 @@ export function ContratarForm({
             <div className="flex justify-between gap-4">
               <dt className="text-muted">Configuração pela equipe</dt>
               <dd>{formatarReais(TAXA_EQUIPE_CENTAVOS)}</dd>
+            </div>
+          ) : null}
+          {cupomAplicado ? (
+            <div className="flex justify-between gap-4 text-emerald-800">
+              <dt>Cupom {cupomAplicado.codigo}</dt>
+              <dd>−{formatarReais(cupomAplicado.descontoCentavos)}</dd>
             </div>
           ) : null}
           <div className="flex justify-between gap-4 border-t border-line pt-3 text-base font-bold">

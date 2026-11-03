@@ -14,6 +14,8 @@ type Dados = {
   status: string;
   expiraEm: string;
   downloadUrl: string;
+  completoUrl?: string;
+  pacoteZipUrl?: string;
   demoUrl: string;
   contratarUrl: string;
   previewUrl: string;
@@ -142,10 +144,10 @@ function Conta() {
       cta: "Abrir extrato",
     },
     {
-      titulo: "Arquivo site.json",
-      texto: "Download do arquivo gerado (schema 1.0.0) — o mesmo token acima abre este JSON.",
-      href: dados.downloadUrl,
-      cta: "Baixar JSON",
+      titulo: "Cópia completa do site",
+      texto: "ZIP com textos, visual, logomarca e imagens — para publicar no domínio.",
+      href: dados.pacoteZipUrl || dados.downloadUrl,
+      cta: "Baixar pacote",
       external: true,
     },
     {
@@ -185,16 +187,16 @@ function Conta() {
           {novo ? "Pronto — guarde o token e envie o link" : "Acesso do protótipo"}
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-700">
-          O botão <strong>Salvar protótipo</strong> no estúdio gerou este arquivo. Sem o token, ninguém abre o site de
-          teste nem o JSON.
+          Seu rascunho foi salvo. Guarde o <strong>código de acesso</strong> e o <strong>link do site</strong> — sem
+          eles o teste não abre de novo.
         </p>
 
         <div className="mt-5 space-y-3">
           <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Token</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Código de acesso</p>
             <p className="mt-1 break-all font-mono text-base font-semibold tracking-wide text-ink">{dados.id}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <Copiar valor={dados.id} rotulo="Copiar token" />
+              <Copiar valor={dados.id} rotulo="Copiar código" />
             </div>
           </div>
 
@@ -222,9 +224,17 @@ function Conta() {
             <p className="mt-1 break-all text-sm text-ink">{contaAbs}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Copiar valor={contaAbs} rotulo="Copiar link da área" />
-              <Copiar valor={downloadAbs} rotulo="Copiar link do JSON" />
-              <a href={dados.downloadUrl} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">
-                Baixar site.json
+              <a
+                href={dados.pacoteZipUrl || `/api/prototipo/${dados.id}/pacote.zip?t=${encodeURIComponent(token)}`}
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold"
+              >
+                Baixar pacote do site
+              </a>
+              <a
+                href={dados.completoUrl || dados.downloadUrl || downloadAbs}
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold"
+              >
+                Baixar dados (JSON)
               </a>
             </div>
           </div>

@@ -59,6 +59,7 @@ export function AgendarBloco({
   expediente,
   agendaEquipe,
   duracaoSlotMinutos,
+  modoConfirmacao = "manual",
   whatsapp,
   emailNegocio,
   negocioNome,
@@ -81,6 +82,8 @@ export function AgendarBloco({
   }>;
   /** Passo da grade (ex.: 30). */
   duracaoSlotMinutos?: number;
+  /** Como o negócio confirma o horário. */
+  modoConfirmacao?: "manual" | "automatico" | "whatsapp";
   whatsapp?: string;
   emailNegocio?: string;
   negocioNome?: string;
@@ -89,6 +92,7 @@ export function AgendarBloco({
   fechado?: string;
   studio?: boolean;
 }) {
+  const modo = modoConfirmacao || "manual";
   const passo = normalizarPassoMinutos(duracaoSlotMinutos);
   const listaSrv = servicos.filter((s) => s.nome);
   const listaPro = profissionais.filter((p) => p.nome && p.nome !== "Sem preferência");
@@ -338,6 +342,7 @@ export function AgendarBloco({
           negocioWhatsapp: whatsapp || "",
           negocioEmail: emailNegocio || "",
           observacao: observacao.trim(),
+          modoConfirmacao: modo,
         }),
       });
       const j = (await res.json()) as {
@@ -346,6 +351,7 @@ export function AgendarBloco({
         cancelUrl?: string;
         whatsappUrl?: string;
         aviso?: string;
+        status?: string;
       };
       if (!res.ok) {
         if (j.codigo === "SEM_SESSAO") {
@@ -358,11 +364,16 @@ export function AgendarBloco({
       }
       setCancelUrl(j.cancelUrl || "");
       setOcupados((lista) => [...lista, hora]);
-      setAviso(
-        j.aviso ||
-          "Solicitação enviada. O horário fica reservado até o profissional confirmar. Acompanhe pelo link.",
-      );
-      if (j.whatsappUrl) window.open(j.whatsappUrl, "_blank", "noopener,noreferrer");
+      const avisoPadrao =
+        modo === "automatico"
+          ? "Horário confirmado automaticamente. Guarde o link se precisar cancelar."
+          : modo === "whatsapp"
+            ? "Solicitação enviada. O profissional confirma pelo WhatsApp."
+            : "Solicitação enviada. O horário fica reservado até o profissional confirmar.";
+      setAviso(j.aviso || avisoPadrao);
+      if (j.whatsappUrl && (modo === "whatsapp" || modo === "manual")) {
+        window.open(j.whatsappUrl, "_blank", "noopener,noreferrer");
+      }
       setHora("");
     } catch {
       setAviso("Falha de rede. Tente de novo.");
@@ -378,7 +389,11 @@ export function AgendarBloco({
       <h2 className="text-3xl font-bold md:text-4xl">{titulo || "Solicitar horário"}</h2>
       <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
         {subtitulo ||
-          "Confirme seu contato, escolha o profissional e o horário. A marcação só vale depois que o profissional confirmar."}
+          (modo === "automatico"
+            ? "Informe seus dados, escolha o horário e a marcação já fica confirmada."
+            : modo === "whatsapp"
+              ? "Informe seus dados e o horário. O profissional confirma pelo WhatsApp."
+              : "Informe nome, WhatsApp e e-mail, escolha o horário e aguarde a confirmação do profissional.")}
       </p>
 
       <div
@@ -389,10 +404,10 @@ export function AgendarBloco({
           <div className="space-y-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--s)" }}>
-                00 · Cadastro do cliente
+                Dados do cliente
               </p>
               <p className="mt-1 text-sm" style={{ color: "var(--mt)" }}>
-                Sem confirmação de contato, o agendamento fica bloqueado.
+                Nome, WhatsApp e e-mail — depois enviamos um código para liberar a agenda.
               </p>
             </div>
 
@@ -411,6 +426,18 @@ export function AgendarBloco({
                     />
                   </label>
                   <label className="block text-sm">
+                    WhatsApp *
+                    <input
+                      value={tel}
+                      onChange={(e) => setTel(e.target.value)}
+                      className={campo}
+                      style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
+                      placeholder="(79) 99999-0000"
+                      inputMode="tel"
+                      autoComplete="tel"
+                    />
+                  </label>
+                  <label className="block text-sm">
                     E-mail *
                     <input
                       type="email"
@@ -420,18 +447,6 @@ export function AgendarBloco({
                       style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
                       placeholder="seu@email.com"
                       autoComplete="email"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Telefone / WhatsApp *
-                    <input
-                      value={tel}
-                      onChange={(e) => setTel(e.target.value)}
-                      className={campo}
-                      style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
-                      placeholder="79 99999-0000"
-                      inputMode="tel"
-                      autoComplete="tel"
                     />
                   </label>
                 </div>

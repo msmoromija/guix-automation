@@ -38,6 +38,13 @@ export interface VisualConfig {
   tiktok: boolean;
   youtube: boolean;
   agendamento: boolean;
+  /**
+   * Como o horário é confirmado quando agendamento está ligado:
+   * - manual: profissional aceita no painel (padrão)
+   * - automatico: confirma na hora
+   * - whatsapp: profissional confirma pelo WhatsApp
+   */
+  modoConfirmacaoAgenda?: "manual" | "automatico" | "whatsapp";
   linkedinUrl?: string;
   redesExtra?: { id: string; label: string; url: string }[];
   rotulosRede?: Record<string, string>;
@@ -309,9 +316,17 @@ export function visualPadrao(nicho?: string): VisualConfig {
     tiktok: true,
     youtube: true,
     agendamento: true,
+    modoConfirmacaoAgenda: "manual",
     presetId: preset.id,
     ...preset.visual,
   };
+}
+
+export type ModoConfirmacaoAgenda = NonNullable<VisualConfig["modoConfirmacaoAgenda"]>;
+
+export function normalizarModoConfirmacaoAgenda(v: unknown): ModoConfirmacaoAgenda {
+  if (v === "automatico" || v === "whatsapp" || v === "manual") return v;
+  return "manual";
 }
 
 export function paletaPorId(id: string) {

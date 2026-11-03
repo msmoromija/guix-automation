@@ -44,6 +44,9 @@ export async function POST(req: NextRequest) {
     const negocioEmail = String(body.negocioEmail || "").trim();
     const nicho = String(body.nicho || "").trim().slice(0, 40);
     const observacao = String(body.observacao || "").trim().slice(0, 280);
+    const modoRaw = String(body.modoConfirmacao || "manual");
+    const modoConfirmacao =
+      modoRaw === "automatico" || modoRaw === "whatsapp" ? modoRaw : "manual";
 
     if (!siteId) return NextResponse.json({ erro: "Site inválido." }, { status: 400 });
     const sessao = await validarSessaoCliente(siteId, sessaoToken);
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: "Este horário acabou de ser preenchido. Escolha outro." }, { status: 409 });
     }
 
+    const automatico = modoConfirmacao === "automatico";
     const ag: Agendamento = {
       id: novoIdAgendamento(),
       cancelToken: novoCancelToken(),
@@ -91,27 +95,42 @@ export async function POST(req: NextRequest) {
       email,
       telefone,
       observacao: observacao || undefined,
-      status: "pendente",
+      status: automatico ? "confirmado" : "pendente",
       criadoEm: new Date().toISOString(),
+      respondidoEm: automatico ? new Date().toISOString() : undefined,
+      respostaNota: automatico ? "Confirmado automaticamente pelo site." : undefined,
     };
 
     await gravarAgendamento(ag);
-    const emailRes = await enviarEmailNegocio(ag, "solicitacao");
-    const whatsappUrl = linkWhatsappNegocio(ag, "solicitacao");
+    const tipoAviso = automatico ? "confirmado" : "solicitacao";
+    const emailRes = await enviarEmailNegocio(ag, tipoAviso);
+    const whatsappUrl = linkWhatsappNegocio(ag, tipoAviso);
+
+    let aviso: string;
+    if (automatico) {
+      aviso = "Horário confirmado automaticamente. Você recebe o link para acompanhar ou cancelar.";
+    } else if (modoConfirmacao === "whatsapp") {
+      aviso = whatsappUrl
+        ? "Solicitação pronta. Abra o WhatsApp do negócio para ele confirmar."
+        : "Solicitação registrada. O profissional confirma pelo WhatsApp (número do negócio ausente).";
+    } else if (emailRes.ok) {
+      aviso = "Solicitação enviada. O profissional precisa confirmar o horário.";
+    } else if (emailRes.motivo?.includes("RESEND")) {
+      aviso = "Solicitação registrada. Avise o negócio pelo WhatsApp se o e-mail ainda não estiver ligado.";
+    } else {
+      aviso = emailRes.motivo || "Solicitação registrada. Aguardando confirmação do profissional.";
+    }
 
     return NextResponse.json({
       ok: true,
       id: ag.id,
       status: ag.status,
+      modoConfirmacao,
       cancelUrl: urlCancelamento(ag),
       gestaoUrl: urlGestao(ag),
       whatsappUrl,
       emailEnviado: emailRes.ok,
-      aviso: emailRes.ok
-        ? "Solicitação enviada. O profissional precisa confirmar o horário."
-        : emailRes.motivo?.includes("RESEND")
-          ? "Solicitação registrada. Avise o negócio pelo WhatsApp; configure RESEND_API_KEY para e-mail automático."
-          : emailRes.motivo || "Solicitação registrada. Aguardando confirmação do profissional.",
+      aviso,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";

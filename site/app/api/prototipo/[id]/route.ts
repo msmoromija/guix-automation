@@ -45,6 +45,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     previewUrl: `/visualizar/${token}`,
     contaUrl: `/conta/${token}?t=${token}`,
     downloadUrl: `/api/prototipo/${token}/site.json?t=${token}`,
+    completoUrl: `/api/prototipo/${token}/completo.json?t=${token}`,
+    pacoteZipUrl: `/api/prototipo/${token}/pacote.zip?t=${token}`,
     extratoUrl: `/conta/${token}/extrato?t=${token}`,
     agendaUrl: `/conta/${token}/agenda?t=${token}`,
     adminUrl: `/conta/${token}/admin?t=${token}`,
@@ -281,7 +283,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const passoAgenda = normalizarPassoMinutos(
       Number(body.duracaoSlotMinutos) || visualBase.duracaoSlotMinutos,
     );
-    const visual: VisualConfig = { ...visualBase, agendaEquipe, duracaoSlotMinutos: passoAgenda };
+    const modoRaw = String(body.modoConfirmacaoAgenda || visualBase.modoConfirmacaoAgenda || "manual");
+    const modoConfirmacaoAgenda =
+      modoRaw === "automatico" || modoRaw === "whatsapp" || modoRaw === "manual" ? modoRaw : "manual";
+    const visual: VisualConfig = {
+      ...visualBase,
+      agendaEquipe,
+      duracaoSlotMinutos: passoAgenda,
+      modoConfirmacaoAgenda,
+    };
     await gravarPacote({ ...pacote, site, visual });
     return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
   }

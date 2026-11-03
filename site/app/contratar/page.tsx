@@ -23,7 +23,8 @@ export default async function ContratarPage({
       <h1 className="mt-3 text-4xl font-bold tracking-[-0.035em] sm:text-5xl">Quero meu site</h1>
       <p className="mt-4 max-w-2xl text-muted">
         Aqui você compra a estrutura com <strong>domínio próprio</strong>, e-mail profissional e publicação. PIX e
-        boleto abrem nesta página; o cartão segue na página segura do Asaas (até 12x).
+        boleto abrem nesta página; o cartão segue na página segura do Asaas (até 12x). Se o comercial te enviou um
+        cupom, digite o código no formulário antes de gerar o pagamento.
         {sp.nicho ? (
           <>
             {" "}

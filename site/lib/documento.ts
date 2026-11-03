@@ -2,6 +2,16 @@ export function soDigitos(valor: string) {
   return valor.replace(/\D/g, "");
 }
 
+/** DDD + número (10 ou 11 dígitos). Aceita +55 / 55 na frente. */
+export function normalizarTelefoneBr(valor: string) {
+  let digitos = soDigitos(valor);
+  if (digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13)) {
+    digitos = digitos.slice(2);
+  }
+  if (digitos.length === 10 || digitos.length === 11) return digitos;
+  return null;
+}
+
 function mesmoDigito(valor: string) {
   return /^(\d)\1+$/.test(valor);
 }

@@ -110,6 +110,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
   const [proAberto, setProAberto] = useState(0);
   const [aba, setAba] = useState<"grade" | "solicitacoes">("solicitacoes");
   const [passoMin, setPassoMin] = useState(30);
+  const [modoConfirmacao, setModoConfirmacao] = useState<"manual" | "automatico" | "whatsapp">("manual");
 
   const qs = useMemo(() => `t=${encodeURIComponent(token)}`, [token]);
 
@@ -130,6 +131,8 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
       setEmpresa(emp.nome || "");
       setExpediente(casa);
       setPassoMin(normalizarPassoMinutos(visual?.duracaoSlotMinutos));
+      const modo = visual?.modoConfirmacaoAgenda;
+      setModoConfirmacao(modo === "automatico" || modo === "whatsapp" ? modo : "manual");
       setPros(carregarPros(site, visual, casa));
       setFechado(Boolean(json.edicaoFechada));
       setProAberto(0);
@@ -160,6 +163,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
           expediente: expedienteParaSchema(expediente, passoMin),
           agendaEquipe,
           duracaoSlotMinutos: passoMin,
+          modoConfirmacaoAgenda: modoConfirmacao,
         }),
       });
       const json = await res.json();
@@ -253,6 +257,41 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
 
       {aba === "grade" ? (
       <>
+      <section className="gx-form-card mt-5 p-5 sm:p-6">
+        <h2 className="text-base font-semibold">Como confirmar</h2>
+        <p className="mt-1 text-sm text-muted">
+          O cliente sempre informa nome, WhatsApp e e-mail. Escolha como o horário é confirmado.
+        </p>
+        <div className="mt-4 space-y-2">
+          {(
+            [
+              ["manual", "Confirmar no painel", "Você aceita ou recusa nas Solicitações."],
+              ["automatico", "Agendar automático", "Confirma na hora, sem esperar você."],
+              ["whatsapp", "Confirmar pelo WhatsApp", "A solicitação abre no WhatsApp do negócio."],
+            ] as const
+          ).map(([id, titulo, desc]) => (
+            <label
+              key={id}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 ${
+                modoConfirmacao === id ? "border-accent bg-[#FFF7ED]" : "border-line bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                className="mt-1"
+                name="modoConfirmacaoAgenda"
+                checked={modoConfirmacao === id}
+                onChange={() => setModoConfirmacao(id)}
+              />
+              <span>
+                <span className="block text-sm font-semibold">{titulo}</span>
+                <span className="text-xs text-muted">{desc}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
+
       <section className="gx-form-card mt-5 p-5 sm:p-6">
         <h2 className="text-base font-semibold">Horário da casa</h2>
         <p className="mt-1 text-sm text-muted">Dias e intervalos em que o negócio atende. Base do agendamento.</p>

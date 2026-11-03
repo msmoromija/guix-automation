@@ -3,32 +3,7 @@ import { gravarPacote, lerPacote, sanitizarToken, type PacotePrototipo } from "@
 import { atualizarStatusJob, registrarJobAprovado } from "@/lib/prototipos/ops";
 import { dnaSitePadrao, slugRepoCliente } from "@/lib/sites/dna";
 import { provisionarSiteCliente } from "@/lib/sites/provisionar";
-
-function siteBase() {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "https://guix.net.br").replace(/\/$/, "");
-}
-
-async function emailOps(assunto: string, texto: string) {
-  const key = process.env.RESEND_API_KEY || "";
-  const para = (process.env.GUIX_OPS_EMAIL || contato.email).trim();
-  if (!key || !para) return { ok: false as const, motivo: "OPS e-mail/Resend ausente" };
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM || "GuiX.net <noreply@guix.net.br>",
-        to: [para],
-        subject: assunto,
-        text: texto,
-      }),
-    });
-    if (!res.ok) return { ok: false as const, motivo: (await res.text()).slice(0, 160) };
-    return { ok: true as const };
-  } catch (e) {
-    return { ok: false as const, motivo: e instanceof Error ? e.message : "Falha e-mail" };
-  }
-}
+import { siteBase } from "@/lib/pedidos/compra";
 
 /**
  * Disparado após pagamento confirmado (webhook Asaas).
@@ -117,7 +92,7 @@ export async function executarPosPagamento(opts: {
     `Conta: ${siteBase()}/conta/${token}?t=${token}`,
   ].join("\n");
 
-  const mail = await emailOps(`[Pago] Integrar ${pacote?.nome || token}`, checklist);
+  /* E-mail de rastreio completo sai em avisarPagamentoConfirmado (webhook). */
   const waMe = `https://wa.me/${contato.whatsapp}?text=${encodeURIComponent(checklist)}`;
 
   return {
@@ -126,6 +101,7 @@ export async function executarPosPagamento(opts: {
     status: "em_integracao" as const,
     passos,
     provision,
-    ops: { email: mail, whatsappUrl: waMe },
+    checklist,
+    ops: { whatsappUrl: waMe },
   };
 }

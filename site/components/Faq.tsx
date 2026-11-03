@@ -5,11 +5,11 @@ import { textoComoComprarFaq, textoComoGerarFaq, textoTokenFaq } from "@/lib/ins
 
 const perguntas = [
   {
-    pergunta: "Como eu gero o site e o token?",
+    pergunta: "Como eu gero o site de teste?",
     resposta: textoComoGerarFaq,
   },
   {
-    pergunta: "O que é o token e onde eu acho?",
+    pergunta: "O que é o código de acesso e onde eu acho?",
     resposta: textoTokenFaq,
   },
   {
@@ -19,7 +19,7 @@ const perguntas = [
   {
     pergunta: "Qual a diferença entre o site de teste e o site publicado?",
     resposta:
-      "O site de teste (protótipo) é o rascunho com token, válido cerca de 3 dias, em /visualizar. Serve para ver e enviar o link. O site publicado só existe depois da contratação: aí entram domínio próprio, e-mail profissional e a página no ar de verdade, em até 24 horas com os dados completos.",
+      "O site de teste é o rascunho que você monta de graça: serve para ver o visual e enviar o link, e vale cerca de 3 dias. O site publicado só existe depois da contratação — aí entram domínio próprio, e-mail profissional e a página no ar de verdade, em até 24 horas com os dados completos.",
   },
   {
     pergunta: "Quanto tempo leva para ficar pronto?",
@@ -84,7 +84,7 @@ const perguntas = [
   {
     pergunta: "O que acontece depois que eu contrato?",
     resposta:
-      "Com o pagamento confirmado e os dados completos, em até 24 horas domínio, e-mail, site, agenda e WhatsApp entram no ar. O painel passa a ser seu. Se você já salvou um protótipo, o checkout usa esse preview no pedido.",
+      "Com o pagamento confirmado e os dados completos, em até 24 horas domínio, e-mail, site, agenda e WhatsApp entram no ar. O painel passa a ser seu. Se você já tinha um site de teste salvo, usamos esse rascunho na publicação.",
   },
 ];
 

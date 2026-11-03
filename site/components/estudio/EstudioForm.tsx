@@ -58,7 +58,7 @@ const ETAPAS = [
   { id: 2, titulo: "Aparência", resumo: "Cores, fonte, fotos e o formato dos botões." },
   { id: 3, titulo: "Marca", resumo: "Logo, tamanho e posição no topo." },
   { id: 4, titulo: "Contato", resumo: "WhatsApp, agenda da semana, recessos, redes, serviços e equipe." },
-  { id: 5, titulo: "Salvar", resumo: "Salva o protótipo, gera o token e o link para o cliente." },
+  { id: 5, titulo: "Salvar", resumo: "Salva o rascunho e gera o link para o cliente." },
 ];
 
 const LIMITE_FAQ_FORM = 10;
@@ -1264,13 +1264,13 @@ export function EstudioForm() {
         O site já está à direita. Você só personaliza.
       </h1>
       <p className="mt-2 text-sm text-muted">
-        Personalize nos passos abaixo. No fim, <strong className="text-ink">Salvar protótipo</strong> grava o arquivo,
-        cria o <strong className="text-ink">token</strong> e o <strong className="text-ink">link</strong> para enviar ao
-        cliente (vale ~3 dias). Depois, na área do cliente, você compra com domínio.
+        Personalize nos passos abaixo. No fim, <strong className="text-ink">Salvar protótipo</strong> guarda o rascunho e
+        cria o <strong className="text-ink">link</strong> para enviar ao cliente (vale cerca de 3 dias). Depois, na área
+        do cliente, você compra com domínio.
       </p>
       <details className="mt-4 rounded-2xl border border-line bg-white px-4 py-3 text-sm open:pb-4">
         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
-          Como funciona: salvar, token e comprar →
+          Como funciona: salvar, link e comprar →
         </summary>
         <ol className="mt-3 space-y-2 text-muted leading-6">
           <li>
@@ -1280,7 +1280,7 @@ export function EstudioForm() {
             <strong className="text-ink">2.</strong> Clique em <strong className="text-ink">Salvar protótipo e gerar link</strong>.
           </li>
           <li>
-            <strong className="text-ink">3.</strong> Na área do cliente: copie o token, o link do site e envie no WhatsApp.
+            <strong className="text-ink">3.</strong> Na área do cliente: copie o código de acesso, o link do site e envie no WhatsApp.
           </li>
           <li>
             <strong className="text-ink">4.</strong> Para publicar de verdade: <strong className="text-ink">Quero comprar e publicar</strong>{" "}
@@ -1288,7 +1288,7 @@ export function EstudioForm() {
           </li>
         </ol>
         <p className="mt-3 text-xs text-muted">
-          Já tem token?{" "}
+          Já tem o código?{" "}
           <a href="/visualizar" className="font-semibold text-accent underline">
             Abrir meu rascunho
           </a>
@@ -1690,10 +1690,48 @@ export function EstudioForm() {
                     <label className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
                       <span>
                         <span className="block text-sm font-semibold">Agendar no site</span>
-                        <span className="text-xs text-muted">Serviço → profissional → dia → hora.</span>
+                        <span className="text-xs text-muted">Cliente informa nome, WhatsApp e e-mail e escolhe o horário.</span>
                       </span>
                       <input type="checkbox" className="h-5 w-5" checked={visual.agendamento} onChange={(e) => setVisual((v) => ({ ...v, agendamento: e.target.checked }))} />
                     </label>
+
+                    {visual.agendamento ? (
+                      <fieldset className="rounded-2xl border border-line p-4">
+                        <legend className="px-1 text-sm font-semibold">Como confirmar o horário</legend>
+                        <p className="mt-1 text-xs text-muted">Escolha uma opção. O cliente sempre preenche nome, WhatsApp e e-mail.</p>
+                        <div className="mt-3 space-y-2">
+                          {(
+                            [
+                              ["manual", "Confirmar no painel", "Você aceita ou recusa na área do cliente."],
+                              ["automatico", "Agendar automático", "O horário já entra confirmado, sem esperar você."],
+                              ["whatsapp", "Confirmar pelo WhatsApp", "A solicitação abre no seu WhatsApp para você responder."],
+                            ] as const
+                          ).map(([id, titulo, desc]) => {
+                            const ativo = (visual.modoConfirmacaoAgenda || "manual") === id;
+                            return (
+                              <label
+                                key={id}
+                                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 ${
+                                  ativo ? "border-accent bg-[#FFF7ED]" : "border-line bg-white"
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  className="mt-1"
+                                  name="modoConfirmacaoAgenda"
+                                  checked={ativo}
+                                  onChange={() => setVisual((v) => ({ ...v, modoConfirmacaoAgenda: id }))}
+                                />
+                                <span>
+                                  <span className="block text-sm font-semibold">{titulo}</span>
+                                  <span className="text-xs text-muted">{desc}</span>
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    ) : null}
 
                     <label className="block text-sm font-medium">
                       E-mail
@@ -2292,16 +2330,15 @@ export function EstudioForm() {
             <section className="gx-step gx-form-card p-5 sm:p-6">
               <h2 className="text-base font-semibold">Salvar o protótipo</h2>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Este é o “salvar” do GuiX: grava o site, cria um <strong className="text-ink">token</strong> e um{" "}
-                <strong className="text-ink">link</strong> para o cliente abrir. O teste vale 3 dias — ainda não é a
-                publicação no domínio.
+                Este é o “salvar” do GuiX: guarda o rascunho e cria um <strong className="text-ink">link</strong> para o
+                cliente abrir. O teste vale 3 dias — ainda não é a publicação no domínio.
               </p>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
                   <strong>1.</strong> Clicar em <strong>Salvar protótipo</strong> abaixo.
                 </li>
                 <li>
-                  <strong>2.</strong> Na próxima tela você vê o <strong>token</strong>, copia o{" "}
+                  <strong>2.</strong> Na próxima tela você vê o <strong>código de acesso</strong>, copia o{" "}
                   <strong>link do site</strong> e pode mandar no WhatsApp.
                 </li>
                 <li>
@@ -2343,7 +2380,7 @@ export function EstudioForm() {
                   : "Continuar"}
             </button>
             {etapa === 5 ? (
-              <p className="text-xs text-muted">Gera o token e o link. Sem cartão. Sem publicar ainda.</p>
+              <p className="text-xs text-muted">Gera o link do teste. Sem cartão. Sem publicar ainda.</p>
             ) : null}
           </div>
         </div>
@@ -2441,8 +2478,8 @@ export function EstudioForm() {
             <p className="text-xs font-semibold tracking-[0.16em] text-accent">SALVANDO</p>
             <h2 className="mt-3 text-2xl font-bold tracking-[-0.03em]">Guardando o protótipo</h2>
             <p className="mt-3 text-sm leading-6 text-muted">
-              Estamos fechando textos, fotos e a marca num arquivo com token. Em seguida você recebe o link para abrir e
-              enviar ao cliente — cerca de um minuto.
+              Estamos fechando textos, fotos e a marca. Em seguida você recebe o link para abrir e enviar ao cliente —
+              cerca de um minuto.
             </p>
             <p className="mt-5 text-sm font-medium text-ink">Salvando e gerando o link…</p>
           </div>
