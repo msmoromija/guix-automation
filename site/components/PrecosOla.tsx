@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Icone } from "@/components/Icones";
+import { clientesPorFaixa } from "@/lib/clientes";
 import { linkWhatsapp } from "@/lib/contato";
 import { formatarReais } from "@/lib/dinheiro";
 import { planos, TAXA_EQUIPE_CENTAVOS } from "@/lib/planos";
@@ -72,7 +73,32 @@ export function PrecosOla() {
                 );
               })}
             </ul>
-            <div className="mt-auto pt-10">
+            {(() => {
+              const exemplo =
+                plano.id === "avancado"
+                  ? clientesPorFaixa("avancado")[0]
+                  : plano.id === "personalizado"
+                    ? clientesPorFaixa("personalizado")[0]
+                    : null;
+              if (!exemplo) return null;
+              const hrefExterno = exemplo.appUrl || exemplo.siteUrl || `/clientes#${exemplo.slug}`;
+              return (
+                <div className="mt-8 rounded-2xl border border-line bg-[#F8FAFC] px-4 py-3.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Exemplo nesta faixa</p>
+                  <p className="mt-1.5 text-sm font-semibold text-ink">{exemplo.nome}</p>
+                  <p className="mt-1 text-[13px] leading-5 text-slate-600">{exemplo.segmento}</p>
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold">
+                    <a href={hrefExterno} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-2 hover:underline">
+                      Ver no ar →
+                    </a>
+                    <Link href={`/clientes#${exemplo.slug}`} className="text-ink/70 underline-offset-2 hover:underline">
+                      Detalhes
+                    </Link>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="mt-auto pt-8">
               {plano.contratavel ? (
                 <Link href={`/contratar?plano=${plano.id}`} className={`${botao} w-full`}>
                   {plano.ctaLabel}

@@ -1,9 +1,17 @@
+export type FaixaPrecoCliente = "avancado" | "personalizado";
+
 export type ClienteCaso = {
   slug: string;
   nome: string;
   segmento: string;
   resumo: string;
   detalhe: string;
+  /** Liga o caso ao plano da vitrine de preços. */
+  faixa: FaixaPrecoCliente;
+  /** Centavos de referência do plano (vitrine). */
+  precoCentavos: number;
+  /** Texto curto do selo de preço. */
+  precoRotulo: string;
   marcaRegistrada?: string;
   /** Só quando o GuiX.net também entregou o site. */
   siteUrl?: string;
@@ -23,10 +31,13 @@ export const clientes: ClienteCaso[] = [
     slug: "as-contabil-mei-em-dia",
     nome: "AS Contábil — MEI em Dia",
     segmento: "SaaS contábil para MEI",
+    faixa: "avancado",
+    precoCentavos: 149_990,
+    precoRotulo: "Presença Avançada · R$ 1.499,90",
     resumo:
       "Aplicação web para o microempreendedor organizar receitas, despesas e faturamento, acompanhar o limite anual do MEI e escolher o nível de apoio do escritório contábil.",
     detalhe:
-      "O GuiX.net desenvolveu o SaaS MEI em Dia para a Alfredo Santos Contábil — não o site institucional do escritório. A aplicação concentra o controle financeiro do negócio e a ponte com o contador: do registro do dia a dia à integração contábil, com planos claros para quem quer só organizar ou também contar com o escritório.",
+      "Exemplo na faixa da Presença Avançada (R$ 1.499,90): o GuiX.net desenvolveu o SaaS MEI em Dia para a Alfredo Santos Contábil — não o site institucional do escritório. A aplicação concentra o controle financeiro do negócio e a ponte com o contador: do registro do dia a dia à integração contábil, com planos claros para quem quer só organizar ou também contar com o escritório.",
     appUrl: "https://app.alfredosantoscontabil.com.br",
     appLabel: "Abrir o SaaS MEI em Dia",
     destaques: [
@@ -53,10 +64,13 @@ export const clientes: ClienteCaso[] = [
     slug: "morox-industrial",
     nome: "MOROX Industrial SaaS",
     segmento: "Orçamentação industrial e gestão comercial",
+    faixa: "personalizado",
+    precoCentavos: 299_990,
+    precoRotulo: "Presença Personalizada · a partir de R$ 2.999,90",
     resumo:
       "Plataforma de orçamentação para usinagem e fabricação — da solicitação ao preço aprovado, com custo, margem, proposta e conversa com o cliente no mesmo fluxo.",
     detalhe:
-      "O site e o SaaS foram desenvolvidos com algoritmos avançados para automatizar processos de orçamentação industrial. A formação de preço deixa de depender de planilha solta: matéria-prima, processos, insumos, equipamentos, markup e impostos entram no mesmo cálculo.",
+      "Exemplo na faixa da Presença Personalizada (a partir de R$ 2.999,90): site e SaaS com algoritmos avançados para automatizar a orçamentação industrial. A formação de preço deixa de depender de planilha solta: matéria-prima, processos, insumos, equipamentos, markup e impostos entram no mesmo cálculo.",
     marcaRegistrada: "Marca MOROX registrada no INPI.",
     siteUrl: "https://www.morox.com.br",
     siteLabel: "morox.com.br",
@@ -91,4 +105,8 @@ export const clientes: ClienteCaso[] = [
 
 export function clientePorSlug(slug: string) {
   return clientes.find((item) => item.slug === slug);
+}
+
+export function clientesPorFaixa(faixa: FaixaPrecoCliente) {
+  return clientes.filter((item) => item.faixa === faixa);
 }

@@ -168,11 +168,19 @@ export default function HomePage() {
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-ink sm:text-5xl">Preço simples e transparente</h2>
             <p className="mt-4 text-[15px] leading-7 text-slate-600">
               Um pagamento pela estrutura completa. Sem mensalidade de site. Você escolhe o plano de acordo com a
-              complexidade do seu negócio e, se quiser, a configuração pela equipe.
+              complexidade do seu negócio e, se quiser, a configuração pela equipe. Em Avançada e Personalizada há
+              exemplos reais no ar — MEI em Dia e MOROX.
             </p>
           </div>
 
           <PrecosOla />
+
+          <p className="mt-8 text-center text-sm text-slate-600">
+            Quer ver os casos completos, separados por faixa de preço?{" "}
+            <Link href="/clientes" className="font-semibold text-accent underline">
+              Abrir portfólio de clientes
+            </Link>
+          </p>
         </div>
       </section>
 
