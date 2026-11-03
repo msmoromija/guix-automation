@@ -10,7 +10,7 @@ import {
 } from "@/lib/estudio/expediente";
 
 const hora =
-  "h-10 w-full min-w-[5.5rem] max-w-[7.5rem] rounded-xl border border-line bg-white px-2.5 text-sm tabular-nums shadow-sm outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-45";
+  "h-10 w-[7.25rem] shrink-0 rounded-xl border border-line bg-white px-2.5 text-sm tabular-nums shadow-sm outline-none transition focus:border-accent/50 focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-45";
 
 export function GradeExpediente({
   value,
@@ -106,7 +106,7 @@ export function GradeExpediente({
             </div>
             <div className="gx-grade-horas gx-grade-horas--principal">
               <label className="gx-grade-campo">
-                <span>Abre</span>
+                <span>Entra</span>
                 <input
                   type="time"
                   className={hora}
@@ -118,7 +118,7 @@ export function GradeExpediente({
                 →
               </span>
               <label className="gx-grade-campo">
-                <span>Fecha</span>
+                <span>Sai</span>
                 <input
                   type="time"
                   className={hora}
@@ -148,7 +148,7 @@ export function GradeExpediente({
             {compartilhado.pausa ? (
               <div className="gx-grade-horas gx-grade-horas--principal">
                 <label className="gx-grade-campo">
-                  <span>Início</span>
+                  <span>Começa</span>
                   <input
                     type="time"
                     className={hora}
@@ -160,7 +160,7 @@ export function GradeExpediente({
                   →
                 </span>
                 <label className="gx-grade-campo">
-                  <span>Fim</span>
+                  <span>Termina</span>
                   <input
                     type="time"
                     className={hora}
@@ -189,70 +189,80 @@ export function GradeExpediente({
                   <div
                     key={dia.dia}
                     role="listitem"
-                    className={`gx-grade-linha-dia ${dia.aberto ? "is-on" : ""}`}
+                    className={`gx-grade-dia-card ${dia.aberto ? "is-on" : ""}`}
                   >
-                    <label className="gx-grade-dia-check">
-                      <input type="checkbox" checked={dia.aberto} onChange={() => toggleDia(dia)} />
-                      <span>{dia.label}</span>
-                    </label>
-                    <div className="gx-grade-horas gx-grade-horas--mini">
-                      <input
-                        type="time"
-                        className={hora}
-                        value={dia.inicio}
-                        disabled={!dia.aberto}
-                        onChange={(e) => patch(dia.dia, { inicio: e.target.value })}
-                        aria-label={`${dia.label} início`}
-                      />
-                      <span className="gx-grade-sep" aria-hidden>
-                        –
-                      </span>
-                      <input
-                        type="time"
-                        className={hora}
-                        value={dia.fim}
-                        disabled={!dia.aberto}
-                        onChange={(e) => patch(dia.dia, { fim: e.target.value })}
-                        aria-label={`${dia.label} fim`}
-                      />
-                    </div>
-                    {dia.aberto ? (
-                      <label className="gx-grade-mini-almoco" title="Almoço neste dia">
-                        <input
-                          type="checkbox"
-                          checked={dia.pausa}
-                          onChange={(e) =>
-                            patch(dia.dia, {
-                              pausa: e.target.checked,
-                              pausaInicio: dia.pausaInicio || compartilhado.pausaInicio,
-                              pausaFim: dia.pausaFim || compartilhado.pausaFim,
-                            })
-                          }
-                        />
-                        <span>Almoço</span>
+                    <div className="gx-grade-dia-card__topo">
+                      <label className="gx-grade-dia-check">
+                        <input type="checkbox" checked={dia.aberto} onChange={() => toggleDia(dia)} />
+                        <span>{dia.label}</span>
                       </label>
-                    ) : (
-                      <span className="gx-grade-fechado">Fechado</span>
-                    )}
-                    {dia.aberto && dia.pausa ? (
-                      <div className="gx-grade-horas gx-grade-horas--mini gx-grade-horas--pausa-dia">
-                        <input
-                          type="time"
-                          className={hora}
-                          value={dia.pausaInicio}
-                          onChange={(e) => patch(dia.dia, { pausaInicio: e.target.value })}
-                          aria-label={`${dia.label} almoço início`}
-                        />
-                        <span className="gx-grade-sep" aria-hidden>
-                          –
-                        </span>
-                        <input
-                          type="time"
-                          className={hora}
-                          value={dia.pausaFim}
-                          onChange={(e) => patch(dia.dia, { pausaFim: e.target.value })}
-                          aria-label={`${dia.label} almoço fim`}
-                        />
+                      {!dia.aberto ? <span className="gx-grade-fechado">Fechado</span> : null}
+                    </div>
+
+                    {dia.aberto ? (
+                      <div className="gx-grade-dia-card__corpo">
+                        <div className="gx-grade-dia-card__linha">
+                          <span className="gx-grade-dia-card__rotulo">Trabalha</span>
+                          <div className="gx-grade-horas gx-grade-horas--mini">
+                            <input
+                              type="time"
+                              className={hora}
+                              value={dia.inicio}
+                              onChange={(e) => patch(dia.dia, { inicio: e.target.value })}
+                              aria-label={`${dia.label} entra`}
+                            />
+                            <span className="gx-grade-sep" aria-hidden>
+                              →
+                            </span>
+                            <input
+                              type="time"
+                              className={hora}
+                              value={dia.fim}
+                              onChange={(e) => patch(dia.dia, { fim: e.target.value })}
+                              aria-label={`${dia.label} sai`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="gx-grade-dia-card__linha">
+                          <label className="gx-grade-mini-almoco">
+                            <input
+                              type="checkbox"
+                              checked={dia.pausa}
+                              onChange={(e) =>
+                                patch(dia.dia, {
+                                  pausa: e.target.checked,
+                                  pausaInicio: dia.pausaInicio || compartilhado.pausaInicio,
+                                  pausaFim: dia.pausaFim || compartilhado.pausaFim,
+                                })
+                              }
+                            />
+                            <span>Almoço</span>
+                          </label>
+                          {dia.pausa ? (
+                            <div className="gx-grade-horas gx-grade-horas--mini">
+                              <input
+                                type="time"
+                                className={hora}
+                                value={dia.pausaInicio}
+                                onChange={(e) => patch(dia.dia, { pausaInicio: e.target.value })}
+                                aria-label={`${dia.label} almoço começa`}
+                              />
+                              <span className="gx-grade-sep" aria-hidden>
+                                →
+                              </span>
+                              <input
+                                type="time"
+                                className={hora}
+                                value={dia.pausaFim}
+                                onChange={(e) => patch(dia.dia, { pausaFim: e.target.value })}
+                                aria-label={`${dia.label} almoço termina`}
+                              />
+                            </div>
+                          ) : (
+                            <span className="gx-grade-dia-card__sem">Sem pausa</span>
+                          )}
+                        </div>
                       </div>
                     ) : null}
                   </div>
