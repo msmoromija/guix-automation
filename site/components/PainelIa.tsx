@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 /** Um ciclo do vídeo de criação no tema claro: 9,80s. Todas as seções usam esse tempo. */
@@ -18,7 +19,8 @@ const sequencia = [
     src: "/midia/modelo-barbearia.webp",
     etiqueta: "Modelo publicado",
     nome: "Barbearia Vila Norte",
-    legenda: "Modelo de barbearia. O site no ar, com agenda e WhatsApp.",
+    slug: "barbearia",
+    legenda: "Agenda no site: nome, WhatsApp, e-mail e horário reservado.",
   },
   {
     tipo: "video" as const,
@@ -32,42 +34,48 @@ const sequencia = [
     src: "/midia/modelo-salao.webp",
     etiqueta: "Modelo publicado",
     nome: "Salão Vila Flor",
-    legenda: "Modelo de salão de beleza. Corte, cor e unhas com hora marcada.",
+    slug: "salao",
+    legenda: "Cliente marca no site; horário ocupado fica vermelho. Cancele até 3h antes.",
   },
   {
     tipo: "modelo" as const,
     src: "/midia/modelo-estetica.webp",
     etiqueta: "Modelo publicado",
     nome: "Estúdio Serra Clara",
-    legenda: "Modelo de estética. A sala fica reservada no horário marcado.",
+    slug: "estetica",
+    legenda: "Sala reservada no horário — sem depender do WhatsApp para confirmar.",
   },
   {
     tipo: "modelo" as const,
     src: "/midia/modelo-petshop.webp",
     etiqueta: "Modelo publicado",
     nome: "Pet Shop Bento",
-    legenda: "Modelo de pet shop. Banho e tosa com preço por porte.",
+    slug: "petshop",
+    legenda: "Banho e tosa com hora marcada no site. Role até Agendar no modelo.",
   },
   {
     tipo: "modelo" as const,
     src: "/midia/modelo-academia.webp",
     etiqueta: "Modelo publicado",
     nome: "Academia Farol",
-    legenda: "Modelo de academia. Avaliação e aula, manhã e tarde separadas.",
+    slug: "academia",
+    legenda: "Avaliação e aula com agenda online no próprio site.",
   },
   {
     tipo: "modelo" as const,
     src: "/midia/modelo-contabilidade.webp",
     etiqueta: "Modelo publicado",
     nome: "Lima Contabilidade",
-    legenda: "Modelo de contabilidade. A reunião com o contador tem hora.",
+    slug: "contabilidade",
+    legenda: "Reunião com o contador: o cliente escolhe o horário no site.",
   },
   {
     tipo: "modelo" as const,
     src: "/midia/modelo-advocacia.webp",
     etiqueta: "Modelo publicado",
     nome: "Vale Luz Advogados",
-    legenda: "Modelo de advocacia. A consulta tem dia e hora.",
+    slug: "advocacia",
+    legenda: "Consulta com dia e hora — reserva automática no site.",
   },
 ];
 
@@ -132,6 +140,17 @@ export function PainelIa() {
               aria-label={atual.legenda}
               className="painel-troca absolute inset-0 h-full w-full object-cover"
             />
+          ) : "slug" in atual && atual.slug ? (
+            <Link href={`/exemplos/${atual.slug}#agendar`} className="absolute inset-0 block" aria-label={`Abrir agenda do modelo ${atual.nome}`}>
+              <img
+                key={atual.src}
+                src={atual.src}
+                alt={atual.legenda}
+                width={1400}
+                height={780}
+                className="painel-troca h-full w-full object-cover"
+              />
+            </Link>
           ) : (
             <img
               key={atual.src}
@@ -151,9 +170,19 @@ export function PainelIa() {
           />
         </div>
         <div className="flex items-start justify-between gap-4 px-4 py-4 sm:px-6">
-          <p className="text-sm font-medium leading-6 text-ink sm:text-[15px]" aria-live="polite">
-            {atual.legenda}
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-6 text-ink sm:text-[15px]" aria-live="polite">
+              {atual.legenda}
+            </p>
+            {"slug" in atual && atual.slug ? (
+              <Link
+                href={`/exemplos/${atual.slug}#agendar`}
+                className="mt-1.5 inline-flex text-xs font-semibold text-accent underline"
+              >
+                Abrir modelo e ver Agendar →
+              </Link>
+            ) : null}
+          </div>
           <p className="shrink-0 pt-0.5 text-xs font-medium tabular-nums text-muted">
             {String(indice + 1).padStart(2, "0")}
             <span className="text-[#CBD5E1]"> / </span>

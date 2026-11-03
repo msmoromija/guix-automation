@@ -79,7 +79,7 @@ const perguntas = [
   {
     pergunta: "Posso ver exemplos antes de contratar?",
     resposta:
-      "Sim. Na página inicial há demonstrações dos modelos padrão (barbearia, salão, estética, pet shop, academia, contabilidade e advocacia). Em Clientes e nos preços você vê casos reais por faixa: MEI em Dia (Presença Avançada, R$ 1.499,90) e MOROX (Presença Personalizada, a partir de R$ 2.999,90). Também dá para montar seu próprio teste em Prototipar, sem pagar.",
+      "Sim. Na página inicial e em Exemplos há modelos com agenda online: o cliente informa nome, WhatsApp e e-mail, escolhe o horário no site (ocupado fica vermelho) e pode cancelar até 3 horas antes. Em Clientes e nos preços há casos reais por faixa: MEI em Dia (Avançada) e MOROX (Personalizada). Também dá para montar seu próprio teste em Prototipar, sem pagar.",
   },
   {
     pergunta: "O que acontece depois que eu contrato?",

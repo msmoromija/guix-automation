@@ -110,7 +110,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
   const [proAberto, setProAberto] = useState(0);
   const [aba, setAba] = useState<"grade" | "solicitacoes">("solicitacoes");
   const [passoMin, setPassoMin] = useState(30);
-  const [modoConfirmacao, setModoConfirmacao] = useState<"manual" | "automatico" | "whatsapp">("manual");
+  const [modoConfirmacao, setModoConfirmacao] = useState<"manual" | "automatico" | "whatsapp">("automatico");
 
   const qs = useMemo(() => `t=${encodeURIComponent(token)}`, [token]);
 
@@ -132,7 +132,7 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
       setExpediente(casa);
       setPassoMin(normalizarPassoMinutos(visual?.duracaoSlotMinutos));
       const modo = visual?.modoConfirmacaoAgenda;
-      setModoConfirmacao(modo === "automatico" || modo === "whatsapp" ? modo : "manual");
+      setModoConfirmacao(modo === "whatsapp" || modo === "manual" ? modo : "automatico");
       setPros(carregarPros(site, visual, casa));
       setFechado(Boolean(json.edicaoFechada));
       setProAberto(0);
@@ -274,8 +274,8 @@ export function EditorAgenda({ id, token }: { id: string; token: string }) {
         <div className="mt-4 space-y-2">
           {(
             [
+              ["automatico", "Agendar automático (recomendado)", "Cliente finaliza no site; horário reservado na hora."],
               ["manual", "Confirmar no painel", "Você aceita ou recusa nas Solicitações."],
-              ["automatico", "Agendar automático", "Confirma na hora, sem esperar você."],
               ["whatsapp", "Confirmar pelo WhatsApp", "A solicitação abre no WhatsApp do negócio."],
             ] as const
           ).map(([id, titulo, desc]) => (

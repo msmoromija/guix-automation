@@ -1717,12 +1717,12 @@ export function EstudioForm() {
                         <div className="mt-3 space-y-2">
                           {(
                             [
+                              ["automatico", "Agendar automático (recomendado)", "O cliente finaliza no site; o horário já fica reservado, sem depender do WhatsApp."],
                               ["manual", "Confirmar no painel", "Você aceita ou recusa na área do cliente."],
-                              ["automatico", "Agendar automático", "O horário já entra confirmado, sem esperar você."],
                               ["whatsapp", "Confirmar pelo WhatsApp", "A solicitação abre no seu WhatsApp para você responder."],
                             ] as const
                           ).map(([id, titulo, desc]) => {
-                            const ativo = (visual.modoConfirmacaoAgenda || "manual") === id;
+                            const ativo = (visual.modoConfirmacaoAgenda || "automatico") === id;
                             return (
                               <label
                                 key={id}

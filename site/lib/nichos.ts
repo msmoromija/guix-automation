@@ -23,7 +23,7 @@ export const nichos: Nicho[] = [
     negocio: "Barbearia Vila Norte",
     lugar: "Jardins, Aracaju",
     frase: "Corte e barba com hora marcada.",
-    detalhe: "O cliente escolhe o serviço, o barbeiro e o horário. A confirmação sai no WhatsApp.",
+    detalhe: "O cliente escolhe o serviço, o barbeiro e o horário no site — reserva automática, sem depender do WhatsApp.",
     demo: "/exemplos/barbearia",
     tema: { fundo: "#141210", tinta: "#F4F0E6", acento: "#E4C48A", superficie: "#221F1B" },
   },

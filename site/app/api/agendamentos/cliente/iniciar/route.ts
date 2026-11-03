@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { iniciarVerificacaoCliente, type CanalVerificacao } from "@/lib/agendamentos/cliente";
+import {
+  criarSessaoDiretaCliente,
+  iniciarVerificacaoCliente,
+  siteIdEhDemoPublico,
+  type CanalVerificacao,
+} from "@/lib/agendamentos/cliente";
 import { enviarCodigoVerificacao } from "@/lib/agendamentos/otp-envio";
 
 export const runtime = "nodejs";
@@ -8,12 +13,39 @@ export const maxDuration = 30;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const siteId = String(body.siteId || "");
     const canal = String(body.canal || "email") as CanalVerificacao;
+    const nomeCompleto = String(body.nomeCompleto || "");
+    const email = String(body.email || "");
+    const telefone = String(body.telefone || "");
+
+    // Modelos /exemplos: libera a agenda com nome + WhatsApp + e-mail (sem OTP).
+    if (siteIdEhDemoPublico(siteId)) {
+      const direta = await criarSessaoDiretaCliente({
+        siteId,
+        nomeCompleto,
+        email,
+        telefone,
+        canal: canal === "telefone" ? "telefone" : "email",
+      });
+      if (!direta.ok) return NextResponse.json({ erro: direta.erro }, { status: 400 });
+      return NextResponse.json({
+        ok: true,
+        sessaoDireta: true,
+        sessaoToken: direta.sessao.token,
+        nomeCompleto: direta.sessao.nomeCompleto,
+        email: direta.sessao.email,
+        telefone: direta.sessao.telefone,
+        expiraEm: direta.sessao.expiraEm,
+        aviso: "Demonstração: identidade liberada. Escolha o horário — o ocupado fica vermelho para os outros.",
+      });
+    }
+
     const inicio = await iniciarVerificacaoCliente({
-      siteId: String(body.siteId || ""),
-      nomeCompleto: String(body.nomeCompleto || ""),
-      email: String(body.email || ""),
-      telefone: String(body.telefone || ""),
+      siteId,
+      nomeCompleto,
+      email,
+      telefone,
       canal: canal === "telefone" ? "telefone" : "email",
     });
     if (!inicio.ok) return NextResponse.json({ erro: inicio.erro }, { status: 400 });

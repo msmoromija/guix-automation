@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DemoModelo } from "@/components/exemplos/DemoModelo";
+import { carregarExemplo } from "@/lib/automacao/carregar-exemplo";
+import type { Nicho as NichoMedia } from "@/lib/media/tipos";
 import { nichoPorSlug, nichos } from "@/lib/nichos";
 
 export function generateStaticParams() {
@@ -12,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ nicho: st
   if (!item) return { title: "Exemplo" };
   return {
     title: `${item.negocio} · modelo GuiX`,
-    description: `Veja o modelo de ${item.nome} e gere seu protótipo antes de pagar.`,
+    description: `Veja o modelo de ${item.nome} com agenda online: nome, telefone, e-mail e horário reservado no site.`,
   };
 }
 
@@ -25,6 +28,13 @@ export default async function ExemploModeloPage({
   const item = nichoPorSlug(nicho);
   if (!item) notFound();
 
+  let site: Record<string, unknown>;
+  try {
+    site = await carregarExemplo(nicho as NichoMedia);
+  } catch {
+    notFound();
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-white">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/95 backdrop-blur">
@@ -36,6 +46,12 @@ export default async function ExemploModeloPage({
             <p className="truncate text-sm text-slate-300">{item.negocio}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <a
+              href="#agendar"
+              className="rounded-full border border-orange-300/50 bg-orange-400/15 px-4 py-2 text-sm font-semibold text-orange-200 hover:bg-orange-400/25"
+            >
+              Ir para Agendar
+            </a>
             <Link
               href={`/prototipar?nicho=${item.slug}`}
               className="rounded-full bg-orange-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-orange-300"
@@ -55,20 +71,7 @@ export default async function ExemploModeloPage({
         </div>
       </header>
 
-      <p className="border-b border-white/10 bg-slate-900 px-4 py-2 text-center text-xs text-slate-400">
-        Demonstração pública. Role até <strong className="text-orange-200">Agendar</strong> para marcar horário. Depois da
-        compra, o dono usa o{" "}
-        <Link href="/demo/controle" className="font-semibold text-orange-200 underline">
-          controle do administrador
-        </Link>{" "}
-        (equipe, avisos, serviços, FAQ) — sem IA.
-      </p>
-
-      <iframe
-        title={`Demonstração ${item.negocio}`}
-        src={`/casas/${item.slug}/`}
-        className="min-h-[calc(100vh-7.5rem)] w-full flex-1 border-0 bg-white"
-      />
+      <DemoModelo nicho={item.slug} site={site as Parameters<typeof DemoModelo>[0]["site"]} />
     </div>
   );
 }

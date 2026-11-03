@@ -257,3 +257,55 @@ export async function validarSessaoCliente(siteIdRaw: string, tokenRaw: string):
   if (new Date(sessao.expiraEm).getTime() < Date.now()) return null;
   return sessao;
 }
+
+/** Modelos públicos (`demo-*`): libera agenda com nome + WhatsApp + e-mail, sem OTP. */
+export function siteIdEhDemoPublico(siteId: string) {
+  return sanitizarSiteIdPublico(siteId).startsWith("demo");
+}
+
+export async function criarSessaoDiretaCliente(opts: {
+  siteId: string;
+  nomeCompleto: string;
+  email: string;
+  telefone: string;
+  canal?: CanalVerificacao;
+}) {
+  const siteId = sanitizarSiteIdPublico(opts.siteId);
+  const email = normalizarEmail(opts.email);
+  const telefone = opts.telefone.trim();
+  const telefoneDigitos = normalizarTelefoneDigitos(opts.telefone);
+  const nomeCompleto = opts.nomeCompleto.replace(/\s+/g, " ").trim();
+  const canal = opts.canal === "telefone" ? "telefone" : "email";
+
+  if (!siteId) return { ok: false as const, erro: "Site inválido." };
+  if (!nomeClienteOk(nomeCompleto)) return { ok: false as const, erro: "Informe o nome completo." };
+  if (!emailClienteOk(email)) return { ok: false as const, erro: "Informe um e-mail válido." };
+  if (!telefoneClienteOk(telefone)) return { ok: false as const, erro: "Informe o telefone com DDD." };
+
+  const agora = Date.now();
+  const token = randomBytes(24).toString("hex");
+  const cliente: ClienteCadastro = {
+    siteId,
+    nomeCompleto,
+    email,
+    telefone,
+    telefoneDigitos,
+    criadoEm: new Date(agora).toISOString(),
+    verificadoEm: new Date(agora).toISOString(),
+    canal,
+  };
+  const sessao: SessaoCliente = {
+    token,
+    siteId,
+    nomeCompleto,
+    email,
+    telefone,
+    telefoneDigitos,
+    canal,
+    criadaEm: new Date(agora).toISOString(),
+    expiraEm: new Date(agora + SESSAO_TTL_MS).toISOString(),
+  };
+  await gravarJson(chaveCliente(siteId, email), cliente, "cliente agenda", ["cliente", siteId]);
+  await gravarJson(chaveSessao(siteId, token), sessao, "sessao cliente", ["sessao", siteId]);
+  return { ok: true as const, sessao };
+}

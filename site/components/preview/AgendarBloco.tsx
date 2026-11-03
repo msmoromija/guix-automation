@@ -144,29 +144,40 @@ export function AgendarBloco({
     return Number(s.duracao_minutos) || minutosDeRotulo(s.duracao_label) || passo;
   }, [listaSrv, servico, passo]);
 
-  const slots = useMemo(() => {
-    if (!disponibilidade.slots) return null;
-    const livres = disponibilidade.slots.filter((h) => !ocupados.includes(h));
+  /** Horários do dia: livres selecionáveis + ocupados (vermelho / bloqueados). */
+  const gradeHorarios = useMemo(() => {
+    if (!disponibilidade.slots) return null as Array<{ hora: string; livre: boolean }> | null;
     const precisa = slotsNecessarios(duracaoServicoMin, passo);
-    if (precisa <= 1) return livres;
     const ordem = disponibilidade.slots;
-    return livres.filter((h) => {
+    return ordem.map((h) => {
+      if (ocupados.includes(h)) return { hora: h, livre: false };
+      if (precisa <= 1) return { hora: h, livre: true };
       const idx = ordem.indexOf(h);
-      if (idx < 0) return false;
+      let livre = true;
       for (let k = 0; k < precisa; k++) {
         const slot = ordem[idx + k];
-        if (!slot || ocupados.includes(slot)) return false;
+        if (!slot || ocupados.includes(slot)) {
+          livre = false;
+          break;
+        }
         if (k > 0) {
-          // slots devem ser consecutivos no passo
           const prev = ordem[idx + k - 1];
           const [ph, pm] = prev.split(":").map(Number);
           const [ch, cm] = slot.split(":").map(Number);
-          if (ch * 60 + cm - (ph * 60 + pm) !== passo) return false;
+          if (ch * 60 + cm - (ph * 60 + pm) !== passo) {
+            livre = false;
+            break;
+          }
         }
       }
-      return true;
+      return { hora: h, livre };
     });
   }, [disponibilidade.slots, ocupados, duracaoServicoMin, passo]);
+
+  const slots = useMemo(() => {
+    if (!gradeHorarios) return null;
+    return gradeHorarios.filter((s) => s.livre).map((s) => s.hora);
+  }, [gradeHorarios]);
 
   const hoje = new Date().toISOString().slice(0, 10);
   const verificado = Boolean(sessao?.token) || Boolean(studio);
@@ -239,9 +250,33 @@ export function AgendarBloco({
           negocioNome: negocioNome || "Negócio",
         }),
       });
-      const j = (await res.json()) as { erro?: string; destinoMascarado?: string; aviso?: string; canal?: Canal };
+      const j = (await res.json()) as {
+        erro?: string;
+        destinoMascarado?: string;
+        aviso?: string;
+        canal?: Canal;
+        sessaoDireta?: boolean;
+        sessaoToken?: string;
+        nomeCompleto?: string;
+        email?: string;
+        telefone?: string;
+        expiraEm?: string;
+      };
       if (!res.ok) {
         setAviso(j.erro || "Não foi possível enviar o código.");
+        return;
+      }
+      if (j.sessaoDireta && j.sessaoToken && siteId) {
+        const nova: SessaoLocal = {
+          token: j.sessaoToken,
+          nomeCompleto: j.nomeCompleto || nomeCompleto.trim(),
+          email: j.email || email.trim(),
+          telefone: j.telefone || tel.trim(),
+          expiraEm: j.expiraEm || new Date(Date.now() + 30 * 86400000).toISOString(),
+        };
+        salvarSessao(siteId, nova);
+        setSessao(nova);
+        setAviso(j.aviso || "Pronto. Escolha o serviço e o horário.");
         return;
       }
       if (j.canal === "email" || j.canal === "telefone") setCanal(j.canal);
@@ -505,7 +540,11 @@ export function AgendarBloco({
                   className="w-full rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
                   style={{ background: "var(--a)", color: "var(--bg)" }}
                 >
-                  {enviando ? "Enviando código…" : "Enviar código de verificação"}
+                  {enviando
+                    ? "Liberando agenda…"
+                    : siteId?.startsWith("demo")
+                      ? "Continuar e escolher horário"
+                      : "Enviar código de verificação"}
                 </button>
               </>
             ) : (
@@ -656,28 +695,48 @@ export function AgendarBloco({
                   <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
                     Escolha o dia.
                   </p>
-                ) : !slots ? (
+                ) : !gradeHorarios ? (
                   <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
                     {disponibilidade.motivo || fechado || "Fechado neste dia."}
                   </p>
-                ) : slots.length === 0 ? (
+                ) : gradeHorarios.length === 0 ? (
                   <p className="mt-3 text-sm" style={{ color: "var(--mt)" }}>
-                    Sem horários livres neste dia.
+                    Sem horários neste dia.
                   </p>
                 ) : (
-                  <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {slots.map((h) => (
-                      <button
-                        key={h}
-                        type="button"
-                        onClick={() => setHora(h)}
-                        className="rounded-lg border px-2 py-2 text-sm shadow-sm transition"
-                        style={estiloBorda(hora === h)}
-                      >
-                        {h}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {gradeHorarios.map(({ hora: h, livre }) => (
+                        <button
+                          key={h}
+                          type="button"
+                          disabled={!livre}
+                          onClick={() => livre && setHora(h)}
+                          title={livre ? `Reservar ${h}` : `${h} já reservado`}
+                          className="rounded-lg border px-2 py-2 text-sm shadow-sm transition disabled:cursor-not-allowed"
+                          style={
+                            !livre
+                              ? {
+                                  borderColor: "color-mix(in srgb, #e11d48 55%, transparent)",
+                                  background: "color-mix(in srgb, #e11d48 18%, transparent)",
+                                  color: "#e11d48",
+                                  textDecoration: "line-through",
+                                  opacity: 0.85,
+                                }
+                              : estiloBorda(hora === h)
+                          }
+                        >
+                          {h}
+                        </button>
+                      ))}
+                    </div>
+                    {ocupados.length > 0 ? (
+                      <p className="mt-2 text-[11px]" style={{ color: "var(--mt)" }}>
+                        <span className="font-semibold text-rose-600">Vermelho</span> = horário já reservado (some da
+                        escolha livre).
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
             </div>
@@ -704,15 +763,19 @@ export function AgendarBloco({
               style={{ background: "var(--a)", color: "var(--bg)" }}
             >
               {enviando
-                ? "Enviando solicitação…"
+                ? "Confirmando horário…"
                 : studio
-                  ? "No site publicado, o cliente solicita aqui"
-                  : "Solicitar horário ao profissional"}
+                  ? "No site publicado, o cliente confirma aqui"
+                  : modo === "automatico"
+                    ? "Confirmar horário no site"
+                    : "Solicitar horário ao profissional"}
             </button>
             <p className="text-xs" style={{ color: "var(--mt)" }}>
               {studio
-                ? "Simulação: role os dias e veja os horários livres. Depois de publicar, o dono confirma (ou o sistema confirma sozinho) na área do cliente."
-                : "O profissional recebe horário e seus dados e responde (aceitar ou recusar). Enquanto estiver pendente, o horário fica reservado. Depois de confirmado, desmarque pelo link até 3 horas antes."}
+                ? "Simulação: escolha dia e horário. No site publicado, nome + WhatsApp + e-mail liberam a agenda; horário reservado fica vermelho para os outros."
+                : modo === "automatico"
+                  ? "O horário fica reservado na hora. Você recebe o link para cancelar até 3 horas antes do procedimento."
+                  : "O horário fica reservado enquanto o profissional confirma. Depois de confirmado, cancele pelo link até 3 horas antes."}
             </p>
           </>
         )}

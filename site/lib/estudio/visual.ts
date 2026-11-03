@@ -316,7 +316,8 @@ export function visualPadrao(nicho?: string): VisualConfig {
     tiktok: true,
     youtube: true,
     agendamento: true,
-    modoConfirmacaoAgenda: "manual",
+    // Cliente finaliza no site; dono pode mudar para manual/WhatsApp no painel
+    modoConfirmacaoAgenda: "automatico",
     presetId: preset.id,
     ...preset.visual,
   };
