@@ -166,8 +166,8 @@ export default function HomePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Preços</p>
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-ink sm:text-5xl">Preço simples e transparente</h2>
             <p className="mt-4 text-[15px] leading-7 text-slate-600">
-              Um pagamento pela estrutura completa. Sem mensalidade de site. Você escolhe o plano do seu tipo de negócio
-              e, se quiser, a configuração pela equipe.
+              Um pagamento pela estrutura completa. Sem mensalidade de site. Você escolhe o plano de acordo com a
+              complexidade do seu negócio e, se quiser, a configuração pela equipe.
             </p>
           </div>
 

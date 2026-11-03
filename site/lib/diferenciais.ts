@@ -76,7 +76,7 @@ export const diferenciais: DiferencialItem[] = [
     texto: "Você paga a estrutura e assume o controle. Sem surpresa de cobrança mensal só para manter a página no ar.",
     resumo: "Você paga a estrutura uma vez. Não há mensalidade de site cobrada pelo GuiX.net para manter a página no ar.",
     pontos: [
-      "Presença Completa ou Avançada em pagamento único.",
+      "Completa, Avançada ou Personalizada — pagamento da estrutura, sem mensalidade de site.",
       "Sem mensalidade de site pelo GuiX.net.",
       "PIX, boleto ou cartão em até 12x via Asaas.",
       "O primeiro ano do domínio já entra na compra inicial.",

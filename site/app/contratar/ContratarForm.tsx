@@ -11,7 +11,8 @@ import {
   calcularTotal,
   nichosDoPlano,
   nomeDoNicho,
-  planos,
+  planoPorId,
+  planosContrataveis,
   type Configuracao,
   type PlanoId,
 } from "@/lib/planos";
@@ -105,7 +106,7 @@ export function ContratarForm({
         <fieldset>
           <legend className="text-sm font-semibold">Plano</legend>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {planos.map((item) => (
+            {planosContrataveis.map((item) => (
               <label key={item.id} className={`cursor-pointer rounded-2xl border p-4 ${plano === item.id ? "border-accent bg-[#FFF7ED]" : "border-line bg-white"}`}>
                 <input
                   className="sr-only"
@@ -220,12 +221,12 @@ export function ContratarForm({
 
       <aside className="rounded-2xl border border-line bg-white p-6 shadow-[0_8px_30px_rgb(15_23_42_/_0.05)] lg:sticky lg:top-24">
         <p className="text-sm font-semibold text-accent">Resumo</p>
-        <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em]">{planos.find((item) => item.id === plano)?.nome}</h2>
+        <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em]">{planoPorId(plano)?.nome}</h2>
         <p className="mt-2 text-sm text-muted">{nomeDoNicho(plano, nichoAtual)}</p>
         <dl className="mt-6 space-y-3 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-muted">Plano</dt>
-            <dd>{formatarReais(planos.find((item) => item.id === plano)?.centavos ?? 0)}</dd>
+            <dd>{formatarReais(planoPorId(plano)?.centavos ?? 0)}</dd>
           </div>
           {configuracao === "equipe" ? (
             <div className="flex justify-between gap-4">

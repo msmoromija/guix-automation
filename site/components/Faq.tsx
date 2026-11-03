@@ -34,9 +34,9 @@ const perguntas = [
       "Sim. A IA prepara textos, estrutura, agenda e WhatsApp a partir do que você enviou — é o caminho padrão, mais rápido. Se preferir que a nossa equipe configure sem IA, existe a opção na contratação com taxa de R$ 200,00.",
   },
   {
-    pergunta: "Qual a diferença entre Presença Completa e Avançada?",
+    pergunta: "Qual a diferença entre Presença Completa, Avançada e Personalizada?",
     resposta:
-      "A Presença Completa (R$ 499,90) cobre a maioria dos negócios: barbearias, salões, estética, pet shops, academias, contabilidade e advocacia. A Presença Avançada (R$ 1.499,90) é para clínicas, consultórios, imobiliárias e operações que pedem catálogo, especialidades ou agenda mais completa.",
+      "Presença Completa (R$ 499,90): para serviços com modelo padrão — barbearias, salões, estética, pet shops, academias, contabilidade e advocacia. Inclui site, agenda básica, WhatsApp, domínio e e-mail. Presença Avançada (R$ 1.499,90): para negócios médios que precisam de mais estrutura, como imobiliárias, consultórios menores e operações com catálogo ou agenda mais organizada — inclui estrutura própria do segmento. Presença Personalizada (a partir de R$ 2.999,90): para operação mais complexa ou personalização maior — clínicas e consultórios com equipe, imobiliárias com catálogo robusto, escolas, estúdios com múltiplos serviços, empresas com fluxos próprios etc. O valor final depende do nível de personalização necessário.",
   },
   {
     pergunta: "Como eu pago?",
