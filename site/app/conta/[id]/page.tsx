@@ -26,6 +26,24 @@ type Dados = {
   resumo: { empresa?: string; heroTitulo?: string; slogan?: string };
 };
 
+function Copiar({ valor, rotulo }: { valor: string; rotulo: string }) {
+  const [ok, setOk] = useState(false);
+  return (
+    <button
+      type="button"
+      className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink/30"
+      onClick={() => {
+        void navigator.clipboard.writeText(valor).then(() => {
+          setOk(true);
+          window.setTimeout(() => setOk(false), 1600);
+        });
+      }}
+    >
+      {ok ? "Copiado" : rotulo}
+    </button>
+  );
+}
+
 function Conta() {
   const params = useParams<{ id: string }>();
   const sp = useSearchParams();
@@ -68,56 +86,72 @@ function Conta() {
     return <main className="px-5 py-16 text-sm text-muted">Abrindo sua área…</main>;
   }
 
-  const editarUrl = `/visualizar/${dados.id}`;
+  const previewPath = dados.previewUrl || `/visualizar/${dados.id}`;
+  const contaPath = `/conta/${dados.id}?t=${encodeURIComponent(token)}`;
+  const previewAbs = origem ? `${origem}${previewPath}` : previewPath;
+  const contaAbs = origem ? `${origem}${contaPath}` : contaPath;
+  const downloadAbs = origem ? `${origem}${dados.downloadUrl}` : dados.downloadUrl;
   const agendaUrl = `/conta/${dados.id}/agenda?t=${encodeURIComponent(token)}`;
   const adminUrl = `/conta/${dados.id}/admin?t=${encodeURIComponent(token)}`;
   const extratoUrl = dados.extratoUrl || `/conta/${dados.id}/extrato?t=${encodeURIComponent(token)}`;
-  const agendarAbsoluto = `${origem}${dados.agendarUrl || `/visualizar/${dados.id}#agendar`}`;
+  const agendarAbsoluto = `${origem}${dados.agendarUrl || `${previewPath}#agendar`}`;
   const jaAprovado = dados.status === "aprovado" || dados.status === "pago" || Boolean(dados.aprovadoEm);
+
+  const mensagemWa = [
+    `Olá! Segue o protótipo do site de ${dados.resumo.empresa || dados.nome}.`,
+    ``,
+    `Ver o site: ${previewAbs}`,
+    `Área do cliente (guarde este link): ${contaAbs}`,
+    `Token: ${dados.id}`,
+    ``,
+    `Válido até ${new Date(dados.expiraEm).toLocaleDateString("pt-BR")}.`,
+  ].join("\n");
+  const waShare = `https://wa.me/?text=${encodeURIComponent(mensagemWa)}`;
 
   const cards = [
     {
+      titulo: "1 · Ver o site",
+      texto: "Abra o protótipo como o cliente final vê — textos, agenda e WhatsApp.",
+      href: previewPath,
+      cta: "Abrir site de teste",
+    },
+    {
+      titulo: "2 · Comprar / publicar",
+      texto: "PIX, boleto ou cartão. O pagamento libera domínio, e-mail e publicação.",
+      href: dados.contratarUrl,
+      cta: "Ir para a contratação",
+      destaque: true,
+    },
+    {
       titulo: "Administrador do site",
-      texto: "Profissionais, avisos e recessos, serviços, FAQ, endereço, redes, horário e vagas da agenda — sem IA.",
+      texto: "Equipe, avisos, serviços, FAQ, endereço, redes, horário e vagas — sem IA.",
       href: adminUrl,
       cta: "Abrir controle",
     },
     {
       titulo: "Agenda e solicitações",
-      texto: "Caixa de pedidos e grade fina — aceite ou recuse com horário e dados do cliente.",
+      texto: "Caixa de pedidos e grade — aceite ou recuse com horário e dados do cliente.",
       href: agendaUrl,
       cta: "Abrir agenda",
     },
     {
-      titulo: "Extrato PDF / imagem",
-      texto: "Baixe o cartão do protótipo com token, QR e prazo de integração GuiX.",
+      titulo: "Extrato PDF",
+      texto: "Cartão do protótipo com token, QR e prazo de integração GuiX.",
       href: extratoUrl,
       cta: "Abrir extrato",
     },
     {
-      titulo: "Protótipo / preview",
-      texto: "Veja o site gerado e teste o agendamento como o cliente final.",
-      href: editarUrl,
-      cta: "Abrir preview",
-    },
-    {
-      titulo: "Download site.json",
-      texto: "Arquivo de configuração 1.0.0 do seu site — como combinado.",
+      titulo: "Arquivo site.json",
+      texto: "Download do arquivo gerado (schema 1.0.0) — o mesmo token acima abre este JSON.",
       href: dados.downloadUrl,
       cta: "Baixar JSON",
       external: true,
     },
     {
       titulo: "Imagens",
-      texto: "Trocar fotos da biblioteca, Unsplash ou upload próprio (isolado).",
+      texto: "Trocar fotos da biblioteca, Unsplash ou upload próprio.",
       href: `/painel/midia?clienteId=${encodeURIComponent(`t${dados.id}`)}`,
       cta: "Abrir mídia",
-    },
-    {
-      titulo: "Contratar / publicar",
-      texto: "PIX, boleto ou cartão. Pagamento libera domínio, e-mail e publicação.",
-      href: dados.contratarUrl,
-      cta: "Ir para contratação",
     },
   ];
 
@@ -128,7 +162,7 @@ function Conta() {
         {dados.resumo.empresa || dados.nome}
       </h1>
       <p className="mt-2 text-muted">
-        Status: <strong>{dados.status}</strong> · modelo {dados.nicho} · expira{" "}
+        Status: <strong>{dados.status}</strong> · {dados.nicho} · protótipo válido até{" "}
         {new Date(dados.expiraEm).toLocaleDateString("pt-BR")}
         {dados.prazoIntegracao ? (
           <>
@@ -138,27 +172,90 @@ function Conta() {
         ) : null}
       </p>
 
-      {novo ? (
-        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-950">
-          <p className="font-semibold">Protótipo pronto</p>
-          <p className="mt-1">
-            Token: <strong className="font-mono tracking-wide">{dados.id}</strong> — guarde este link. Aprove abaixo para
-            receber o token no e-mail/SMS/WhatsApp, baixar o extrato e contratar com PIX ou cartão.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link href={`/visualizar/${dados.id}`} className="font-semibold text-accent underline">
-              Abrir preview do site
-            </Link>
-            <button
-              type="button"
-              className="font-semibold text-accent underline"
-              onClick={() => void navigator.clipboard.writeText(dados.id)}
-            >
-              Copiar token
-            </button>
+      <section
+        className={`mt-8 rounded-2xl border px-5 py-5 sm:px-6 ${
+          novo ? "border-emerald-300 bg-emerald-50" : "border-line bg-white"
+        }`}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+          {novo ? "Protótipo salvo" : "Seus links e o token"}
+        </p>
+        <h2 className="mt-2 text-xl font-bold tracking-[-0.03em] text-ink">
+          {novo ? "Pronto — guarde o token e envie o link" : "Acesso do protótipo"}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-700">
+          O botão <strong>Salvar protótipo</strong> no estúdio gerou este arquivo. Sem o token, ninguém abre o site de
+          teste nem o JSON.
+        </p>
+
+        <div className="mt-5 space-y-3">
+          <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Token</p>
+            <p className="mt-1 break-all font-mono text-base font-semibold tracking-wide text-ink">{dados.id}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Copiar valor={dados.id} rotulo="Copiar token" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Link do site (enviar ao cliente)</p>
+            <p className="mt-1 break-all text-sm text-ink">{previewAbs}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Copiar valor={previewAbs} rotulo="Copiar link do site" />
+              <Link href={previewPath} className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white">
+                Abrir site
+              </Link>
+              <a
+                href={waShare}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-[#128C7E]"
+              >
+                Enviar no WhatsApp
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-line/80 bg-white px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Link desta área (guarde)</p>
+            <p className="mt-1 break-all text-sm text-ink">{contaAbs}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Copiar valor={contaAbs} rotulo="Copiar link da área" />
+              <Copiar valor={downloadAbs} rotulo="Copiar link do JSON" />
+              <a href={dados.downloadUrl} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold">
+                Baixar site.json
+              </a>
+            </div>
           </div>
         </div>
-      ) : null}
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Link
+            href={dados.contratarUrl}
+            className="inline-flex items-center justify-center rounded-full bg-orange-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-orange-300"
+          >
+            Quero comprar e publicar
+          </Link>
+          <Link
+            href={previewPath}
+            className="inline-flex items-center justify-center rounded-full border border-ink/15 bg-white px-5 py-3 text-sm font-semibold text-ink"
+          >
+            Ver o site antes
+          </Link>
+        </div>
+
+        <ol className="mt-5 space-y-1.5 text-sm leading-6 text-slate-700">
+          <li>
+            <strong>1.</strong> Abra o site de teste e confira.
+          </li>
+          <li>
+            <strong>2.</strong> Envie o link do site (ou o WhatsApp) para o cliente.
+          </li>
+          <li>
+            <strong>3.</strong> Quando fechar, clique em <strong>Quero comprar e publicar</strong>.
+          </li>
+        </ol>
+      </section>
 
       <div className="mt-8">
         <AprovarPrototipo
@@ -178,7 +275,10 @@ function Conta() {
           <KitImpressao nome={dados.resumo.empresa || dados.nome} agendarUrl={agendarAbsoluto} logoUrl={dados.logoUrl} />
         ) : null}
         {cards.map((c) => (
-          <article key={c.titulo} className="rounded-2xl border border-line bg-white p-5">
+          <article
+            key={c.titulo}
+            className={`rounded-2xl border p-5 ${c.destaque ? "border-orange-300 bg-orange-50" : "border-line bg-white"}`}
+          >
             <h2 className="font-semibold">{c.titulo}</h2>
             <p className="mt-2 text-sm text-muted">{c.texto}</p>
             {c.external ? (
@@ -195,7 +295,7 @@ function Conta() {
       </div>
 
       <p className="mt-10 text-xs text-muted">
-        Guarde este link e o token: a área usa acesso pessoal. Sem o token, ninguém acessa seu JSON nem o preview.
+        Guarde o token e o link desta área. Sem eles, o preview e o arquivo JSON não abrem.
       </p>
     </main>
   );

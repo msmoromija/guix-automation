@@ -58,7 +58,7 @@ const ETAPAS = [
   { id: 2, titulo: "Aparência", resumo: "Cores, fonte, fotos e o formato dos botões." },
   { id: 3, titulo: "Marca", resumo: "Logo, tamanho e posição no topo." },
   { id: 4, titulo: "Contato", resumo: "WhatsApp, agenda da semana, recessos, redes, serviços e equipe." },
-  { id: 5, titulo: "Gerar", resumo: "Gera o link de teste, válido por 3 dias." },
+  { id: 5, titulo: "Salvar", resumo: "Salva o protótipo, gera o token e o link para o cliente." },
 ];
 
 const LIMITE_FAQ_FORM = 10;
@@ -1264,7 +1264,8 @@ export function EstudioForm() {
         O site já está à direita. Você só personaliza.
       </h1>
       <p className="mt-2 text-sm text-muted">
-        Começa no modelo do ofício. Cada passo troca uma parte. No fim, um <strong>link de teste por 3 dias</strong>.
+        Começa no modelo do ofício. No fim, <strong>Salvar protótipo</strong> gera o token e o link para o cliente (3
+        dias).
       </p>
 
       <nav aria-label="Etapas" className="mt-6 rounded-2xl border border-line bg-white p-4">
@@ -2258,28 +2259,33 @@ export function EstudioForm() {
 
           {etapa === 5 ? (
             <section className="gx-step gx-form-card p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Você vai receber um link válido por 3 dias</h2>
+              <h2 className="text-base font-semibold">Salvar o protótipo</h2>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Este é o “salvar” do GuiX: grava o site, cria um <strong className="text-ink">token</strong> e um{" "}
+                <strong className="text-ink">link</strong> para o cliente abrir. O teste vale 3 dias — ainda não é a
+                publicação no domínio.
+              </p>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
-                  <strong>1.</strong> A IA escreve os textos no tom escolhido e escolhe fotos do ofício.
+                  <strong>1.</strong> Clicar em <strong>Salvar protótipo</strong> abaixo.
                 </li>
                 <li>
-                  <strong>2.</strong> Abre o site de teste neste navegador — dá para mandar o link no WhatsApp.
+                  <strong>2.</strong> Na próxima tela você vê o <strong>token</strong>, copia o{" "}
+                  <strong>link do site</strong> e pode mandar no WhatsApp.
                 </li>
                 <li>
-                  <strong>3.</strong> Em 3 dias o teste some sozinho. Não é o site publicado.
-                </li>
-                <li>
-                  <strong>4.</strong> Se gostar, contrata. Aí o site entra no seu domínio de verdade.
+                  <strong>3.</strong> Quando fechar negócio, use <strong>Quero comprar e publicar</strong> (PIX, boleto
+                  ou cartão).
                 </li>
               </ol>
               <div className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-muted">
                 {nome || "Seu negócio"} · {nichoAtual.nome}
-                {cidade ? ` · ${cidade}` : ""} · {whatsapp.trim() ? whatsapp.trim() : "WhatsApp ainda não informado"} · {logoModo === "texto" ? "nome escrito" : logoModo === "enviar" ? "logo enviado" : "marca do estúdio"}
+                {cidade ? ` · ${cidade}` : ""} · {whatsapp.trim() ? whatsapp.trim() : "WhatsApp ainda não informado"} ·{" "}
+                {logoModo === "texto" ? "nome escrito" : logoModo === "enviar" ? "logo enviado" : "marca do estúdio"}
               </div>
               {!whatsapp.trim() ? (
                 <button type="button" className="mt-3 text-sm font-medium text-accent underline" onClick={() => ir(4)}>
-                  Informar o WhatsApp antes de gerar
+                  Informar o WhatsApp antes de salvar
                 </button>
               ) : null}
             </section>
@@ -2300,12 +2306,14 @@ export function EstudioForm() {
               className="rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
             >
               {loading
-                ? "Montando o site de teste…"
+                ? "Salvando protótipo…"
                 : etapa === 5
-                  ? "Ver meu site de teste — link por 3 dias"
+                  ? "Salvar protótipo e gerar link"
                   : "Continuar"}
             </button>
-            {etapa === 5 ? <p className="text-xs text-muted">Sem cartão. Sem publicar ainda.</p> : null}
+            {etapa === 5 ? (
+              <p className="text-xs text-muted">Gera o token e o link. Sem cartão. Sem publicar ainda.</p>
+            ) : null}
           </div>
         </div>
       </form>
@@ -2399,13 +2407,13 @@ export function EstudioForm() {
       {loading ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 px-6 backdrop-blur-sm">
           <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-            <p className="text-xs font-semibold tracking-[0.16em] text-accent">GERANDO</p>
-            <h2 className="mt-3 text-2xl font-bold tracking-[-0.03em]">Aguarde enquanto criamos tudo para você</h2>
+            <p className="text-xs font-semibold tracking-[0.16em] text-accent">SALVANDO</p>
+            <h2 className="mt-3 text-2xl font-bold tracking-[-0.03em]">Guardando o protótipo</h2>
             <p className="mt-3 text-sm leading-6 text-muted">
-              Estamos escrevendo os textos, escolhendo fotos do ofício e montando o site de teste. Isso leva cerca de um
-              minuto — a tela não travou.
+              Estamos fechando textos, fotos e a marca num arquivo com token. Em seguida você recebe o link para abrir e
+              enviar ao cliente — cerca de um minuto.
             </p>
-            <p className="mt-5 text-sm font-medium text-ink">Montando o site de teste…</p>
+            <p className="mt-5 text-sm font-medium text-ink">Salvando e gerando o link…</p>
           </div>
         </div>
       ) : null}
