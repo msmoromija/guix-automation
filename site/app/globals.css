@@ -581,7 +581,224 @@ html {
   font-size: 0.8125rem;
 }
 
-/* —— Equipe / profissional (estúdio) —— */
+/* —— Equipe simples (criação) —— */
+.gx-equipe {
+  display: grid;
+  gap: 1rem;
+}
+
+.gx-equipe__intro {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.gx-equipe__add {
+  justify-self: start;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: #fff;
+  padding: 0.7rem 1.15rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.55);
+}
+
+.gx-equipe__vazio {
+  border-radius: 1rem;
+  border: 1px dashed var(--color-line);
+  background: #f8fafc;
+  padding: 1.1rem 1.15rem;
+}
+
+.gx-equipe__lista {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gx-equipe__card {
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 1rem;
+}
+
+.gx-equipe__topo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 85%, transparent);
+}
+
+.gx-equipe__indice {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  background: #eef2f7;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.gx-equipe__titulo {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.gx-equipe__titulo strong {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--color-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gx-equipe__titulo span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gx-equipe__remover {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gx-equipe__remover:hover {
+  color: var(--color-ink);
+}
+
+.gx-equipe__corpo {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 420px) {
+  .gx-equipe__corpo {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1.1rem;
+  }
+}
+
+.gx-equipe__foto-col {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.gx-equipe__foto {
+  display: block;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 0.9rem;
+  border: 1.5px dashed #cbd5e1;
+  background: #f8fafc;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.gx-equipe__foto:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, #cbd5e1);
+  background: color-mix(in srgb, var(--color-accent) 7%, #fff);
+}
+
+.gx-equipe__foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gx-equipe__foto span {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.gx-equipe__foto em {
+  font-style: normal;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gx-equipe__busca {
+  width: 6.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.gx-equipe__campos {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.gx-equipe__label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-muted);
+}
+
+.gx-equipe__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 0 0.85rem;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  color: var(--color-ink);
+  outline: none;
+}
+
+.gx-equipe__input:focus {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.gx-equipe__input::placeholder {
+  color: #94a3b8;
+}
+
+/* —— Equipe / profissional (estúdio legado / admin) —— */
 .gx-pro-empty {
   border-radius: 1rem;
   border: 1px dashed var(--color-line);

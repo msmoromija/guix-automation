@@ -1917,13 +1917,13 @@ export function EstudioForm() {
                 aberto={blocoAberto === "equipe"}
                 onToggle={() => toggleBloco("equipe")}
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <p className="max-w-xl text-sm leading-relaxed text-muted">
-                    Só nome, especialidade e foto. Horários, ausências e avisos ficam no painel do administrador depois da compra.
+                <div className="gx-equipe">
+                  <p className="gx-equipe__intro">
+                    Só nome, especialidade e foto. Horários e avisos ficam no painel do administrador depois da compra.
                   </p>
                   <button
                     type="button"
-                    className="shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-sm"
+                    className="gx-equipe__add"
                     onClick={() => {
                       setPros((p) => {
                         const prox = [...p, proVazio()];
@@ -1934,59 +1934,49 @@ export function EstudioForm() {
                   >
                     Incluir profissional
                   </button>
-                </div>
 
-                {pros.length === 0 ? (
-                  <div className="gx-pro-empty mt-6">
-                    <p className="text-sm font-medium text-ink">Ninguém na equipe ainda</p>
-                    <p className="mt-1 text-sm text-muted">
-                      Opcional na criação. Sem profissionais, o cliente agenda com “Sem preferência”. Você completa a grade no admin.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-6 space-y-4">
-                    {pros.map((p, i) => (
-                      <article key={`pro-${i}`} className="gx-pro-card">
-                        <header className="gx-pro-card__head">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="gx-pro-avatar" aria-hidden>
-                              {p.fotoSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={p.fotoSrc} alt="" />
-                              ) : (
-                                <span>{(p.nome.trim() || `${i + 1}`).slice(0, 1).toUpperCase()}</span>
-                              )}
+                  {pros.length === 0 ? (
+                    <div className="gx-equipe__vazio">
+                      <p className="text-sm font-medium text-ink">Ninguém na equipe ainda</p>
+                      <p className="mt-1 text-sm text-muted">
+                        Opcional. Sem profissionais, o cliente agenda com “Sem preferência”.
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="gx-equipe__lista">
+                      {pros.map((p, i) => (
+                        <li key={`pro-${i}`} className="gx-equipe__card">
+                          <div className="gx-equipe__topo">
+                            <span className="gx-equipe__indice">{i + 1}</span>
+                            <div className="gx-equipe__titulo">
+                              <strong>{p.nome.trim() || `Profissional ${i + 1}`}</strong>
+                              <span>{p.cargo.trim() || "Sem especialidade"}</span>
                             </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-ink">{p.nome.trim() || `Profissional ${i + 1}`}</p>
-                              <p className="truncate text-xs text-muted">{p.cargo.trim() || "Sem especialidade"}</p>
-                            </div>
+                            <button
+                              type="button"
+                              className="gx-equipe__remover"
+                              onClick={() => {
+                                setPros((rows) => {
+                                  const prox = rows.filter((_, j) => j !== i);
+                                  setProAberto(Math.max(0, Math.min(proAberto, prox.length - 1)));
+                                  return prox;
+                                });
+                              }}
+                            >
+                              Remover
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-muted underline-offset-2 hover:text-ink hover:underline"
-                            onClick={() => {
-                              setPros((rows) => {
-                                const prox = rows.filter((_, j) => j !== i);
-                                setProAberto(Math.max(0, Math.min(proAberto, prox.length - 1)));
-                                return prox;
-                              });
-                            }}
-                          >
-                            Remover
-                          </button>
-                        </header>
-                        <div className="gx-pro-card__body">
-                          <div className="gx-pro-identidade">
-                            <div className="space-y-2">
-                              <label className="gx-pro-foto">
+
+                          <div className="gx-equipe__corpo">
+                            <div className="gx-equipe__foto-col">
+                              <label className="gx-equipe__foto">
                                 {p.fotoSrc ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={p.fotoSrc} alt="" />
                                 ) : (
-                                  <span className="gx-pro-foto__placeholder">
-                                    <span className="text-xl font-semibold">+</span>
-                                    <span>Foto</span>
+                                  <span>
+                                    <em>+</em>
+                                    Foto
                                   </span>
                                 )}
                                 <input
@@ -2004,7 +1994,7 @@ export function EstudioForm() {
                               </label>
                               <button
                                 type="button"
-                                className="w-full rounded-full border border-line px-3 py-1.5 text-xs font-medium"
+                                className="gx-equipe__busca"
                                 onClick={() => {
                                   setFotoProIndice(i);
                                   setSlotFoto({ tipo: "sobre" });
@@ -2013,20 +2003,21 @@ export function EstudioForm() {
                                 Biblioteca / busca
                               </button>
                             </div>
-                            <div className="gx-pro-campos">
-                              <label className="gx-pro-label">
+
+                            <div className="gx-equipe__campos">
+                              <label className="gx-equipe__label">
                                 Nome
                                 <input
-                                  className={campo}
+                                  className="gx-equipe__input"
                                   value={p.nome}
                                   placeholder="Quem atende"
                                   onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, nome: e.target.value } : r)))}
                                 />
                               </label>
-                              <label className="gx-pro-label">
+                              <label className="gx-equipe__label">
                                 Especialidade
                                 <input
-                                  className={campo}
+                                  className="gx-equipe__input"
                                   value={p.cargo}
                                   placeholder={dicas.cargo}
                                   onChange={(e) => setPros((rows) => rows.map((r, j) => (j === i ? { ...r, cargo: e.target.value } : r)))}
@@ -2034,11 +2025,11 @@ export function EstudioForm() {
                               </label>
                             </div>
                           </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </SecaoColapsavel>
             </>
           ) : null}
