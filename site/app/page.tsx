@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Faq } from "@/components/Faq";
 import { DiferenciaisCards } from "@/components/DiferenciaisCards";
 import { FeatureCards } from "@/components/FeatureCards";
+import { InstrucoesUso } from "@/components/InstrucoesUso";
 import { PainelIa } from "@/components/PainelIa";
 import { PassosCards } from "@/components/PassosCards";
 import { PrecosOla } from "@/components/PrecosOla";
@@ -175,6 +176,12 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section id="como-usar" className="scroll-mt-24 border-t border-line bg-canvas">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
+          <InstrucoesUso />
+        </div>
+      </section>
+
       <section id="faq" className="scroll-mt-24 border-t border-line bg-white">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:py-24">
           <div className="grid gap-10 lg:grid-cols-[0.85fr_1.35fr] lg:gap-14">
@@ -182,8 +189,22 @@ export default function HomePage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Dúvidas</p>
               <h2 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-ink sm:text-5xl">Perguntas frequentes</h2>
               <p className="mt-4 text-[15px] leading-7 text-slate-600">
-                Respostas diretas sobre prazo, entrega, painel, domínio, renovação, IA e pagamento. Se ainda
+                Como gerar o site e o token, abrir o rascunho, comprar com domínio, prazo, painel e pagamento. Se ainda
                 restar dúvida, fale no WhatsApp.
+              </p>
+              <p className="mt-3 text-sm text-slate-600">
+                Atalhos:{" "}
+                <Link href="/prototipar" className="font-semibold text-accent underline">
+                  Prototipar
+                </Link>
+                {" · "}
+                <Link href="/visualizar" className="font-semibold text-accent underline">
+                  Meu rascunho
+                </Link>
+                {" · "}
+                <Link href="/contratar" className="font-semibold text-accent underline">
+                  Comprar
+                </Link>
               </p>
               <a href={linkWhatsapp()} className={`${secundario} mt-6`}>
                 Falar no WhatsApp

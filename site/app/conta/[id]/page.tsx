@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { AprovarPrototipo } from "@/components/conta/AprovarPrototipo";
 import { KitImpressao } from "@/components/conta/KitImpressao";
+import { InstrucoesUso } from "@/components/InstrucoesUso";
 
 type Dados = {
   id: string;
@@ -294,9 +295,19 @@ function Conta() {
         ))}
       </div>
 
-      <p className="mt-10 text-xs text-muted">
-        Guarde o token e o link desta área. Sem eles, o preview e o arquivo JSON não abrem.
-      </p>
+      <div className="mt-10">
+        <InstrucoesUso compacto titulo="Lembrete: do token ao domínio" mostrarAtalhos={false} />
+        <p className="mt-3 text-xs text-muted">
+          Guarde o token e o link desta área. Sem eles, o preview e o arquivo JSON não abrem.{" "}
+          <Link href="/#faq" className="font-semibold text-accent underline">
+            Ver FAQ
+          </Link>
+          {" · "}
+          <Link href="/visualizar" className="font-semibold text-accent underline">
+            Abrir rascunho com outro token
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }

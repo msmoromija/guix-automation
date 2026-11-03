@@ -1264,9 +1264,40 @@ export function EstudioForm() {
         O site já está à direita. Você só personaliza.
       </h1>
       <p className="mt-2 text-sm text-muted">
-        Começa no modelo do ofício. No fim, <strong>Salvar protótipo</strong> gera o token e o link para o cliente (3
-        dias).
+        Personalize nos passos abaixo. No fim, <strong className="text-ink">Salvar protótipo</strong> grava o arquivo,
+        cria o <strong className="text-ink">token</strong> e o <strong className="text-ink">link</strong> para enviar ao
+        cliente (vale ~3 dias). Depois, na área do cliente, você compra com domínio.
       </p>
+      <details className="mt-4 rounded-2xl border border-line bg-white px-4 py-3 text-sm open:pb-4">
+        <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          Como funciona: salvar, token e comprar →
+        </summary>
+        <ol className="mt-3 space-y-2 text-muted leading-6">
+          <li>
+            <strong className="text-ink">1.</strong> Preencha negócio, visual, marca e contato.
+          </li>
+          <li>
+            <strong className="text-ink">2.</strong> Clique em <strong className="text-ink">Salvar protótipo e gerar link</strong>.
+          </li>
+          <li>
+            <strong className="text-ink">3.</strong> Na área do cliente: copie o token, o link do site e envie no WhatsApp.
+          </li>
+          <li>
+            <strong className="text-ink">4.</strong> Para publicar de verdade: <strong className="text-ink">Quero comprar e publicar</strong>{" "}
+            (domínio + e-mail + site).
+          </li>
+        </ol>
+        <p className="mt-3 text-xs text-muted">
+          Já tem token?{" "}
+          <a href="/visualizar" className="font-semibold text-accent underline">
+            Abrir meu rascunho
+          </a>
+          {" · "}
+          <a href="/#faq" className="font-semibold text-accent underline">
+            FAQ completo
+          </a>
+        </p>
+      </details>
 
       <nav aria-label="Etapas" className="mt-6 rounded-2xl border border-line bg-white p-4">
         <div className="flex items-baseline justify-between gap-3">

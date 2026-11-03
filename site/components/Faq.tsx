@@ -1,72 +1,90 @@
 "use client";
 
 import { useState } from "react";
+import { textoComoComprarFaq, textoComoGerarFaq, textoTokenFaq } from "@/lib/instrucoes-uso";
 
 const perguntas = [
   {
+    pergunta: "Como eu gero o site e o token?",
+    resposta: textoComoGerarFaq,
+  },
+  {
+    pergunta: "O que é o token e onde eu acho?",
+    resposta: textoTokenFaq,
+  },
+  {
+    pergunta: "Como compro o site com domínio?",
+    resposta: textoComoComprarFaq,
+  },
+  {
+    pergunta: "Qual a diferença entre o site de teste e o site publicado?",
+    resposta:
+      "O site de teste (protótipo) é o rascunho com token, válido cerca de 3 dias, em /visualizar. Serve para ver e enviar o link. O site publicado só existe depois da contratação: aí entram domínio próprio, e-mail profissional e a página no ar de verdade, em até 24 horas com os dados completos.",
+  },
+  {
     pergunta: "Quanto tempo leva para ficar pronto?",
     resposta:
-      "Até 24 horas depois que as informações do negócio chegam completas. Nome, serviços, horários, contatos e preferências precisam estar claros. Se faltar um dado essencial, o prazo só começa quando ele é enviado — assim a publicação não sai incompleta.",
+      "O protótipo de teste sai na hora em que você clica em Salvar. A publicação com domínio leva até 24 horas depois que as informações do negócio chegam completas (nome, serviços, horários, contatos). Se faltar um dado essencial, o prazo só começa quando ele é enviado.",
   },
   {
     pergunta: "Eu preciso saber de tecnologia?",
     resposta:
-      "Não. Você envia o que o negócio já sabe: nome, serviços, horários, cores e WhatsApp. O GuiX.net configura domínio, e-mail, site, agenda e integração com WhatsApp. Depois, o painel é feito para mudanças do dia a dia, sem código e sem chamar agência a cada ajuste.",
+      "Não. Você preenche o que o negócio já sabe: nome, serviços, horários, cores e WhatsApp. O GuiX.net configura domínio, e-mail, site, agenda e WhatsApp. Depois, o painel é para o dia a dia, sem código e sem chamar agência a cada ajuste.",
   },
   {
     pergunta: "O que exatamente entra na entrega?",
     resposta:
-      "Domínio próprio, e-mail profissional no mesmo domínio, site responsivo com a cara do seu segmento, agenda online para o cliente marcar sozinho e WhatsApp no número da empresa para confirmações e conversa. Tudo isso entra junto na publicação.",
+      "Na compra: domínio próprio, e-mail profissional no mesmo domínio, site responsivo, agenda online e WhatsApp no número da empresa. Tudo isso entra junto na publicação — não só o visual do site.",
   },
   {
     pergunta: "Posso mudar textos, horários e serviços depois?",
     resposta:
-      "Sim. Depois da publicação o painel fica com você. Dá para alterar horários, serviços, textos e conteúdos sem abrir chamado para uma agência. O site continua no ar enquanto você atualiza o essencial do negócio.",
+      "Sim. Depois da publicação o painel fica com você. Dá para alterar horários, serviços e textos sem abrir chamado. No protótipo de teste também dá para ajustar (até o limite de pedidos) antes de comprar.",
   },
   {
     pergunta: "O domínio fica no meu nome?",
     resposta:
-      "Sim. O domínio é do seu negócio, com o nome que você escolher, dentro das regras de disponibilidade e registro. Não ficamos com um endereço genérico de plataforma: o cliente digita o nome da empresa e chega na página certa.",
+      "Sim. O domínio é do seu negócio, com o nome que você escolher, dentro das regras de disponibilidade e registro. Não ficamos com um endereço genérico de plataforma.",
   },
   {
     pergunta: "Vocês usam inteligência artificial?",
     resposta:
-      "Sim. A IA prepara textos, estrutura, agenda e WhatsApp a partir do que você enviou — é o caminho padrão, mais rápido. Se preferir que a nossa equipe configure sem IA, existe a opção na contratação com taxa de R$ 200,00.",
+      "Sim. A IA prepara textos e estrutura a partir do que você digitou no estúdio — caminho padrão, mais rápido. Se preferir configuração pela equipe sem IA, existe a opção na contratação (+ R$ 200,00).",
   },
   {
     pergunta: "Qual a diferença entre Presença Completa, Avançada e Personalizada?",
     resposta:
-      "Presença Completa (R$ 499,90): para serviços com modelo padrão — barbearias, salões, estética, pet shops, academias, contabilidade e advocacia. Inclui site, agenda básica, WhatsApp, domínio e e-mail. Presença Avançada (R$ 1.499,90): para negócios médios que precisam de mais estrutura, como imobiliárias, consultórios menores e operações com catálogo ou agenda mais organizada — inclui estrutura própria do segmento. Presença Personalizada (a partir de R$ 2.999,90): para operação mais complexa ou personalização maior — clínicas e consultórios com equipe, imobiliárias com catálogo robusto, escolas, estúdios com múltiplos serviços, empresas com fluxos próprios etc. O valor final depende do nível de personalização necessário.",
+      "Presença Completa (R$ 499,90): modelo padrão — barbearias, salões, estética, pet shops, academias, contabilidade e advocacia. Presença Avançada (R$ 1.499,90): negócios médios com mais estrutura (imobiliárias, consultórios menores, catálogo ou agenda mais organizada). Presença Personalizada (a partir de R$ 2.999,90): operação complexa ou sob medida; o valor final depende da personalização.",
   },
   {
     pergunta: "Como eu pago?",
     resposta:
-      "PIX, boleto ou cartão em até 12 vezes. O pagamento é processado pelo Asaas. Não inventamos taxa escondida de site: você paga a estrutura uma vez. A opção de configuração pela equipe (+ R$ 200,00) só entra se você escolher na contratação.",
+      "PIX, boleto ou cartão em até 12 vezes, processado pelo Asaas. Você paga a estrutura uma vez. A configuração pela equipe (+ R$ 200,00) só entra se você escolher na contratação.",
   },
   {
     pergunta: "Tem mensalidade de site?",
     resposta:
-      "Não há pagamento mensal. Pague uma vez pelo site e anualmente um valor específico para manter o domínio da página.",
+      "Não há mensalidade de site. Pague uma vez pela estrutura. Depois, a renovação anual do domínio é à parte (primeiro ano já incluso na compra).",
   },
   {
     pergunta: "Quanto tempo o domínio da página fica no ar?",
     resposta:
-      "O primeiro ano do domínio já está incluso na compra inicial. Depois, a renovação é anual — o valor do provedor pode sofrer alteração a cada ano. Essa taxa mantém o domínio no ar e é paga direto ao registrador (hoje em torno de R$ 40,00/ano) ou, se preferir, com o time GuiX.net mediante orçamento. Os dados atualizados passam pelo suporte.",
+      "O primeiro ano do domínio já está incluso na compra. Depois, a renovação é anual — o valor do provedor pode mudar. Hoje costuma ficar em torno de R$ 40,00/ano no registrador, ou com o time GuiX.net mediante orçamento.",
   },
   {
     pergunta: "E se eu já tiver um Instagram ou WhatsApp funcionando?",
     resposta:
-      "Melhor ainda. O site e a agenda organizam o que hoje vive só no chat: horário marcado, serviços claros e confirmação no WhatsApp da empresa. O GuiX.net não substitui o atendimento humano — ele tira a bagunça de marcar horário e dá um endereço profissional para o cliente chegar.",
+      "Melhor ainda. O site e a agenda organizam o que hoje vive só no chat: horário marcado, serviços claros e confirmação no WhatsApp da empresa.",
   },
   {
     pergunta: "Posso ver exemplos antes de contratar?",
     resposta:
-      "Sim. Na página inicial tem demonstrações públicas de barbearia, salão, estética, pet shop, academia, contabilidade e advocacia. São modelos reais do mesmo sistema, cada um com a cara do segmento — sem compromisso para você olhar.",
+      "Sim. Na página inicial há demonstrações de barbearia, salão, estética, pet shop, academia, contabilidade e advocacia. Também dá para montar seu próprio teste em Prototipar, sem pagar.",
   },
   {
     pergunta: "O que acontece depois que eu contrato?",
     resposta:
-      "Você envia as informações do negócio. A IA e o sistema configuram a estrutura (ou a equipe, se você escolheu essa opção). Em até 24 horas, com os dados completos, domínio, e-mail, site, agenda e WhatsApp entram no ar. Aí o painel passa a ser seu.",
+      "Com o pagamento confirmado e os dados completos, em até 24 horas domínio, e-mail, site, agenda e WhatsApp entram no ar. O painel passa a ser seu. Se você já salvou um protótipo, o checkout usa esse preview no pedido.",
   },
 ];
 
