@@ -1,0 +1,609 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "psicologia",
+    "template_id": "psicologia-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Consultório Serena Vale",
+    "slogan": "Sessão com a sala reservada só para você.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Consultório Serena Vale",
+      "categoria": "logo"
+    },
+    "telefone": "7930000008",
+    "telefone_label": "(79) 3000-0008",
+    "whatsapp": "5579999990008",
+    "whatsapp_label": "(79) 99999-0008",
+    "whatsapp_mensagem": "Olá, vim pelo site do Consultório Serena Vale e quero agendar uma sessão.",
+    "whatsapp_aria": "Chamar o Consultório Serena Vale no WhatsApp",
+    "email": "contato@consultorioserenavale.com.br",
+    "endereco": {
+      "logradouro": "Rua José de Alencar",
+      "numero": "210",
+      "complemento": "sala 4",
+      "bairro": "Jardins",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49025-000",
+      "completo": "Rua José de Alencar, 210, sala 4 — Jardins, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/consultorioserenavale"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "seg",
+        "label": "Segunda",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00"
+        ]
+      }
+    ],
+    "horario_resumo": "Segunda a sexta, 8h às 12h e 14h às 19h"
+  },
+  "tema": {
+    "color_primary": "#1B365D",
+    "color_secondary": "#C6A15B",
+    "color_accent": "#C6A15B",
+    "color_background": "#F4F6FA",
+    "color_surface": "#FFFFFF",
+    "color_text": "#1B365D",
+    "color_text_muted": "#5A6578",
+    "font_heading": "EB Garamond",
+    "font_body": "Manrope",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Consultório Serena Vale | Psicologia em Jardins, Aracaju",
+    "description": "Agende sessão individual, casal ou adolescente no Consultório Serena Vale, em Jardins. Horário marcado de segunda a sexta.",
+    "keywords": [
+      "psicólogo em Aracaju",
+      "consultório de psicologia",
+      "sessão marcada",
+      "agendamento"
+    ],
+    "og_title": "Consultório Serena Vale | Um horário só seu",
+    "og_description": "Sessão com horário só seu. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1758273240331-745ccab011a2?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Sessão de psicologia no divã",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar sessão",
+    "menu": [
+      {
+        "id": "inicio",
+        "label": "Início",
+        "href": "#inicio"
+      },
+      {
+        "id": "sobre",
+        "label": "O consultório",
+        "href": "#sobre"
+      },
+      {
+        "id": "servicos",
+        "label": "Atendimento",
+        "href": "#servicos"
+      },
+      {
+        "id": "profissionais",
+        "label": "Psicólogos",
+        "href": "#profissionais"
+      },
+      {
+        "id": "promocoes",
+        "label": "Condições",
+        "href": "#promocoes"
+      },
+      {
+        "id": "faq",
+        "label": "Dúvidas",
+        "href": "#faq"
+      },
+      {
+        "id": "contato",
+        "label": "Contato",
+        "href": "#contato"
+      }
+    ]
+  },
+  "hero": {
+    "titulo": "Um horário só seu para conversar.",
+    "subtitulo": "Atendimento individual, casal e adolescente em Jardins. Você marca, chega no horário e a sala fica só sua.",
+    "botao_principal": "Agendar sessão",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1758273240331-745ccab011a2?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Sessão de psicologia: paciente no divã e terapeuta anotando",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Consultório com horário reservado",
+    "paragrafos": [
+      "A Serena Vale atende com hora marcada, em Jardins. A agenda do site separa o horário da sala — sem espera na recepção.",
+      "Os atendimentos da casa são sessão individual, primeira conversa, casal e adolescente.",
+      "A página não faz diagnóstico e não promete resultado. O valor da tela é o da conversa marcada."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Psicóloga em atendimento",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Atendimento",
+    "subtitulo": "Cada card é um horário. O preço é da sessão marcada.",
+    "itens": [
+      {
+        "id": "srv_individual",
+        "nome": "Sessão individual",
+        "descricao": "Conversa reservada. A sala fica só com você nesse horário.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_individual",
+          "src": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sessão individual em conversa",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_primeira",
+        "nome": "Primeira conversa",
+        "descricao": "Para conhecer o consultório e alinhar o que traz você.",
+        "preco": 150,
+        "preco_label": "R$ 150",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_primeira",
+          "src": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Primeira conversa no consultório",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_casal",
+        "nome": "Sessão de casal",
+        "descricao": "Atendimento a duas pessoas no mesmo horário.",
+        "preco": 220,
+        "preco_label": "R$ 220",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_casal",
+          "src": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sessão de casal em diálogo",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_ado",
+        "nome": "Sessão adolescente",
+        "descricao": "Atendimento a partir de 12 anos, com responsável informado.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_ado",
+          "src": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Espaço para adolescente",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_retorno",
+        "nome": "Retorno breve",
+        "descricao": "Encontro curto para acompanhar o que foi combinado.",
+        "preco": 120,
+        "preco_label": "R$ 120",
+        "duracao_minutos": 30,
+        "duracao_label": "30 min",
+        "imagem": {
+          "id": "img_srv_retorno",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retorno breve com a profissional",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_online",
+        "nome": "Sessão online",
+        "descricao": "Mesmo horário marcado, por videochamada. O link chega no WhatsApp.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_online",
+          "src": "https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sessão online por videochamada",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Psicólogos",
+    "subtitulo": "Escolha com quem prefere conversar ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_ana",
+        "nome": "Ana Serena",
+        "cargo": "Psicóloga",
+        "descricao": "Individual e adolescente. Explica o ritmo das sessões na primeira conversa.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_ana",
+          "src": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Ana Serena",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_bruno",
+        "nome": "Bruno Vale",
+        "cargo": "Psicólogo",
+        "descricao": "Individual e casal. Prefere agenda da tarde.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_bruno",
+          "src": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Bruno Vale",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_lia",
+        "nome": "Lia Campos",
+        "cargo": "Psicóloga",
+        "descricao": "Primeira conversa e sessão online. Confirma o link no WhatsApp.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_lia",
+          "src": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Lia Campos",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Como a sessão funciona",
+    "itens": [
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "A sala fica reservada no horário. Não há fila de espera.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_sigilo",
+        "titulo": "Sala reservada",
+        "descricao": "O atendimento acontece a portas fechadas no horário combinado.",
+        "icone": "shield"
+      },
+      {
+        "id": "dif_online",
+        "titulo": "Presencial ou online",
+        "descricao": "Você escolhe o formato ao marcar. Online recebe o link no WhatsApp.",
+        "icone": "message-circle"
+      },
+      {
+        "id": "dif_resultado",
+        "titulo": "Sem promessa de resultado",
+        "descricao": "A sessão é conversa marcada. Não há garantia de prazo ou cura.",
+        "icone": "clipboard"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Condições",
+    "itens": [
+      {
+        "id": "prm_primeira",
+        "titulo": "Primeira conversa de novembro",
+        "descricao": "A primeira conversa fica por R$ 120 até 30/11/2026. As demais sessões mantêm o preço do card.",
+        "validade": "2026-11-30",
+        "validade_label": "Até 30/11/2026",
+        "imagem": {
+          "id": "img_prm_primeira",
+          "src": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Consultório preparado para primeira conversa",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Encontros",
+    "itens": [
+      {
+        "id": "evt_ansiedade",
+        "titulo": "Roda sobre rotina e sono",
+        "descricao": "Encontro curto e aberto. Não substitui sessão individual.",
+        "data": "2026-11-26",
+        "data_label": "26 de novembro",
+        "horario": "18:30",
+        "imagem": {
+          "id": "img_evt_ansiedade",
+          "src": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Roda sobre rotina e sono",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_pais",
+        "titulo": "Conversa para pais",
+        "descricao": "Orientação geral sobre a primeira sessão do adolescente. Caso individual continua marcado.",
+        "data": "2026-12-10",
+        "data_label": "10 de dezembro",
+        "horario": "19:00",
+        "imagem": {
+          "id": "img_evt_pais",
+          "src": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Conversa para pais",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O consultório",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Conversa",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80",
+          "alt": "Conversa acolhedora no consultório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Grupo",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80",
+          "alt": "Espaço de diálogo em grupo",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Escuta",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?auto=format&fit=crop&w=900&q=80",
+          "alt": "Profissional ouvindo com atenção",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Ambiente",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=900&q=80",
+          "alt": "Ambiente claro do consultório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Acolhimento",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80",
+          "alt": "Retrato acolhedor no atendimento",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Recepção",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=80",
+          "alt": "Sorriso tranquilo na recepção",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_resultado",
+        "pergunta": "A sessão garante que eu melhore em X semanas?",
+        "resposta": "Não. A sessão é conversa marcada. Ritmo e caminho dependem de cada pessoa."
+      },
+      {
+        "id": "faq_preco",
+        "pergunta": "O preço do card inclui laudo ou relatório?",
+        "resposta": "Não. O preço é só da sessão. Documento, se existir, é combinado à parte."
+      },
+      {
+        "id": "faq_crp",
+        "pergunta": "O consultório tem inscrição no CRP?",
+        "resposta": "Sim. O número de cada profissional é informado na sessão, não nesta página de demonstração."
+      },
+      {
+        "id": "faq_online",
+        "pergunta": "Como funciona a sessão online?",
+        "resposta": "Você marca o horário no site. O link da videochamada chega no WhatsApp antes do atendimento."
+      },
+      {
+        "id": "faq_ado",
+        "pergunta": "Adolescente precisa de responsável?",
+        "resposta": "Sim. O responsável fica informado e assina o que o consultório pedir na primeira conversa."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo uma sessão?",
+        "resposta": "Chame no WhatsApp com pelo menos 24 horas de antecedência e peça para liberar o horário."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha a Jardins",
+    "subtitulo": "Agende a sessão pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar sessão",
+    "subtitulo": "Escolha o atendimento, o profissional e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Atendimento",
+    "passo_profissional": "Psicólogo",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: prefiro final da tarde, primeira conversa",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O consultório atende de segunda a sexta.",
+    "erro_campos": "Preencha atendimento, profissional, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Sua sessão está separada nesta tela. Chame no WhatsApp para o consultório confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao consultório."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Consultório Serena Vale usa os dados que você informa no site para responder seu contato e confirmar a sessão.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o consultório falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do consultório e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Consultório Serena Vale · Jardins, Aracaju - SE",
+    "links": [
+      {
+        "id": "agendar",
+        "label": "Agendar sessão",
+        "href": "/agendar"
+      },
+      {
+        "id": "privacidade",
+        "label": "Privacidade",
+        "href": "/privacidade"
+      }
+    ]
+  }
+}

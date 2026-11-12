@@ -1,11 +1,18 @@
 import { aplicarSrcNoSlot, minutosDeRotulo, precoDeRotulo, sanitizarFotoSrc, sanitizarLogoSrc, tituloVenha, type LinhaServico } from "@/lib/estudio/aplicar";
 import { horarioDireto, telefoneDireto } from "@/lib/estudio/pedido-fechado";
 import type { CopiaViva } from "@/lib/estudio/copia-viva";
+import { arquivosDoNicho } from "@/lib/estudio/biblioteca-arquivos";
+import { emblemasDoNicho } from "@/lib/estudio/emblemas";
+import { nichos } from "@/lib/nichos";
+import { DIAS_SEMANA, normalizarDiaExpediente, type DiaExpediente } from "@/lib/estudio/expediente";
+import { iconePorId, iconesDoNicho, idsIconesPermitidos } from "@/lib/estudio/icones-marca";
+import { CORES_LOGO, FONTES_LOGO, LAYOUTS_LOGO, uriMarcaViva, type LayoutLogo } from "@/lib/estudio/logo-spec";
 import {
   PALETAS,
   TIPOGRAFIAS,
   aplicarVisualNoTema,
   type CabecalhoLayout,
+  type OrigemMarca,
   type VisualConfig,
 } from "@/lib/estudio/visual";
 
@@ -56,7 +63,10 @@ export type PatchPedido = {
   aviso_estrutura?: string;
   resumo?: string;
   abrir?: AbrirPedido;
+  /** Troca o modelo/nicho base do site (ex.: "é uma nutricionista, altere o modelo"). */
+  nicho?: string;
   empresa?: {
+    nome?: string;
     whatsapp?: string;
     email?: string;
     slogan?: string;
@@ -71,9 +81,24 @@ export type PatchPedido = {
       estado?: string;
       cep?: string;
     };
+    /** Expediente por dia da semana (Grade do cliente). */
+    expediente?: {
+      dia?: string;
+      aberto?: boolean;
+      inicio?: string;
+      fim?: string;
+      pausa?: boolean;
+      pausaInicio?: string;
+      pausaFim?: string;
+    }[];
   };
-  hero?: { titulo?: string; subtitulo?: string };
+  hero?: { titulo?: string; subtitulo?: string; botao_principal?: string; botao_secundario?: string };
   sobre?: { titulo?: string; paragrafos?: string[] };
+  galeria?: {
+    titulo?: string;
+    atualizar?: { indice?: number; legenda?: string }[];
+  };
+  seo?: { title?: string; description?: string };
   contato?: { titulo?: string; subtitulo?: string };
   faq?: {
     titulo?: string;
@@ -85,8 +110,14 @@ export type PatchPedido = {
   eventos?: {
     titulo?: string;
     limpar?: boolean;
+    atualizar?: { de?: string; titulo?: string; descricao?: string }[];
     acrescentar?: { titulo?: string; descricao?: string; data_label?: string; horario?: string }[];
     itens?: { titulo?: string; descricao?: string; data_label?: string; horario?: string }[];
+  };
+  promocoes?: {
+    titulo?: string;
+    limpar?: boolean;
+    atualizar?: { de?: string; titulo?: string; descricao?: string; validade_label?: string }[];
   };
   diferenciais?: {
     titulo?: string;
@@ -103,6 +134,8 @@ export type PatchPedido = {
     atualizar?: { nome?: string; novo_nome?: string; descricao?: string; preco_label?: string; duracao_label?: string }[];
   };
   profissionais?: {
+    titulo?: string;
+    subtitulo?: string;
     ocultar?: boolean;
     limpar?: boolean;
     remover?: string[];
@@ -121,6 +154,9 @@ export type PatchPedido = {
     aparencia?: string;
     cor_accent?: string;
     cor_fundo?: string;
+    cor_titulos?: string;
+    cor_texto?: string;
+    cor_texto_suave?: string;
     rodapeLayout?: string;
     logoTamanho?: string;
     logoAlinhamento?: string;
@@ -128,6 +164,10 @@ export type PatchPedido = {
     botao?: string;
     animacao?: string;
     agendamento?: boolean;
+    /** Confirmação da agenda: manual, automatico ou whatsapp. */
+    modoConfirmacaoAgenda?: string;
+    /** Intervalo das vagas da agenda em minutos (15,20,30,45,60,90,120). */
+    duracaoSlotMinutos?: number;
     estilo?: string;
     instagram?: boolean;
     facebook?: boolean;
@@ -153,19 +193,50 @@ export type PatchPedido = {
     youtube?: boolean;
   };
   midia?: {
-    foto?: { slot?: string; indice?: number; src?: string; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } };
-    fotos?: Array<{ slot?: string; indice?: number; src?: string; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } }>;
+    foto?: { slot?: string; indice?: number; busca?: string; src?: string; limpar?: boolean; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } };
+    fotos?: Array<{ slot?: string; indice?: number; busca?: string; src?: string; limpar?: boolean; credito?: { fotografo?: string; perfil_url?: string; texto?: string; unsplash_url?: string } }>;
     logo?: { src?: string };
+  };
+  /** Ícone/marca do estúdio: troca o ícone Lucide, cores e layout do lockup. */
+  marca?: {
+    tipo?: "icone" | "emblema" | "arquivo" | "texto";
+    icone?: string;
+    emblema?: string;
+    arquivo?: string;
+    layout?: string;
+    fonteId?: string;
+    corIcone?: string;
+    corNome?: string;
+    corAcento?: string;
+    gerarOpcoes?: boolean;
   };
 };
 
+/** Recorte validado da marca (aplicado no estúdio, não no schema do site). */
+export type MarcaPatch = {
+  tipo?: "icone" | "emblema" | "arquivo" | "texto";
+  icone?: string;
+  emblema?: string;
+  arquivo?: string;
+  layout?: LayoutLogo;
+  fonteId?: string;
+  corIcone?: string;
+  corNome?: string;
+  corAcento?: string;
+  gerarOpcoes?: boolean;
+};
+
 export const LIMITE_FAQ = 10;
+
+/** Nichos válidos para troca de modelo pela IA (inclui o genérico). */
+const NICHOS_VALIDOS = new Set<string>([...nichos.map((n) => n.slug), "generico"]);
 
 export type TocouPedido = {
   contato: boolean;
   textos: boolean;
   servicos: boolean;
   visual: boolean;
+  marca: boolean;
   menu: boolean;
   rodape: boolean;
   diferenciais: boolean;
@@ -184,6 +255,12 @@ export type ResultadoPedido = {
   aviso: string;
   abrir: AbrirPedido;
   tocou: TocouPedido;
+  /** Novo nicho/modelo pedido (quando a IA troca a base do site). */
+  nicho?: string;
+  /** Expediente por dia a aplicar na Grade do cliente. */
+  expediente?: DiaExpediente[];
+  /** Ícone/marca a aplicar no estúdio (fora do schema congelado). */
+  marca?: MarcaPatch;
   /** Avisos/recessos para o formulário (não vão no schema congelado como bloco próprio). */
   avisos?: { titulo: string; descricao: string; dataLabel: string }[];
   redes?: Record<string, string>;
@@ -206,6 +283,35 @@ function semAcento(v: string) {
 
 function obj(v: unknown) {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+}
+
+function chaveProfissional(item: Record<string, unknown>) {
+  const nome = semAcento(corta(item.nome, 60)).replace(/[^a-z0-9]+/g, " ").trim();
+  const cargo = semAcento(corta(item.cargo, 40)).replace(/[^a-z0-9]+/g, " ").trim();
+  return nome && nome !== "sem preferencia" ? `${nome}|${cargo}` : "";
+}
+
+function deduplicarProfissionais(itens: Record<string, unknown>[]) {
+  const unicos: Record<string, unknown>[] = [];
+  const indices = new Map<string, number>();
+  for (const item of itens) {
+    const chave = chaveProfissional(item);
+    if (!chave || !indices.has(chave)) {
+      if (chave) indices.set(chave, unicos.length);
+      unicos.push(item);
+      continue;
+    }
+    const indice = indices.get(chave)!;
+    const original = unicos[indice];
+    const fotoOriginal = obj(original.foto);
+    const fotoDuplicada = obj(item.foto);
+    unicos[indice] = {
+      ...item,
+      ...original,
+      foto: fotoOriginal.src ? fotoOriginal : fotoDuplicada.src ? fotoDuplicada : fotoOriginal,
+    };
+  }
+  return unicos;
 }
 
 export function whatsappDe(raw: unknown) {
@@ -322,8 +428,40 @@ export function patchRapido(texto: string): PatchPedido | null {
   return null;
 }
 
-export function contextoEditavel(site: Record<string, unknown>, visual?: Partial<VisualConfig>) {
+export function contextoEditavel(
+  site: Record<string, unknown>,
+  visual?: Partial<VisualConfig>,
+  marca?: {
+    tipo?: OrigemMarca;
+    icone?: string;
+    emblema?: string;
+    arquivo?: string;
+    layout?: string;
+    fonteId?: string;
+    corIcone?: string;
+    corNome?: string;
+    corAcento?: string;
+  },
+  nicho?: string,
+) {
   const empresa = obj(site.empresa);
+  const nichoMarca = corta(nicho || obj(site.meta).nicho, 40) || "generico";
+  const logoSrcExistente = corta(obj(empresa.logo).src, 500);
+  const arquivoMarcaExistente =
+    visual?.logoArquivo || (arquivosDoNicho(nichoMarca).includes(logoSrcExistente) ? logoSrcExistente : "");
+  const logoPersonalizado = Boolean(
+    !marca &&
+      logoSrcExistente &&
+      !logoSrcExistente.startsWith("/marcas/") &&
+      !visual?.logoIcone &&
+      !visual?.logoEmblema &&
+      !visual?.logoArquivo,
+  );
+  const tipoMarcaAtual = marca
+    ? marca.tipo ||
+      (marca.layout === "wordmark" ? "texto" : marca.arquivo ? "arquivo" : marca.emblema ? "emblema" : marca.icone ? "icone" : "")
+    : visual?.logoOrigem ||
+      (arquivoMarcaExistente ? "arquivo" : visual?.logoEmblema ? "emblema" : visual?.logoIcone ? "icone" : "");
   const end = obj(empresa.endereco);
   const hero = obj(site.hero);
   const sobre = obj(site.sobre);
@@ -333,6 +471,9 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
   const header = obj(site.header);
   const rodape = obj(site.rodape);
   const itens = Array.isArray(servicos.itens) ? (servicos.itens as Record<string, unknown>[]) : [];
+  const itensProfissionais = Array.isArray(obj(site.profissionais).itens)
+    ? (obj(site.profissionais).itens as Record<string, unknown>[])
+    : [];
   const menu = Array.isArray(header.menu) ? (header.menu as Record<string, unknown>[]) : [];
   return {
     nome: corta(empresa.nome, 80),
@@ -370,16 +511,18 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
     })),
     menu: menu.slice(0, 7).map((m) => ({ id: corta(m.id, 20), label: corta(m.label, 24) })),
     rodape: corta(rodape.texto, 120),
-    profissionais: (Array.isArray(obj(site.profissionais).itens) ? (obj(site.profissionais).itens as Record<string, unknown>[]) : [])
+    profissionais: itensProfissionais
       .filter((p) => corta(p.nome, 2) && corta(p.nome, 40) !== "Sem preferência")
       .slice(0, 8)
       .map((p) => ({
+        indice: itensProfissionais.indexOf(p),
         nome: corta(p.nome, 60),
         cargo: corta(p.cargo, 40),
         descricao: corta(p.descricao, 140),
       })),
     motor: {
       pode: [
+        "nicho",
         "empresa",
         "hero",
         "sobre",
@@ -391,14 +534,43 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
         "profissionais",
         "diferenciais",
         "visual",
+        "marca",
         "header",
         "rodape",
         "redes",
         "midia",
       ],
-      paletas: ["latao-escuro", "papel-quente", "spa", "limão-escuro", "marinho", "bordô"],
-      fontes: ["editorial", "luxo", "limpo", "urbano", "suave"],
-      cabecalhos: ["logo-esquerda", "logo-slogan", "centralizado", "menu-abaixo"],
+      nicho_atual: nichoMarca,
+      nichos: nichos.map((n) => ({ slug: n.slug, nome: n.nome, negocio: n.negocio })),
+      paletas: PALETAS.map((p) => ({ id: p.id, nome: p.nome })),
+      fontes: TIPOGRAFIAS.map((t) => ({ id: t.id, nome: t.nome, fonte_titulo: t.font_heading, fonte_texto: t.font_body })),
+      cabecalhos: ["logo-esquerda", "centralizado", "logo-slogan", "logo-direita", "menu-abaixo", "compacto"],
+      rodapes: ["centralizado", "dividido", "empilhado", "minimo"],
+      aparencias: ["claro", "escuro", "automatico"],
+      estilos: ["moderno", "luxo", "urbano", "classico", "suave"],
+      logoTamanhos: ["pequeno", "medio", "grande"],
+      botoes: ["arredondado", "quadrado", "pílula", "sem-contorno"],
+      animacoes: ["suave", "media", "intensa"],
+      modos_confirmacao: ["manual", "automatico", "whatsapp"],
+      duracao_slot_minutos: [15, 20, 30, 45, 60, 90, 120],
+      layouts_marca: LAYOUTS_LOGO.map((l) => ({ id: l.id, nome: l.nome })),
+      fontes_marca: FONTES_LOGO.map((f) => ({ id: f.id, nome: f.nome })),
+      cores_marca: CORES_LOGO.map((c) => ({ hex: c.hex, nome: c.nome })),
+      icones_marca: idsIconesPermitidos(),
+      icones_recomendados_marca: iconesDoNicho(nichoMarca).map((i) => ({ id: i.id, nome: i.nome })),
+      emblemas_marca: emblemasDoNicho(nichoMarca).map((e) => ({ id: e.id, nome: e.nome })),
+      arquivos_marca: arquivosDoNicho(nichoMarca),
+      marca_pode_gerar_modelos: true,
+      fotos_disponiveis: {
+        hero: Boolean(obj(obj(site.hero).imagem).src),
+        sobre: Boolean(obj(obj(site.sobre).imagem).src),
+        galeria: Array.isArray(obj(site.galeria).itens) ? (obj(site.galeria).itens as unknown[]).length : 0,
+        servicos: itens.length,
+        profissionais: Array.isArray(obj(site.profissionais).itens)
+          ? (obj(site.profissionais).itens as Record<string, unknown>[]).filter((p) => corta(p.nome, 2) && p.nome !== "Sem preferência").length
+          : 0,
+        eventos: Array.isArray(obj(site.eventos).itens) ? (obj(site.eventos).itens as unknown[]).length : 0,
+      },
     },
     campos_vazios: [
       !(Array.isArray(faq.itens) && faq.itens.length) ? "faq" : "",
@@ -418,8 +590,31 @@ export function contextoEditavel(site: Record<string, unknown>, visual?: Partial
       banner: visual?.banner || "",
       botao: visual?.botao || "",
       aparencia: visual?.aparencia || "",
-      agendamento: visual?.agendamento !== false,
+      animacao: visual?.animacao || "",
       estilo: visual?.estilo || "",
+      cor_accent: visual?.corAccent || "",
+      cor_fundo: visual?.corFundo || "",
+      cor_titulos: visual?.corTitulos || String(obj(site.tema).color_heading || ""),
+      cor_texto: visual?.corTexto || String(obj(site.tema).color_text || ""),
+      cor_texto_suave: visual?.corTextoSuave || String(obj(site.tema).color_text_muted || ""),
+      color_text_atual: String(obj(site.tema).color_text || ""),
+      color_text_muted_atual: String(obj(site.tema).color_text_muted || ""),
+      agendamento: visual?.agendamento !== false,
+      modoConfirmacaoAgenda: visual?.modoConfirmacaoAgenda || "automatico",
+      duracaoSlotMinutos: visual?.duracaoSlotMinutos || 30,
+      whatsappFlutuante: visual?.whatsappFlutuante !== false,
+    },
+    marca: {
+      tipo: tipoMarcaAtual,
+      icone: corta(marca ? marca.icone : visual?.logoIcone, 40),
+      emblema: corta(marca ? marca.emblema : visual?.logoEmblema, 48),
+      arquivo: corta(marca ? marca.arquivo : arquivoMarcaExistente, 100),
+      logoPersonalizado,
+      layout: corta(marca ? marca.layout : visual?.logoLayout, 20),
+      fonteId: corta(marca ? marca.fonteId : visual?.logoFonteId, 20),
+      corIcone: corta(marca ? marca.corIcone : visual?.logoCorIcone, 7),
+      corNome: corta(marca ? marca.corNome : visual?.logoCorNome, 7),
+      corAcento: corta(marca ? marca.corAcento : visual?.logoCorAcento, 7),
     },
   };
 }
@@ -433,6 +628,7 @@ export function profissionaisDoSite(site: Record<string, unknown>) {
       descricao: corta(p.descricao, 320),
       whatsapp: corta(p.whatsapp || p.telefone, 20),
       email: corta(p.email, 80),
+      fotoSrc: sanitizarFotoSrc(obj(p.foto).src) || "",
     }))
     .filter((p) => p.nome && p.nome !== "Sem preferência" && p.nome !== "Novo nome");
 }
@@ -464,6 +660,12 @@ function aplicarEventos(site: Record<string, unknown>, patch: NonNullable<PatchP
   const bloco = { ...obj(site.eventos) };
   if (patch.titulo) bloco.titulo = corta(patch.titulo, 80) || "Agenda";
   let itens = patch.limpar === true ? [] : Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]).map((e) => ({ ...e })) : [];
+  for (const atualizacao of patch.atualizar || []) {
+    const indice = acharNome(itens, corta(atualizacao.de, 80));
+    if (indice < 0) continue;
+    if (atualizacao.titulo) itens[indice].titulo = corta(atualizacao.titulo, 80);
+    if (atualizacao.descricao) itens[indice].descricao = corta(atualizacao.descricao, 320);
+  }
 
   const listaNova = [
     ...(Array.isArray(patch.itens) ? patch.itens : []),
@@ -501,6 +703,25 @@ function aplicarEventos(site: Record<string, unknown>, patch: NonNullable<PatchP
   site.eventos = bloco;
 }
 
+function aplicarPromocoes(site: Record<string, unknown>, patch: NonNullable<PatchPedido["promocoes"]>) {
+  const bloco = { ...obj(site.promocoes) };
+  if (patch.titulo) bloco.titulo = corta(patch.titulo, 80);
+  const itens = patch.limpar === true
+    ? []
+    : Array.isArray(bloco.itens)
+      ? (bloco.itens as Record<string, unknown>[]).map((item) => ({ ...item }))
+      : [];
+  for (const atualizacao of patch.atualizar || []) {
+    const indice = acharNome(itens, corta(atualizacao.de, 80));
+    if (indice < 0) continue;
+    if (atualizacao.titulo) itens[indice].titulo = corta(atualizacao.titulo, 80);
+    if (atualizacao.descricao) itens[indice].descricao = corta(atualizacao.descricao, 240);
+    if (atualizacao.validade_label) itens[indice].validade_label = corta(atualizacao.validade_label, 40);
+  }
+  bloco.itens = itens.slice(0, 4);
+  site.promocoes = bloco;
+}
+
 export function servicosDoSite(site: Record<string, unknown>): LinhaServico[] {
   const itens = Array.isArray(obj(site.servicos).itens) ? (obj(site.servicos).itens as Record<string, unknown>[]) : [];
   return itens.map((s) => ({
@@ -508,7 +729,7 @@ export function servicosDoSite(site: Record<string, unknown>): LinhaServico[] {
     descricao: corta(s.descricao, 320),
     preco: corta(s.preco_label, 32) || "Sob consulta",
     duracao: corta(s.duracao_label, 32) || "30 min",
-    imagemSrc: corta(obj(s.imagem).src, 2000),
+    imagemSrc: sanitizarFotoSrc(obj(s.imagem).src) || "",
   }));
 }
 
@@ -518,6 +739,8 @@ export function copiaDoSite(site: Record<string, unknown>): CopiaViva {
   const contato = obj(site.contato);
   const faq = obj(site.faq);
   const servicos = obj(site.servicos);
+  const galeria = obj(site.galeria);
+  const profissionais = obj(site.profissionais);
   return {
     hero: { titulo: corta(hero.titulo, 90), subtitulo: corta(hero.subtitulo, 180) },
     sobre: {
@@ -539,11 +762,22 @@ export function copiaDoSite(site: Record<string, unknown>): CopiaViva {
         resposta: corta(f.resposta, 320),
       })),
     },
+    galeria: {
+      titulo: corta(galeria.titulo, 80),
+      itens: (Array.isArray(galeria.itens) ? (galeria.itens as Record<string, unknown>[]) : []).map((item) => ({
+        legenda: corta(item.legenda, 100),
+      })),
+    },
+    profissionais: {
+      titulo: corta(profissionais.titulo, 60),
+      subtitulo: corta(profissionais.subtitulo, 180),
+    },
   };
 }
 
 function aplicarServicos(site: Record<string, unknown>, patch: NonNullable<PatchPedido["servicos"]>, avisos: string[]) {
   const bloco = { ...obj(site.servicos) };
+  const antes = JSON.stringify(bloco);
   let itens = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]).map((s) => ({ ...s })) : [];
   if (patch.titulo) bloco.titulo = corta(patch.titulo, 60);
   if (patch.subtitulo) bloco.subtitulo = corta(patch.subtitulo, 160);
@@ -557,7 +791,15 @@ function aplicarServicos(site: Record<string, unknown>, patch: NonNullable<Patch
   }
   for (const item of patch.atualizar || []) {
     const i = acharNome(itens, corta(item.nome, 60));
-    if (i < 0) continue;
+    const temCampoEditavel = Boolean(item.novo_nome || item.descricao || item.preco_label || item.duracao_label);
+    if (!temCampoEditavel) {
+      avisos.push(`A atualização de "${corta(item.nome, 60) || "serviço"}" não trouxe nenhum campo para alterar.`);
+      continue;
+    }
+    if (i < 0) {
+      avisos.push(`Não encontrei o serviço "${corta(item.nome, 60)}" para atualizar.`);
+      continue;
+    }
     const base = { ...itens[i] };
     if (item.novo_nome) base.nome = corta(item.novo_nome, 60);
     if (item.descricao) base.descricao = corta(item.descricao, 320);
@@ -605,9 +847,10 @@ function aplicarServicos(site: Record<string, unknown>, patch: NonNullable<Patch
   if (patch.sem_preco) {
     itens = itens.map((s) => ({ ...s, preco: 0, preco_label: "Sob consulta" }));
   }
-  if (!itens.length) return;
+  if (!itens.length) return false;
   bloco.itens = itens;
   site.servicos = bloco;
+  return JSON.stringify(bloco) !== antes;
 }
 
 function aplicarMenu(site: Record<string, unknown>, patch: NonNullable<PatchPedido["header"]>, avisos: string[]) {
@@ -693,8 +936,14 @@ function aplicarDiferenciais(site: Record<string, unknown>, patch: NonNullable<P
   }
 }
 
-export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualConfig, patch: PatchPedido): ResultadoPedido {
+export function aplicarPedido(
+  siteIn: Record<string, unknown>,
+  visualIn: VisualConfig,
+  patch: PatchPedido,
+  nichoAtualIn?: string,
+): ResultadoPedido {
   const site = siteIn;
+  const estadoInicial = JSON.stringify({ site: siteIn, visual: visualIn });
   const visual: VisualConfig = { ...visualIn };
   const avisos: string[] = [];
   const tocou: TocouPedido = {
@@ -702,6 +951,7 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     textos: false,
     servicos: false,
     visual: false,
+    marca: false,
     menu: false,
     rodape: false,
     diferenciais: false,
@@ -714,9 +964,27 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
   };
   let avisosExtra: { titulo: string; descricao: string; dataLabel: string }[] | undefined;
   let redesExtra: Record<string, string> | undefined;
+  let marcaPatch: MarcaPatch | undefined;
   const empresa = { ...obj(site.empresa) };
+  const nichoAtual = corta(nichoAtualIn || obj(site.meta).nicho, 40).toLowerCase();
+  const nichoPedido = patch.nicho ? String(patch.nicho).trim().toLowerCase() : "";
+  const nichoNovo =
+    nichoPedido && NICHOS_VALIDOS.has(nichoPedido) && nichoPedido !== nichoAtual ? nichoPedido : "";
+  let expedienteNovo: DiaExpediente[] | undefined;
+
+  if (nichoNovo) {
+    const meta = { ...obj(site.meta) };
+    meta.nicho = nichoNovo;
+    site.meta = meta;
+    tocou.visual = true;
+  }
 
   if (patch.empresa) {
+    const nome = corta(patch.empresa.nome, 80);
+    if (nome) {
+      empresa.nome = nome;
+      tocou.contato = true;
+    }
     const wa = whatsappDe(patch.empresa.whatsapp);
     if (wa) {
       empresa.whatsapp = wa;
@@ -766,13 +1034,28 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       if (titulo && !patch.contato?.titulo) contato.titulo = titulo;
       site.contato = contato;
     }
+    if (Array.isArray(patch.empresa.expediente) && patch.empresa.expediente.length) {
+      const mapa = new Map<string, DiaExpediente>();
+      for (const d of patch.empresa.expediente) {
+        const dia = String(d?.dia || "").toLowerCase().slice(0, 3);
+        const valido = DIAS_SEMANA.find((x) => x.dia === dia);
+        if (!valido) continue;
+        mapa.set(valido.dia, normalizarDiaExpediente({ ...d, dia: valido.dia }));
+      }
+      if (mapa.size) {
+        expedienteNovo = DIAS_SEMANA.map((d) => mapa.get(d.dia)).filter((d): d is DiaExpediente => Boolean(d));
+        tocou.contato = true;
+      }
+    }
     site.empresa = empresa;
   }
 
-  if (patch.hero?.titulo || patch.hero?.subtitulo) {
+  if (patch.hero?.titulo || patch.hero?.subtitulo || patch.hero?.botao_principal || patch.hero?.botao_secundario) {
     const hero = { ...obj(site.hero) };
     if (patch.hero.titulo) hero.titulo = corta(patch.hero.titulo, 90);
     if (patch.hero.subtitulo) hero.subtitulo = corta(patch.hero.subtitulo, 180);
+    if (patch.hero.botao_principal) hero.botao_principal = corta(patch.hero.botao_principal, 48);
+    if (patch.hero.botao_secundario) hero.botao_secundario = corta(patch.hero.botao_secundario, 48);
     site.hero = hero;
     tocou.textos = true;
   }
@@ -782,6 +1065,27 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     const paragrafos = (patch.sobre.paragrafos || []).map((p) => corta(p, 420)).filter(Boolean).slice(0, 3);
     if (paragrafos.length) sobre.paragrafos = paragrafos;
     site.sobre = sobre;
+    tocou.textos = true;
+  }
+  if (patch.galeria && (patch.galeria.titulo || textoPreenchido(patch.galeria.atualizar))) {
+    const galeria = { ...obj(site.galeria) };
+    const itens = Array.isArray(galeria.itens) ? (galeria.itens as Record<string, unknown>[]).map((item) => ({ ...item })) : [];
+    if (patch.galeria.titulo) galeria.titulo = corta(patch.galeria.titulo, 80);
+    for (const item of patch.galeria.atualizar || []) {
+      const indice = Number(item.indice);
+      const legenda = corta(item.legenda, 100);
+      if (!Number.isInteger(indice) || indice < 0 || !itens[indice] || !legenda) continue;
+      itens[indice] = { ...itens[indice], legenda };
+    }
+    galeria.itens = itens;
+    site.galeria = galeria;
+    tocou.textos = true;
+  }
+  if (patch.seo?.title || patch.seo?.description) {
+    const seo = { ...obj(site.seo) };
+    if (patch.seo.title) seo.title = corta(patch.seo.title, 80);
+    if (patch.seo.description) seo.description = corta(patch.seo.description, 180);
+    site.seo = seo;
     tocou.textos = true;
   }
   if (patch.contato?.titulo || patch.contato?.subtitulo) {
@@ -864,6 +1168,7 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
   if (
     patch.eventos &&
     (patch.eventos.limpar === true ||
+      textoPreenchido(patch.eventos.atualizar) ||
       textoPreenchido(patch.eventos.titulo) ||
       textoPreenchido(patch.eventos.acrescentar) ||
       textoPreenchido(patch.eventos.itens))
@@ -872,20 +1177,27 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     tocou.eventos = true;
     tocou.textos = true;
   }
+  if (patch.promocoes && (patch.promocoes.limpar === true || textoPreenchido(patch.promocoes.titulo) || textoPreenchido(patch.promocoes.atualizar))) {
+    aplicarPromocoes(site, patch.promocoes);
+    tocou.textos = true;
+  }
 
   if (patch.servicos && (patch.servicos.sem_preco === true || textoPreenchido(patch.servicos))) {
-    aplicarServicos(site, patch.servicos, avisos);
-    tocou.servicos = true;
+    tocou.servicos = aplicarServicos(site, patch.servicos, avisos);
   }
   if (
     patch.profissionais &&
-    (patch.profissionais.ocultar === true ||
+    (textoPreenchido(patch.profissionais.titulo) ||
+      textoPreenchido(patch.profissionais.subtitulo) ||
+      patch.profissionais.ocultar === true ||
       patch.profissionais.limpar === true ||
       textoPreenchido(patch.profissionais.atualizar) ||
       textoPreenchido(patch.profissionais.acrescentar) ||
       textoPreenchido(patch.profissionais.remover))
   ) {
     const bloco = { ...obj(site.profissionais) };
+    if (patch.profissionais.titulo) bloco.titulo = corta(patch.profissionais.titulo, 60);
+    if (patch.profissionais.subtitulo) bloco.subtitulo = corta(patch.profissionais.subtitulo, 180);
     let itens =
       patch.profissionais.limpar === true
         ? []
@@ -909,22 +1221,25 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       if (item.email) itens[i].email = corta(item.email, 80);
     }
     for (const item of patch.profissionais.acrescentar || []) {
+      const nome = corta(item.nome, 60);
+      if (!nome || nome === "Novo nome") continue;
+      const cargo = corta(item.cargo, 40);
+      const chave = chaveProfissional({ nome, cargo });
+      if (itens.some((existente) => chaveProfissional(existente) === chave)) continue;
       if (itens.length >= 8) {
         avisos.push("A equipe fica com no máximo 8 profissionais.");
         break;
       }
-      const nome = corta(item.nome, 60);
-      if (!nome || nome === "Novo nome") continue;
       itens.push({
         id: `pro_extra_${itens.length + 1}`,
         nome,
-        cargo: corta(item.cargo, 40),
+        cargo,
         descricao: corta(item.descricao, 240),
         whatsapp: corta(item.whatsapp, 20),
         email: corta(item.email, 80),
       });
     }
-    bloco.itens = itens;
+    bloco.itens = deduplicarProfissionais(itens);
     site.profissionais = bloco;
     tocou.profissionais = true;
     tocou.textos = true;
@@ -999,11 +1314,18 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     const aparenciaPedida = patch.visual.aparencia === "claro" || patch.visual.aparencia === "escuro" || patch.visual.aparencia === "automatico";
     const accent = hexDe(patch.visual.cor_accent);
     const fundo = hexDe(patch.visual.cor_fundo);
+    const corTitulos = hexDe(patch.visual.cor_titulos);
+    const corTexto = hexDe(patch.visual.cor_texto);
+    const corTextoSuave = hexDe(patch.visual.cor_texto_suave);
     const redePedida = ["instagram", "facebook", "linkedin", "tiktok", "youtube", "whatsappFlutuante"].some(
       (chave) => typeof patch.visual?.[chave as "instagram"] === "boolean",
     );
     const agendamentoPedida = typeof patch.visual.agendamento === "boolean";
-    if (paleta || tipo || cab || rodapeLayout || logoTamanho || logoAlinhamento || banner || animacao || estilo || botao || aparenciaPedida || accent || fundo || redePedida || agendamentoPedida) {
+    const modoAgenda = umDe(patch.visual.modoConfirmacaoAgenda, ["manual", "automatico", "whatsapp"] as const);
+    const duracaoSlot = [15, 20, 30, 45, 60, 90, 120].includes(Number(patch.visual.duracaoSlotMinutos))
+      ? Number(patch.visual.duracaoSlotMinutos)
+      : 0;
+    if (paleta || tipo || cab || rodapeLayout || logoTamanho || logoAlinhamento || banner || animacao || estilo || botao || aparenciaPedida || accent || fundo || corTitulos || corTexto || corTextoSuave || redePedida || agendamentoPedida || modoAgenda || duracaoSlot) {
       if (paleta) visual.paletaId = paleta.id;
       if (tipo) visual.tipografiaId = tipo.id;
       if (cab) visual.cabecalho = cab;
@@ -1015,6 +1337,8 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       if (estilo) visual.estilo = estilo;
       if (botao) visual.botao = botao;
       if (agendamentoPedida) visual.agendamento = patch.visual.agendamento as boolean;
+      if (modoAgenda) visual.modoConfirmacaoAgenda = modoAgenda;
+      if (duracaoSlot) visual.duracaoSlotMinutos = duracaoSlot;
       if (aparenciaPedida) visual.aparencia = patch.visual.aparencia as VisualConfig["aparencia"];
       if (aparenciaPedida && !paleta && visual.aparencia === "claro" && (visual.paletaId === "latao-escuro" || visual.paletaId === "limão-escuro")) {
         visual.paletaId = "papel-quente";
@@ -1028,15 +1352,105 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
       if (typeof patch.visual.tiktok === "boolean") visual.tiktok = patch.visual.tiktok;
       if (typeof patch.visual.youtube === "boolean") visual.youtube = patch.visual.youtube;
       if (typeof patch.visual.whatsappFlutuante === "boolean") visual.whatsappFlutuante = patch.visual.whatsappFlutuante;
+      if (accent) visual.corAccent = accent;
+      else if (paleta || aparenciaPedida) visual.corAccent = undefined;
+      if (fundo) visual.corFundo = fundo;
+      else if (paleta || aparenciaPedida) visual.corFundo = undefined;
+      if (corTitulos) visual.corTitulos = corTitulos;
+      else if (paleta || aparenciaPedida) visual.corTitulos = undefined;
+      if (corTexto) visual.corTexto = corTexto;
+      else if (paleta || aparenciaPedida) visual.corTexto = undefined;
+      if (corTextoSuave) visual.corTextoSuave = corTextoSuave;
+      else if (paleta || aparenciaPedida) visual.corTextoSuave = undefined;
       aplicarVisualNoTema(site, visual);
-      const tema = { ...obj(site.tema) };
-      if (accent) tema.color_accent = accent;
-      if (fundo) {
-        tema.color_background = fundo;
-        tema.color_surface = fundo;
-      }
-      site.tema = tema;
       tocou.visual = true;
+    }
+  }
+
+  if (patch.marca) {
+    const m = patch.marca;
+    const nichoMarca = corta(obj(site.meta).nicho, 40) || "generico";
+    const tipoPedido = umDe(m.tipo, ["icone", "emblema", "arquivo", "texto"] as const);
+    const iconeId = m.icone ? iconePorId(m.icone)?.id || "" : "";
+    const emblemaTexto = corta(m.emblema, 48);
+    const emblemaId = emblemaTexto
+      ? emblemasDoNicho(nichoMarca).find((e) => e.id === emblemaTexto || semAcento(e.nome) === semAcento(emblemaTexto))?.id || ""
+      : "";
+    const arquivoId = m.arquivo && arquivosDoNicho(nichoMarca).includes(m.arquivo) ? m.arquivo : "";
+    let tipo: "icone" | "emblema" | "arquivo" | "texto" | "" =
+      tipoPedido ||
+      (arquivoId ? "arquivo" : emblemaId ? "emblema" : iconeId ? "icone" : "");
+    const layoutPedido = umDe(m.layout, LAYOUTS_LOGO.map((l) => l.id) as readonly LayoutLogo[]);
+    if (layoutPedido === "wordmark") tipo = "texto";
+    const layout = tipo === "texto" ? "wordmark" : layoutPedido || (tipo && visual.logoOrigem !== tipo ? "lado" : "");
+    const fonteId = FONTES_LOGO.find((f) => f.id === m.fonteId)?.id || "";
+    const corMarca = (raw: unknown) => {
+      if (raw === undefined) return undefined;
+      const valor = corta(raw, 12).toLowerCase();
+      if (["auto", "site", "herdar"].includes(valor)) return "";
+      return hexDe(raw) || undefined;
+    };
+    const corIcone = corMarca(m.corIcone);
+    const corNome = corMarca(m.corNome);
+    const corAcento = corMarca(m.corAcento);
+    const simboloValido =
+      (tipo === "icone" && Boolean(iconeId)) ||
+      (tipo === "emblema" && Boolean(emblemaId)) ||
+      (tipo === "arquivo" && Boolean(arquivoId)) ||
+      tipo === "texto";
+    if (simboloValido || layout || fonteId || corIcone !== undefined || corNome !== undefined || corAcento !== undefined) {
+      marcaPatch = {
+        ...(simboloValido && tipo ? { tipo } : {}),
+        ...(tipo === "icone" && iconeId ? { icone: iconeId } : {}),
+        ...(tipo === "emblema" && emblemaId ? { emblema: emblemaId } : {}),
+        ...(tipo === "arquivo" && arquivoId ? { arquivo: arquivoId } : {}),
+        ...(layout ? { layout } : {}),
+        ...(fonteId ? { fonteId } : {}),
+        ...(corIcone !== undefined ? { corIcone } : {}),
+        ...(corNome !== undefined ? { corNome } : {}),
+        ...(corAcento !== undefined ? { corAcento } : {}),
+        ...(m.gerarOpcoes ? { gerarOpcoes: true } : {}),
+      };
+      if (simboloValido) {
+        visual.logoOrigem = tipo as VisualConfig["logoOrigem"];
+        visual.logoIcone = tipo === "icone" ? iconeId : undefined;
+        visual.logoEmblema = tipo === "emblema" ? emblemaId : undefined;
+        visual.logoArquivo = tipo === "arquivo" ? arquivoId : undefined;
+      }
+      if (layout) visual.logoLayout = layout;
+      if (fonteId) visual.logoFonteId = fonteId;
+      if (corIcone !== undefined) visual.logoCorIcone = corIcone || undefined;
+      if (corNome !== undefined) visual.logoCorNome = corNome || undefined;
+      if (corAcento !== undefined) visual.logoCorAcento = corAcento || undefined;
+      if (simboloValido) {
+        const logo = { ...obj(empresa.logo) };
+        logo.src =
+          tipo === "arquivo"
+            ? arquivoId
+            : uriMarcaViva(
+                {
+                  id: "marca-ia",
+                  origem: "manual",
+                  icone: visual.logoIcone || "",
+                  emblema: visual.logoEmblema,
+                  layout: visual.logoLayout || "lado",
+                  fonteId: visual.logoFonteId || "system",
+                  corIcone: visual.logoCorIcone,
+                  corNome: visual.logoCorNome,
+                  corAcento: visual.logoCorAcento,
+                },
+                {
+                  nome: corta(empresa.nome, 80) || "Seu negócio",
+                  slogan: corta(empresa.slogan, 80),
+                  acento: visual.logoCorAcento || String(obj(site.tema).color_accent || "#D4B483"),
+                },
+              );
+        logo.alt = corta(empresa.nome, 80) || "Logo";
+        delete logo.credito;
+        empresa.logo = logo;
+        site.empresa = empresa;
+      }
+      tocou.marca = true;
     }
   }
 
@@ -1055,21 +1469,48 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
     if (!logo.categoria) logo.categoria = "logo";
     empresaLogo.logo = logo;
     site.empresa = empresaLogo;
+    visual.logoOrigem = undefined;
+    visual.logoIcone = undefined;
+    visual.logoEmblema = undefined;
+    visual.logoArquivo = undefined;
+    visual.logoLayout = undefined;
+    visual.logoFonteId = undefined;
+    visual.logoCorIcone = undefined;
+    visual.logoCorNome = undefined;
+    visual.logoCorAcento = undefined;
     tocou.midia = true;
   }
+  const SLOTS_FOTO = new Set(["hero", "sobre", "galeria", "servico", "profissional", "evento"]);
   const slotsVistos = new Set<string>();
   for (const item of fotosPedido) {
-    const src = sanitizarFotoSrc(item?.src);
     const slot = item?.slot;
-    if (!src || (slot !== "hero" && slot !== "sobre" && slot !== "galeria" && slot !== "servico")) continue;
+    if (item?.limpar && slot === "profissional") {
+      const bloco = { ...obj(site.profissionais) };
+      const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+      const indice = Number.isFinite(Number(item.indice)) ? Math.max(0, Number(item.indice)) : 0;
+      if (itens[indice]) {
+        const pessoa = { ...itens[indice] };
+        const foto: Record<string, unknown> = { ...obj(pessoa.foto), src: "", alt: "Foto da equipe a confirmar" };
+        delete foto.credito;
+        pessoa.foto = foto;
+        itens[indice] = pessoa;
+        bloco.itens = itens;
+        site.profissionais = bloco;
+        tocou.midia = true;
+      }
+      continue;
+    }
+    const src = sanitizarFotoSrc(item?.src);
+    if (!src || !slot || !SLOTS_FOTO.has(slot)) continue;
     const chave = `${slot}:${item.indice ?? 0}`;
     if (slotsVistos.has(chave)) continue;
     slotsVistos.add(chave);
     const indice = Number(item.indice);
     const i = Number.isFinite(indice) ? indice : 0;
-    aplicarSrcNoSlot(site, { tipo: slot, indice: i }, src, item.credito as Record<string, unknown> | undefined);
+    const tipoSlot = slot as "hero" | "sobre" | "galeria" | "servico" | "profissional" | "evento";
+    aplicarSrcNoSlot(site, { tipo: tipoSlot, indice: i }, src, item.credito as Record<string, unknown> | undefined);
     const credito = item.credito;
-    if (credito?.fotografo && credito.perfil_url && credito.texto) {
+    if ((slot === "hero" || slot === "sobre" || slot === "galeria" || slot === "servico") && credito?.fotografo && credito.perfil_url && credito.texto) {
       gravarCredito(site, slot, i, {
         fotografo: corta(credito.fotografo, 80),
         perfil_url: corta(credito.perfil_url, 240),
@@ -1082,8 +1523,27 @@ export function aplicarPedido(siteIn: Record<string, unknown>, visualIn: VisualC
 
   const abrir = patch.abrir === "logo" || patch.abrir === "hero" || patch.abrir === "sobre" || patch.abrir === "galeria" ? patch.abrir : "";
   const avisoModelo = corta(patch.aviso_estrutura, 220);
+  const dadosMudaram =
+    JSON.stringify({ site, visual }) !== estadoInicial ||
+    Boolean(avisosExtra?.length || (redesExtra && Object.keys(redesExtra).length));
+  const mudou = abrir !== "" || dadosMudaram;
+  if (!dadosMudaram) {
+    for (const chave of Object.keys(tocou) as (keyof TocouPedido)[]) tocou[chave] = false;
+    if (!abrir) avisos.push("Não houve uma alteração efetiva. Confira o pedido e tente novamente.");
+  }
   const aviso = [avisoModelo, ...avisos].filter(Boolean).join(" ");
-  const mudou = abrir !== "" || Object.values(tocou).some(Boolean);
-  const resumo = corta(patch.resumo, 220) || (mudou ? "Atualizei o que cabia neste site." : "");
-  return { site, visual, resumo, aviso, abrir, tocou, avisos: avisosExtra, redes: redesExtra };
+  const resumo = dadosMudaram ? corta(patch.resumo, 220) || "Atualizei o que cabia neste site." : "";
+  return {
+    site,
+    visual,
+    resumo,
+    aviso,
+    abrir,
+    tocou,
+    nicho: nichoNovo || undefined,
+    expediente: expedienteNovo,
+    marca: marcaPatch,
+    avisos: avisosExtra,
+    redes: redesExtra,
+  };
 }

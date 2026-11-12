@@ -75,7 +75,7 @@ export function construirAoVivo(
     // Serviços e fotos acompanham o formulário desde cedo; equipe só quando o cliente nomeou alguém.
     aplicarServicos: opts.servicos.some((s) => s.nome.trim()),
     aplicarProfissionais: temPro,
-    aplicarVisual: opts.etapa >= 2,
+    aplicarVisual: true,
     preservarModeloQuandoVazio: true,
     fotos: opts.fotos,
     bairroModelo: String(endModelo.bairro || ""),

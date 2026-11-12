@@ -28,10 +28,10 @@ export const produtos: ProdutoItem[] = [
     slug: "email",
     icone: "email",
     titulo: "E-mail profissional",
-    texto: "Endereços como contato@seunegocio.com.br, com cara de empresa.",
-    resumo: "Caixas de e-mail no mesmo domínio do site, para o cliente reconhecer a empresa na primeira mensagem.",
+    texto: "Até 5 contas no seu domínio (contato@, financeiro@ etc.), configuradas por nós. Cara de empresa desde o primeiro dia.",
+    resumo: "Até 5 caixas no mesmo domínio do site, configuradas por nós, para o cliente reconhecer a empresa na primeira mensagem.",
     pontos: [
-      "Endereços no domínio do negócio, como contato@seunegocio.com.br.",
+      "Até 5 endereços no domínio do negócio, como contato@seunegocio.com.br.",
       "Combina com o site e reforça confiança na hora do agendamento.",
       "Serve para atendimento, confirmações e comunicação do dia a dia.",
       "Entra na mesma entrega da presença digital, sem contratações separadas.",

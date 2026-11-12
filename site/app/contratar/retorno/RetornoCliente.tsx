@@ -7,7 +7,7 @@ import { PainelCobranca } from "@/components/PainelCobranca";
 import { pagamentoConfirmado, type Cobranca } from "@/lib/cobranca";
 import { linkWhatsapp } from "@/lib/contato";
 
-type PreviewLinks = { url?: string; downloadUrl?: string };
+type PreviewLinks = { url?: string; downloadUrl?: string; id?: string; token?: string };
 
 function hrefVoltarFormulario() {
   try {
@@ -33,16 +33,30 @@ function hrefVoltarFormulario() {
   }
 }
 
+function contaDoPreview(): string {
+  try {
+    const preview = sessionStorage.getItem("guix.preview");
+    if (!preview) return "";
+    const p = JSON.parse(preview) as { id?: string; token?: string };
+    if (p.id && p.token) return `/conta/${p.id}?t=${encodeURIComponent(p.token)}`;
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
 export function RetornoCliente() {
   const params = useSearchParams();
   const id = params.get("cobranca");
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [preview, setPreview] = useState<PreviewLinks | null>(null);
+  const [contaHref, setContaHref] = useState("");
   const [erro, setErro] = useState("");
   const [voltarHref, setVoltarHref] = useState("/contratar");
 
   useEffect(() => {
     setVoltarHref(hrefVoltarFormulario());
+    setContaHref(contaDoPreview());
   }, []);
 
   useEffect(() => {
@@ -67,7 +81,14 @@ export function RetornoCliente() {
         if (!resposta.ok) throw new Error(json.erro || "Não foi possível consultar a cobrança.");
         if (!ativo) return;
         setCobranca(json.cobranca);
-        if (json.preview) setPreview(json.preview);
+        if (json.preview) {
+          setPreview(json.preview);
+          if (json.preview.id && json.preview.token) {
+            setContaHref(`/conta/${json.preview.id}?t=${encodeURIComponent(json.preview.token)}`);
+          } else if (json.preview.contaUrl) {
+            setContaHref(json.preview.contaUrl);
+          }
+        }
         setErro("");
         if (!pagamentoConfirmado(json.cobranca.status)) {
           timer = window.setTimeout(ler, 8000);
@@ -89,10 +110,18 @@ export function RetornoCliente() {
     return <p className="text-muted">Nenhuma cobrança foi informada.</p>;
   }
 
+  const pago = cobranca ? pagamentoConfirmado(cobranca.status) : false;
+
   return (
     <div className="mt-8 max-w-xl">
+      {pago ? (
+        <p className="mb-4 text-sm leading-6 text-emerald-800">
+          Tudo certo com o pagamento. Acompanhe a publicação na área do cliente — o prazo de 24h começa quando os dados
+          do negócio estiverem confirmados.
+        </p>
+      ) : null}
       {cobranca ? (
-        <PainelCobranca cobranca={cobranca} preview={preview} />
+        <PainelCobranca cobranca={cobranca} preview={preview} contaHref={contaHref || undefined} />
       ) : (
         <p className="text-muted">Consultando o pagamento…</p>
       )}
@@ -104,13 +133,13 @@ export function RetornoCliente() {
           </a>
         </p>
       ) : null}
-      {cobranca && !pagamentoConfirmado(cobranca.status) ? (
+      {cobranca && !pago ? (
         <p className="mt-6 text-sm leading-6 text-muted">
           Quer PIX, boleto ou cartão de outro jeito?{" "}
           <Link href={voltarHref} className="font-semibold text-accent underline">
             Voltar ao formulário
-          </Link>
-          {" "}— seus dados ficam preenchidos.
+          </Link>{" "}
+          — seus dados ficam preenchidos.
         </p>
       ) : null}
     </div>

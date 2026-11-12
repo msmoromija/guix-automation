@@ -1,6 +1,10 @@
 import { contato } from "@/lib/contato";
 import { enviarSmsTexto } from "@/lib/agendamentos/sms";
 import {
+  avisarClientePrototipoAprovado,
+  enviarResend,
+} from "@/lib/automacao/emails-institucionais";
+import {
   gravarPacote,
   PRAZO_INTEGRACAO_HORAS,
   type PacotePrototipo,
@@ -40,21 +44,13 @@ function textoTokenCliente(opts: { nome: string; token: string; links: ReturnTyp
   ].join("\n");
 }
 
-async function emailResend(para: string, assunto: string, texto: string) {
-  const key = process.env.RESEND_API_KEY || "";
-  if (!key) return { ok: false as const, motivo: "RESEND_API_KEY ausente" };
-  const de = process.env.RESEND_FROM || "GuiX.net <noreply@guix.net.br>";
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: de, to: [para], subject: assunto, text: texto }),
-    });
-    if (!res.ok) return { ok: false as const, motivo: (await res.text()).slice(0, 160) };
-    return { ok: true as const };
-  } catch (e) {
-    return { ok: false as const, motivo: e instanceof Error ? e.message : "Falha e-mail" };
-  }
+async function emailResendOps(para: string, assunto: string, texto: string) {
+  const html = `<pre style="font-family:system-ui,sans-serif;white-space:pre-wrap;line-height:1.45">${texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")}</pre>`;
+  const mail = await enviarResend({ para: [para], assunto, texto, html });
+  return mail.ok ? ({ ok: true as const } as const) : ({ ok: false as const, motivo: mail.motivo } as const);
 }
 
 async function whatsappWebhook(telefoneDigitos: string, mensagem: string) {
@@ -102,7 +98,16 @@ export async function aprovarPrototipo(
   const envios: Record<string, { ok: boolean; motivo?: string; waMe?: string }> = {};
 
   if (canais.includes("email") && emailCliente) {
-    envios.email = await emailResend(emailCliente, `Token do seu protótipo GuiX — ${pacote.nome}`, texto);
+    const mail = await avisarClientePrototipoAprovado({
+      email: emailCliente,
+      nomeNegocio: pacote.nome,
+      token: pacote.token,
+      contaUrl: links.contaUrl,
+      visualizarUrl: links.visualizarUrl,
+      contratarUrl: links.contratarUrl,
+      extratoUrl: links.extratoUrl,
+    });
+    envios.email = mail.ok ? { ok: true } : { ok: false, motivo: mail.motivo };
   } else if (canais.includes("email")) {
     envios.email = { ok: false, motivo: "E-mail do cliente ausente" };
   }
@@ -159,7 +164,11 @@ export async function aprovarPrototipo(
   ].join("\n");
 
   const opsEmail = (process.env.GUIX_OPS_EMAIL || contato.email).trim();
-  const opsMail = await emailResend(opsEmail, `[Aprovado] ${pacote.nome} · prazo ${PRAZO_INTEGRACAO_HORAS}h`, docGuiX);
+  const opsMail = await emailResendOps(
+    opsEmail,
+    `[Aprovado] ${pacote.nome} · prazo ${PRAZO_INTEGRACAO_HORAS}h`,
+    docGuiX,
+  );
   const opsWa = `https://wa.me/${contato.whatsapp}?text=${encodeURIComponent(docGuiX)}`;
 
   await registrarJobAprovado({

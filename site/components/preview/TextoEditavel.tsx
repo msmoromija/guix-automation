@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sugestoes } from "@/lib/estudio/corretor-pt";
 
-type Tag = "p" | "h1" | "h2" | "h3" | "span" | "dt";
+type Tag = "p" | "h1" | "h2" | "h3" | "span" | "dt" | "dd";
 
 const ignoradas = new Set<string>();
 

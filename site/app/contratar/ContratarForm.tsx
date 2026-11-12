@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { linkWhatsapp } from "@/lib/contato";
 import { formatarReais } from "@/lib/dinheiro";
-import { normalizarTelefoneBr, soDigitos } from "@/lib/documento";
+import { normalizarTelefoneBr, validarDocumento } from "@/lib/documento";
 import {
   MAX_PARCELAS,
   TAXA_EQUIPE_CENTAVOS,
@@ -189,6 +189,29 @@ export function ContratarForm({
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     setErro("");
+    const nomeLimpo = nome.replace(/\s+/g, " ").trim();
+    if (nomeLimpo.length < 3) {
+      setErro("Informe o nome completo de quem está contratando.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErro("Informe um e-mail válido — é nele que chega a confirmação do pagamento.");
+      return;
+    }
+    const telNorm = normalizarTelefoneBr(telefone);
+    if (!telNorm) {
+      setErro("Informe o WhatsApp com DDD (10 ou 11 dígitos).");
+      return;
+    }
+    const docNorm = validarDocumento(documento);
+    if (!docNorm) {
+      setErro("Informe um CPF ou CNPJ válido. Ele aparece na cobrança do Asaas.");
+      return;
+    }
+    if (cupom.trim() && !cupomAplicado) {
+      setErro("Você digitou um cupom. Clique em Aplicar antes de gerar o pagamento, ou apague o código.");
+      return;
+    }
     setEnviando(true);
     try {
       const resposta = await fetch("/api/checkout", {
@@ -198,15 +221,15 @@ export function ContratarForm({
           plano,
           nicho: nichoAtual,
           configuracao,
-          nome,
-          email,
-          telefone: normalizarTelefoneBr(telefone) || soDigitos(telefone),
-          documento,
+          nome: nomeLimpo,
+          email: email.trim().toLowerCase(),
+          telefone: telNorm,
+          documento: docNorm,
           forma,
           parcelas: forma === "cartao" ? parcelas : 1,
           previewId: previewId || undefined,
           previewToken: previewToken || undefined,
-          cupom: cupomAplicado?.codigo || cupom.trim() || undefined,
+          cupom: cupomAplicado?.codigo || undefined,
         }),
       });
       const json = await resposta.json();

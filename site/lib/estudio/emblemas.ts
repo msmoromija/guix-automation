@@ -384,6 +384,48 @@ const POR_NICHO: Record<string, EmblemaDef[]> = {
     { id: "coracao-anel", nome: "Acolhimento" },
     { id: "brilho-disco", nome: "Brilho" },
   ],
+  dentista: [
+    { id: "brilho-disco", nome: "Brilho" },
+    { id: "cruz-disco", nome: "Cruz" },
+    { id: "folha-disco", nome: "Folha" },
+    { id: "gota-anel", nome: "Gota" },
+    { id: "iniciais-disco", nome: "Iniciais" },
+    { id: "iniciais-escudo", nome: "Iniciais em escudo" },
+    { id: "iniciais-anel", nome: "Iniciais em anel" },
+    { id: "folha-escudo", nome: "Cuidado" },
+    { id: "diamante-anel", nome: "Losango" },
+    { id: "coracao-anel", nome: "Acolhimento" },
+    { id: "gota-disco", nome: "Gota em selo" },
+    { id: "brilho-disco", nome: "Sorriso" },
+  ],
+  psicologia: [
+    { id: "folha-disco", nome: "Folha" },
+    { id: "coracao-anel", nome: "Coração" },
+    { id: "iniciais-disco", nome: "Iniciais" },
+    { id: "iniciais-escudo", nome: "Iniciais em escudo" },
+    { id: "brilho-disco", nome: "Brilho" },
+    { id: "folha-escudo", nome: "Cuidado" },
+    { id: "iniciais-anel", nome: "Iniciais em anel" },
+    { id: "diamante-anel", nome: "Losango" },
+    { id: "gota-anel", nome: "Gota" },
+    { id: "coracao-anel", nome: "Acolhimento" },
+    { id: "folha-disco", nome: "Crescimento" },
+    { id: "brilho-disco", nome: "Clareza" },
+  ],
+  nutricionista: [
+    { id: "folha-disco", nome: "Folha" },
+    { id: "folha-escudo", nome: "Folha em escudo" },
+    { id: "gota-anel", nome: "Gota" },
+    { id: "coracao-anel", nome: "Coração" },
+    { id: "iniciais-disco", nome: "Iniciais" },
+    { id: "brilho-disco", nome: "Brilho" },
+    { id: "iniciais-anel", nome: "Iniciais em anel" },
+    { id: "diamante-anel", nome: "Losango" },
+    { id: "gota-disco", nome: "Gota em selo" },
+    { id: "folha-disco", nome: "Verde" },
+    { id: "coracao-anel", nome: "Bem-estar" },
+    { id: "iniciais-escudo", nome: "Iniciais em escudo" },
+  ],
   generico: [
     { id: "iniciais-disco", nome: "Iniciais" },
     { id: "iniciais-escudo", nome: "Iniciais em escudo" },
@@ -401,7 +443,7 @@ const POR_NICHO: Record<string, EmblemaDef[]> = {
 };
 
 export function emblemasDoNicho(nicho: string): EmblemaDef[] {
-  const lista = POR_NICHO[nicho] || POR_NICHO.barbearia;
+  const lista = POR_NICHO[nicho] || POR_NICHO.generico;
   const vistos = new Set<string>();
   return lista.filter((e) => {
     if (vistos.has(e.id)) return false;

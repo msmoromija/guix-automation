@@ -28,10 +28,10 @@ export const planos: PlanoVitrine[] = [
     contratavel: true,
     chamada: "Mais pedida",
     resumo:
-      "Para serviços com modelo padrão: barbearias, salões, estética, pet shops, academias, contabilidade e advocacia.",
+      "Para quem usa modelo pronto com automação do projeto: barbearia, salão, estética, pet shop, academia, contabilidade, advocacia, dentista, clínica, psicologia e nutricionista.",
     itens: [
       "Domínio próprio",
-      "E-mail profissional",
+      "Até 5 e-mails profissionais (Zoho)",
       "Site responsivo",
       "Agenda online",
       "WhatsApp integrado",
@@ -47,12 +47,12 @@ export const planos: PlanoVitrine[] = [
     contratavel: true,
     chamada: "Mais estrutura",
     resumo:
-      "Para negócios médios que precisam de mais estrutura: imobiliárias, consultórios menores e operações com catálogo ou agenda mais organizada.",
+      "Para soluções um pouco mais complexas — sem modelo pronto no ar: imobiliária, catálogo robusto, operação com fluxos extras ou estrutura além do padrão automatizado.",
     itens: [
       "Tudo da Presença Completa",
-      "Estrutura própria do segmento",
-      "Agenda, especialidades ou catálogo",
-      "Publicação em até 24 horas",
+      "Estrutura adaptada ao segmento",
+      "Catálogo, agenda ou fluxos extras",
+      "Publicação em até 5 dias (5 x 24 horas), conforme o escopo",
     ],
     ctaLabel: "Quero meu site agora",
   },
@@ -65,7 +65,7 @@ export const planos: PlanoVitrine[] = [
     contratavel: false,
     chamada: "Sob medida",
     resumo:
-      "Para negócios com operação mais complexa ou que precisam de personalização maior: clínicas e consultórios com equipe, imobiliárias com catálogo robusto, escolas, estúdios com múltiplos serviços, empresas com fluxos próprios de agendamento ou qualquer operação que exija estrutura e configuração mais específicas. O valor final depende do nível de personalização necessário.",
+      "Para operações bem mais complexas ou sob medida: SaaS, portais industriais, escolas, multiunidades, fluxos próprios de agendamento ou qualquer projeto que exija configuração profunda. O valor final depende da personalização.",
     itens: [
       "Tudo da Presença Avançada",
       "Configuração mais profunda e específica do negócio",
@@ -80,13 +80,11 @@ export const planosContrataveis = planos.filter(
   (item): item is PlanoVitrine & { id: PlanoId; contratavel: true } => item.contratavel && (item.id === "simples" || item.id === "avancado"),
 );
 
+/** Todos os nichos com modelo pronto e automação entram na Presença Completa. */
 export const nichosSimples = nichos.map((item) => ({ id: item.slug, nome: item.nome }));
 
-export const nichosAvancados = [
-  { id: "clinica", nome: "Clínica" },
-  { id: "dentista", nome: "Dentista" },
-  { id: "imobiliaria", nome: "Imobiliária" },
-];
+/** Sem modelo pré-pronto — soluções um pouco mais complexas. */
+export const nichosAvancados = [{ id: "imobiliaria", nome: "Imobiliária" }];
 
 export function planoPorId(id: string) {
   return planos.find((item) => item.id === id);
@@ -97,7 +95,12 @@ export function nichosDoPlano(id: PlanoId) {
 }
 
 export function nomeDoNicho(plano: PlanoId, id: string) {
-  return nichosDoPlano(plano).find((item) => item.id === id)?.nome ?? null;
+  return (
+    nichosDoPlano(plano).find((item) => item.id === id)?.nome ??
+    nichosSimples.find((item) => item.id === id)?.nome ??
+    nichosAvancados.find((item) => item.id === id)?.nome ??
+    null
+  );
 }
 
 export function calcularTotal(plano: PlanoId, configuracao: Configuracao) {

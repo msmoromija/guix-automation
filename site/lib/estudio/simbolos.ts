@@ -386,10 +386,97 @@ const CATALOGO: Record<string, Def[]> = {
         </g>`,
     },
     {
+      id: "cruz-anel",
+      nome: "Cruz em anel",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2">
+          <circle cx="48" cy="48" r="34"/>
+          <g fill="${c}" stroke="none">
+            <rect x="42" y="24" width="12" height="48" rx="2"/>
+            <rect x="24" y="42" width="48" height="12" rx="2"/>
+          </g>
+        </g>`,
+    },
+    {
+      id: "cruz-escudo",
+      nome: "Cruz em escudo",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="round">
+          <path d="M48 12 L78 26 V50 C78 68 48 84 48 84 C48 84 18 68 18 50 V26 Z"/>
+          <g fill="${c}" stroke="none">
+            <rect x="43" y="32" width="10" height="36" rx="2"/>
+            <rect x="30" y="45" width="36" height="10" rx="2"/>
+          </g>
+        </g>`,
+    },
+    {
       id: "coracao",
       nome: "Coração",
       desenho: (c) =>
         `<path fill="${c}" d="M48 80 C20 58 14 36 30 24 C38 18 46 22 48 30 C50 22 58 18 66 24 C82 36 76 58 48 80Z"/>`,
+    },
+    {
+      id: "coracao-cruz",
+      nome: "Coração com cruz",
+      desenho: (c) =>
+        `<g fill="${c}" fill-rule="evenodd">
+          <path d="M48 82 C18 58 12 34 30 22 C38 16 46 20 48 28 C50 20 58 16 66 22 C84 34 78 58 48 82Z"/>
+          <rect x="44" y="36" width="8" height="28" rx="1"/>
+          <rect x="34" y="46" width="28" height="8" rx="1"/>
+        </g>`,
+    },
+    {
+      id: "estetoscopio",
+      nome: "Estetoscópio",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M28 22 V42 C28 58 48 66 48 66 C48 66 68 58 68 42 V22"/>
+          <circle cx="28" cy="18" r="6"/>
+          <circle cx="68" cy="18" r="6"/>
+          <circle cx="48" cy="74" r="10"/>
+          <path d="M48 66 V64"/>
+        </g>`,
+    },
+    {
+      id: "estetoscopio-coracao",
+      nome: "Esteto em coração",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 84 C20 60 14 36 30 24 C38 18 46 22 48 30 C50 22 58 18 66 24 C82 36 76 60 48 84Z"/>
+          <circle cx="48" cy="52" r="8" fill="${c}" stroke="none"/>
+        </g>`,
+    },
+    {
+      id: "pessoas",
+      nome: "Cuidado em equipe",
+      desenho: (c) =>
+        `<g fill="${c}">
+          <circle cx="30" cy="28" r="10"/>
+          <circle cx="48" cy="22" r="11"/>
+          <circle cx="66" cy="28" r="10"/>
+          <path d="M12 78 C12 54 22 46 30 46 C38 46 42 52 48 52 C54 52 58 46 66 46 C74 46 84 54 84 78 Z"/>
+        </g>`,
+    },
+    {
+      id: "pessoa",
+      nome: "Paciente",
+      desenho: (c) =>
+        `<g fill="${c}">
+          <circle cx="48" cy="28" r="14"/>
+          <path d="M18 82 C18 56 30 48 48 48 C66 48 78 56 78 82 Z"/>
+        </g>`,
+    },
+    {
+      id: "arco-pessoas",
+      nome: "Arco de cuidado",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round">
+          <path d="M16 62 C16 34 32 18 48 18 C64 18 80 34 80 62"/>
+          <circle cx="32" cy="58" r="7" fill="${c}" stroke="none"/>
+          <circle cx="48" cy="52" r="8" fill="${c}" stroke="none"/>
+          <circle cx="64" cy="58" r="7" fill="${c}" stroke="none"/>
+          <path d="M20 82 C22 70 28 66 32 66 C38 66 42 72 48 72 C54 72 58 66 64 66 C68 66 74 70 76 82" fill="${c}" stroke="none"/>
+        </g>`,
     },
     {
       id: "folha",
@@ -404,7 +491,7 @@ const CATALOGO: Record<string, Def[]> = {
       id: "gota",
       nome: "Gota",
       desenho: (c) =>
-        `<path fill="none" stroke="${c}" stroke-width="3" d="M48 16 C48 16 78 44 48 80 C18 44 48 16 48 16Z"/>`,
+        `<path fill="${c}" d="M48 16 C48 16 78 46 48 82 C18 46 48 16 48 16Z"/>`,
     },
     {
       id: "mao",
@@ -413,6 +500,177 @@ const CATALOGO: Record<string, Def[]> = {
         `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
           <path d="M24 78 C24 50 48 40 72 78"/>
           <circle cx="48" cy="32" r="12"/>
+        </g>`,
+    },
+    {
+      id: "relogio",
+      nome: "Hora",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round">
+          <circle cx="48" cy="48" r="28"/>
+          <path d="M48 26 V48 L62 56"/>
+        </g>`,
+    },
+    {
+      id: "cruz-disco",
+      nome: "Cruz em selo",
+      desenho: (c) =>
+        `<g fill="${c}" fill-rule="evenodd">
+          <circle cx="48" cy="48" r="36"/>
+          <rect x="42" y="24" width="12" height="48" rx="2"/>
+          <rect x="24" y="42" width="48" height="12" rx="2"/>
+        </g>`,
+    },
+  ],
+  dentista: [
+    {
+      id: "dente",
+      nome: "Dente",
+      desenho: (c) =>
+        `<path fill="none" stroke="${c}" stroke-width="3.2" stroke-linejoin="round" d="M34 22 C28 22 24 28 24 36 C24 52 28 68 34 78 C38 84 42 78 48 68 C54 78 58 84 62 78 C68 68 72 52 72 36 C72 28 68 22 62 22 C56 22 52 28 48 28 C44 28 40 22 34 22Z"/>`,
+    },
+    {
+      id: "brilho",
+      nome: "Brilho",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 14 V30 M48 66 V82 M14 48 H30 M66 48 H82"/>
+          <path d="M26 26 L36 36 M60 60 L70 70 M70 26 L60 36 M36 60 L26 70"/>
+        </g>`,
+    },
+    {
+      id: "cruz",
+      nome: "Cruz",
+      desenho: (c) =>
+        `<g fill="${c}">
+          <rect x="40" y="16" width="16" height="64" rx="3"/>
+          <rect x="20" y="36" width="56" height="16" rx="3"/>
+        </g>`,
+    },
+    {
+      id: "relogio",
+      nome: "Hora",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round">
+          <circle cx="48" cy="48" r="28"/>
+          <path d="M48 26 V48 L62 56"/>
+        </g>`,
+    },
+    {
+      id: "folha",
+      nome: "Folha",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 82 C20 58 22 24 48 30 C74 24 76 58 48 82Z"/>
+          <path d="M48 34 V70"/>
+        </g>`,
+    },
+    {
+      id: "escudo",
+      nome: "Cuidado",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="round">
+          <path d="M48 14 L76 28 V52 C76 68 48 82 48 82 C48 82 20 68 20 52 V28 Z"/>
+          <path d="M36 48 L44 56 L62 36"/>
+        </g>`,
+    },
+  ],
+  psicologia: [
+    {
+      id: "psi",
+      nome: "Psi",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M30 18 V50 C30 68 48 78 48 78 C48 78 66 68 66 50 V18"/>
+          <path d="M22 18 H38 M58 18 H74"/>
+        </g>`,
+    },
+    {
+      id: "folha",
+      nome: "Folha",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 82 C20 58 22 24 48 30 C74 24 76 58 48 82Z"/>
+          <path d="M48 34 V70"/>
+        </g>`,
+    },
+    {
+      id: "perfil",
+      nome: "Perfil",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M34 70 C34 48 44 36 56 30 C64 26 70 34 66 42 C74 46 76 58 68 66 C60 74 48 78 34 70Z"/>
+          <circle cx="58" cy="40" r="1.8" fill="${c}" stroke="none"/>
+        </g>`,
+    },
+    {
+      id: "coracao",
+      nome: "Coração",
+      desenho: (c) =>
+        `<path fill="${c}" d="M48 80 C20 58 14 36 30 24 C38 18 46 22 48 30 C50 22 58 18 66 24 C82 36 76 58 48 80Z"/>`,
+    },
+    {
+      id: "relogio",
+      nome: "Hora",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3.2" stroke-linecap="round">
+          <circle cx="48" cy="48" r="28"/>
+          <path d="M48 26 V48 L62 56"/>
+        </g>`,
+    },
+    {
+      id: "arvore",
+      nome: "Crescimento",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 82 V48"/>
+          <path d="M48 48 C28 48 24 30 36 24 C28 16 40 12 48 22 C56 12 68 16 60 24 C72 30 68 48 48 48Z"/>
+        </g>`,
+    },
+  ],
+  nutricionista: [
+    {
+      id: "folha",
+      nome: "Folha",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M48 82 C20 58 22 24 48 30 C74 24 76 58 48 82Z"/>
+          <path d="M48 34 V70"/>
+        </g>`,
+    },
+    {
+      id: "maca",
+      nome: "Maçã",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M48 28 C36 28 26 40 26 54 C26 70 36 82 48 82 C60 82 70 70 70 54 C70 40 60 28 48 28Z"/>
+          <path d="M48 28 C52 18 60 16 64 20"/>
+          <path d="M48 28 C42 22 40 16 44 14"/>
+        </g>`,
+    },
+    {
+      id: "garfo",
+      nome: "Garfo",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M36 18 V40 M48 18 V40 M60 18 V40"/>
+          <path d="M36 40 H60"/>
+          <path d="M48 40 V78"/>
+        </g>`,
+    },
+    {
+      id: "coracao",
+      nome: "Coração",
+      desenho: (c) =>
+        `<path fill="${c}" d="M48 80 C20 58 14 36 30 24 C38 18 46 22 48 30 C50 22 58 18 66 24 C82 36 76 58 48 80Z"/>`,
+    },
+    {
+      id: "tigela",
+      nome: "Tigela",
+      desenho: (c) =>
+        `<g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round">
+          <path d="M22 46 H74 C74 66 62 78 48 78 C34 78 22 66 22 46Z"/>
+          <path d="M40 30 C44 22 52 22 56 30"/>
         </g>`,
     },
     {
@@ -528,7 +786,7 @@ const CATALOGO: Record<string, Def[]> = {
 };
 
 function lista(nicho: string): Def[] {
-  return CATALOGO[nicho] || CATALOGO.barbearia;
+  return CATALOGO[nicho] || CATALOGO.generico;
 }
 
 export function simbolosDoNicho(nicho: string): ItemSimbolo[] {

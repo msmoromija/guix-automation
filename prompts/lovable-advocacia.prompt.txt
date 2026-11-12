@@ -356,7 +356,7 @@ SITE_JSON_START
     ]
   },
   "hero": {
-    "titulo": "A consulta tem dia e hora.",
+    "titulo": "Primeiro a gente ouve o seu caso.",
     "subtitulo": "Trabalhista, família, consumidor e contratos no Centro. Você marca, traz o que tiver em mãos e conversa com um advogado.",
     "botao_principal": "Agendar consulta",
     "botao_secundario": "Chamar no WhatsApp",

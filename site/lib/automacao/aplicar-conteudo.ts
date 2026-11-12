@@ -211,6 +211,59 @@ export function aplicarConteudoGerado(
     site.galeria = galeria;
   }
 
+  // Eventos e promoções recebem fotos rotacionadas (mesma prioridade de galeria).
+  for (const [chave, categoria] of [
+    ["eventos", "evento"],
+    ["promocoes", "promocao"],
+  ] as const) {
+    const bloco = { ...((site[chave] as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const fotos = imagensDaCategoria(resolvidas, categoria);
+    for (let i = 0; i < itens.length; i++) {
+      const foto = fotos[i];
+      if (!foto?.src) continue;
+      const imgAtual = (itens[i] as { imagem?: Record<string, unknown> }).imagem;
+      itens[i] = {
+        ...itens[i],
+        imagem: patchImagem(imgAtual, {
+          src: foto.src,
+          origem: foto.origem === "unsplash" ? "unsplash" : "biblioteca",
+          credito: foto.credito as unknown as Record<string, unknown> | undefined,
+        }),
+      };
+    }
+    bloco.itens = itens;
+    site[chave] = bloco;
+  }
+
+  // Equipe: aplica o retrato rotacionado quando o cliente não enviou a própria foto.
+  if (!imagemClientePorCategoria(entrada, "profissional")) {
+    const bloco = { ...((site.profissionais as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const fotos = imagensDaCategoria(resolvidas, "profissional");
+    for (let i = 0; i < itens.length; i++) {
+      const foto = fotos[i];
+      if (!foto?.src) continue;
+      const base = { ...((itens[i].foto as Record<string, unknown>) || {}) };
+      if (base.origem === "upload") continue;
+      const nome = String(itens[i].nome || "");
+      itens[i] = {
+        ...itens[i],
+        foto: patchImagem(
+          { id: `img_pro_p${i + 1}`, alt: nome, categoria: "profissional", ...base },
+          {
+            src: foto.src,
+            alt: nome || String(base.alt || ""),
+            origem: foto.origem === "unsplash" ? "unsplash" : "biblioteca",
+            credito: foto.credito as Record<string, unknown> | undefined,
+          },
+        ),
+      };
+    }
+    bloco.itens = itens;
+    site.profissionais = bloco;
+  }
+
   if (textos.rodape?.texto) {
     const rodape = { ...(site.rodape as Record<string, unknown>) };
     rodape.texto = textos.rodape.texto;

@@ -1,5 +1,9 @@
 import { formatarReais } from "@/lib/dinheiro";
 import {
+  avisarClientePagamentoConfirmado,
+  enviarResend,
+} from "@/lib/automacao/emails-institucionais";
+import {
   destinatariosOps,
   lerPedido,
   marcarPedidoPago,
@@ -11,36 +15,6 @@ import { lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
 export type EventoAvisoCompra = "cobranca_criada" | "pagamento_confirmado";
 
 type Anexo = { filename: string; content: string };
-
-async function enviarResend(opts: {
-  assunto: string;
-  texto: string;
-  html: string;
-  anexos?: Anexo[];
-}) {
-  const key = process.env.RESEND_API_KEY?.trim() || "";
-  const para = destinatariosOps();
-  if (!key) return { ok: false as const, motivo: "RESEND_API_KEY ausente", para };
-  if (!para.length) return { ok: false as const, motivo: "Sem destinatários ops", para };
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM || "GuiX.net <noreply@guix.net.br>",
-        to: para,
-        subject: opts.assunto,
-        text: opts.texto,
-        html: opts.html,
-        ...(opts.anexos?.length ? { attachments: opts.anexos } : {}),
-      }),
-    });
-    if (!res.ok) return { ok: false as const, motivo: (await res.text()).slice(0, 220), para };
-    return { ok: true as const, para };
-  } catch (e) {
-    return { ok: false as const, motivo: e instanceof Error ? e.message : "Falha e-mail", para };
-  }
-}
 
 function escapar(s: string) {
   return s
@@ -192,7 +166,6 @@ async function anexosDoPrototipo(pedido: PedidoCompra): Promise<Anexo[]> {
     try {
       const { montarPacoteZip } = await import("@/lib/prototipos/pacote-zip");
       const { buffer } = await montarPacoteZip(pacote);
-      // Resend ~40MB; deixa folga e só anexa ZIP leve/médio
       if (buffer.length < 12_000_000) {
         anexos.push({
           filename: `guix-${token}-pacote.zip`,
@@ -207,6 +180,8 @@ async function anexosDoPrototipo(pedido: PedidoCompra): Promise<Anexo[]> {
   }
   return anexos;
 }
+
+export { avisarClientePagamentoConfirmado };
 
 /** Avisa a equipe GuiX sobre cobrança nova ou pagamento confirmado. */
 export async function avisarCompra(opts: {
@@ -226,11 +201,11 @@ export async function avisarCompra(opts: {
         ];
   const prefixo = opts.evento === "pagamento_confirmado" ? "[Pago]" : "[Cobrança]";
   const assunto = `${prefixo} ${opts.pedido.planoNome} — ${opts.pedido.cliente.nome} (${opts.pedido.nichoNome})`;
-  const mail = await enviarResend({ assunto, texto, html, anexos });
+  const mail = await enviarResend({ para: destinatariosOps(), assunto, texto, html, anexos });
   return { ...mail, assunto };
 }
 
-/** No webhook: marca pedido pago (grava no R2) e dispara e-mail de rastreio. */
+/** No webhook: marca pedido pago (grava no R2), avisa ops e confirma por e-mail ao cliente. */
 export async function avisarPagamentoConfirmado(cobrancaId: string, fallback?: PedidoCompra | null) {
   const { gravarPedido } = await import("@/lib/pedidos/compra");
   let atualizado = await marcarPedidoPago(cobrancaId);
@@ -261,6 +236,21 @@ export async function avisarPagamentoConfirmado(cobrancaId: string, fallback?: P
   if (pedido.status !== atualizado.status || !atualizado.pagoEm) {
     await gravarPedido(pedido);
   }
+  if (pedido.orcamentoId) {
+    try {
+      const { marcarOrcamentoPago } = await import("@/lib/orcamentos/store");
+      await marcarOrcamentoPago(pedido.orcamentoId, cobrancaId);
+    } catch (e) {
+      console.error("marcar orçamento pago", e);
+    }
+  }
   const mail = await avisarCompra({ pedido, evento: "pagamento_confirmado" });
-  return { ok: mail.ok, mail, pedido };
+  let mailCliente: Awaited<ReturnType<typeof avisarClientePagamentoConfirmado>> | null = null;
+  try {
+    mailCliente = await avisarClientePagamentoConfirmado(pedido);
+  } catch (e) {
+    console.error("email cliente pago", e);
+    mailCliente = { ok: false, motivo: e instanceof Error ? e.message : "falha", para: [] };
+  }
+  return { ok: mail.ok || mailCliente.ok, mail, mailCliente, pedido };
 }

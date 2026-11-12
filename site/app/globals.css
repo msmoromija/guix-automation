@@ -17,6 +17,10 @@ html {
   scroll-behavior: smooth;
 }
 
+[data-preview="site"] :is(h1, h2, h3) {
+  color: var(--hd);
+}
+
 [data-anim="media"] h1,
 [data-anim="intensa"] h1 {
   animation: gx-rise 0.7s ease both;
@@ -1406,12 +1410,13 @@ html {
 
 .gx-photo {
   object-fit: cover;
-  object-position: center 28%;
-  filter: saturate(0.94) contrast(1.05);
+  object-position: center center;
+  /* Sem dessaturação: foto do produto precisa parecer viva, não filtrada */
+  filter: none;
 }
 
 .gx-photo-frame .gx-photo {
-  transform: scale(1.04);
+  transform: none;
 }
 
 .gx-logo-arquivo {
@@ -1428,7 +1433,7 @@ html {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.28), transparent 42%);
+  background: linear-gradient(to top, rgb(0 0 0 / 0.14), transparent 38%);
 }
 
 body {

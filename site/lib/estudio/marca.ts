@@ -18,7 +18,7 @@ export function dataSvg(svg: string) {
 }
 
 export function emblemaNicho(nicho: string, cor: string, cx = 48, cy = 48) {
-  const inner = svgSimbolo(nicho || "barbearia", idSimboloPadrao(nicho), cor).replace(/<\/?svg[^>]*>/g, "");
+  const inner = svgSimbolo(nicho || "generico", idSimboloPadrao(nicho), cor).replace(/<\/?svg[^>]*>/g, "");
   const dx = cx - 48;
   const dy = cy - 48;
   return `<g transform="translate(${dx} ${dy})">${inner}</g>`;
@@ -148,5 +148,5 @@ export function gerarMarcaSvg(opts: {
   acento: string;
   nicho?: string;
 }) {
-  return lockupEmblema({ ...opts, nicho: opts.nicho || "barbearia" });
+  return lockupEmblema({ ...opts, nicho: opts.nicho || "generico" });
 }

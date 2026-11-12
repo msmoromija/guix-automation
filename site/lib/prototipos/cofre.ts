@@ -72,11 +72,23 @@ export async function gravarPacote(pacote: PacotePrototipo) {
   return token;
 }
 
-export async function lerPacote(token: string): Promise<PacotePrototipo | null> {
+/** Lê pacote mesmo após o TTL grátis — usado pós-pagamento / entrega. */
+export async function lerPacoteBruto(token: string): Promise<PacotePrototipo | null> {
   try {
     const buf = await baixarObjeto(chave(token));
-    const pacote = JSON.parse(buf.toString("utf8")) as PacotePrototipo;
-    if (expirado(pacote)) return null;
+    return JSON.parse(buf.toString("utf8")) as PacotePrototipo;
+  } catch {
+    return null;
+  }
+}
+
+export async function lerPacote(token: string): Promise<PacotePrototipo | null> {
+  try {
+    const pacote = await lerPacoteBruto(token);
+    if (!pacote) return null;
+    if (expirado(pacote) && pacote.status !== "pago" && pacote.status !== "em_integracao" && pacote.status !== "publicado" && pacote.status !== "aprovado") {
+      return null;
+    }
     return pacote;
   } catch {
     return null;

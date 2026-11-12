@@ -7,6 +7,9 @@ export type Nicho =
   | "contabilidade"
   | "advocacia"
   | "clinica"
+  | "dentista"
+  | "psicologia"
+  | "nutricionista"
   | "generico";
 
 export type CategoriaImagem =

@@ -4,11 +4,13 @@ const FICTICIO =
   /spring field|rua onde fica|animador de porta|lorem|placeholder|exemplo\.com|0000-0000|00\.000\.000\/0000-00|barbeariavilanorte|vila norte|vila flor|salaovilaflor|serra clara|pet shop bento|academia farol|lima contabilidade|vale luz/i;
 
 const EXPEDIENTE_NEUTRO = [
-  { dia: "seg", label: "Segunda", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-  { dia: "ter", label: "Terça", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-  { dia: "qua", label: "Quarta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-  { dia: "qui", label: "Quinta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-  { dia: "sex", label: "Sexta", intervalos: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
+  { dia: "dom", label: "Domingo", intervalos: [] as string[] },
+  { dia: "seg", label: "Segunda", intervalos: [] as string[] },
+  { dia: "ter", label: "Terça", intervalos: [] as string[] },
+  { dia: "qua", label: "Quarta", intervalos: [] as string[] },
+  { dia: "qui", label: "Quinta", intervalos: [] as string[] },
+  { dia: "sex", label: "Sexta", intervalos: [] as string[] },
+  { dia: "sab", label: "Sábado", intervalos: [] as string[] },
 ];
 
 const DIFERENCIAIS_NEUTROS = [
@@ -123,6 +125,13 @@ export function limparIdentidadeExemplo(site: Record<string, unknown>, entrada: 
   if (!eventos.titulo) eventos.titulo = "Eventos";
   site.eventos = eventos;
 
+  // Pessoas e retratos do template são exemplos; nunca os atribua a uma equipe real.
+  const equipe = { ...((site.profissionais as Record<string, unknown>) || {}) };
+  equipe.titulo = "Quem atende";
+  equipe.subtitulo = "Os nomes e as fotos da equipe serão exibidos quando forem informados.";
+  equipe.itens = [];
+  site.profissionais = equipe;
+
   const header = { ...((site.header as Record<string, unknown>) || {}) };
   if (Array.isArray(header.menu)) {
     header.menu = (header.menu as Record<string, unknown>[]).map((item) => ({
@@ -147,13 +156,141 @@ function rotuloTel(digitos: string) {
   return d || "(00) 00000-0000";
 }
 
+const ORIGENS_OK = new Set(["biblioteca", "unsplash", "upload"]);
+const CATS_OK = new Set([
+  "logo",
+  "hero",
+  "sobre",
+  "servico",
+  "profissional",
+  "promocao",
+  "evento",
+  "galeria",
+  "og",
+]);
+const MENU_IDS = ["inicio", "sobre", "servicos", "profissionais", "promocoes", "faq", "contato"] as const;
+const MENU_LABEL: Record<(typeof MENU_IDS)[number], string> = {
+  inicio: "Início",
+  sobre: "Sobre",
+  servicos: "Serviços",
+  profissionais: "Equipe",
+  promocoes: "Condições",
+  faq: "Dúvidas",
+  contato: "Contato",
+};
+const ICONES_OK = new Set([
+  "calendar",
+  "clock",
+  "map-pin",
+  "phone",
+  "message-circle",
+  "scissors",
+  "sparkles",
+  "star",
+  "shield",
+  "users",
+  "award",
+  "heart",
+  "leaf",
+  "paw-print",
+  "scale",
+  "dumbbell",
+  "home",
+  "check",
+  "clipboard",
+]);
+
+function idComPrefixo(raw: unknown, prefixo: string, fallback: string) {
+  const limpo = String(raw || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+  if (limpo.startsWith(prefixo) && limpo.length > prefixo.length) return limpo;
+  const resto = limpo.replace(new RegExp(`^${prefixo}`), "") || fallback.replace(new RegExp(`^${prefixo}`), "");
+  return `${prefixo}${resto || "item"}`;
+}
+
 function fotoOk(foto: Record<string, unknown> | undefined, id: string, alt: string, categoria: string) {
   const f = { ...(foto || {}) };
-  if (!f.id) f.id = id;
+  f.id = idComPrefixo(f.id || id, "img_", id);
   if (typeof f.src !== "string") f.src = "";
-  if (!f.alt) f.alt = alt || "Foto";
-  if (!f.categoria) f.categoria = categoria;
+  if (!String(f.alt || "").trim()) f.alt = alt || "Foto";
+  f.categoria = CATS_OK.has(String(f.categoria || "")) ? f.categoria : categoria;
+  if (f.origem != null && !ORIGENS_OK.has(String(f.origem))) delete f.origem;
+  if (f.origem === "unsplash") {
+    const c = f.credito && typeof f.credito === "object" ? (f.credito as Record<string, unknown>) : null;
+    const fotografo = String(c?.fotografo || "").trim();
+    const perfil = String(c?.perfil_url || "").trim();
+    const texto = String(c?.texto || "").trim();
+    if (!fotografo || !perfil || !texto) delete f.credito;
+  } else if (f.credito) {
+    delete f.credito;
+  }
   return f;
+}
+
+function repararMenu(site: Record<string, unknown>) {
+  const header = { ...((site.header as Record<string, unknown>) || {}) };
+  if (!String(header.botao_agendar || "").trim()) header.botao_agendar = "Agendar";
+  const atuais = Array.isArray(header.menu) ? (header.menu as Record<string, unknown>[]) : [];
+  const vistos = new Set<string>();
+  const menu: { id: (typeof MENU_IDS)[number]; label: string; href: string }[] = [];
+  for (const item of atuais) {
+    const id = String(item.id || "");
+    if (!(MENU_IDS as readonly string[]).includes(id) || vistos.has(id)) continue;
+    vistos.add(id);
+    const hrefBruto = String(item.href || `#${id}`).toLowerCase();
+    const href = /^#[a-z]+$/.test(hrefBruto) ? hrefBruto : `#${id}`;
+    menu.push({
+      id: id as (typeof MENU_IDS)[number],
+      label: String(item.label || MENU_LABEL[id as (typeof MENU_IDS)[number]] || id).slice(0, 48) || MENU_LABEL[id as (typeof MENU_IDS)[number]],
+      href,
+    });
+  }
+  for (const id of MENU_IDS) {
+    if (menu.length >= 5) break;
+    if (vistos.has(id)) continue;
+    menu.push({ id, label: MENU_LABEL[id], href: `#${id}` });
+    vistos.add(id);
+  }
+  header.menu = menu.slice(0, 7);
+  site.header = header;
+}
+
+function repararImagensNoSite(site: Record<string, unknown>) {
+  const hero = { ...((site.hero as Record<string, unknown>) || {}) };
+  if (!String(hero.titulo || "").trim()) hero.titulo = "Bem-vindo";
+  if (!String(hero.subtitulo || "").trim()) hero.subtitulo = "Atendimento com horário combinado.";
+  if (!String(hero.botao_principal || "").trim()) hero.botao_principal = "Agendar";
+  if (!String(hero.botao_secundario || "").trim()) hero.botao_secundario = "WhatsApp";
+  hero.imagem = fotoOk(hero.imagem as Record<string, unknown>, "img_hero", "Capa", "hero");
+  site.hero = hero;
+
+  const seo = { ...((site.seo as Record<string, unknown>) || {}) };
+  if (seo.og_image) seo.og_image = fotoOk(seo.og_image as Record<string, unknown>, "img_og", "Preview", "og");
+  site.seo = seo;
+
+  for (const blocoNome of ["promocoes", "eventos", "galeria"] as const) {
+    const bloco = { ...((site[blocoNome] as Record<string, unknown>) || {}) };
+    if (!Array.isArray(bloco.itens)) continue;
+    const prefixo = blocoNome === "promocoes" ? "prm_" : blocoNome === "eventos" ? "evt_" : "gal_";
+    const cat = blocoNome === "promocoes" ? "promocao" : blocoNome === "eventos" ? "evento" : "galeria";
+    bloco.itens = (bloco.itens as Record<string, unknown>[]).map((item, i) => {
+      const next: Record<string, unknown> = {
+        ...item,
+        id: idComPrefixo(item.id, prefixo, `${prefixo}${i + 1}`),
+      };
+      if (next.imagem) {
+        next.imagem = fotoOk(
+          next.imagem as Record<string, unknown>,
+          `img_${prefixo}${i + 1}`,
+          String(next.titulo || next.legenda || cat),
+          cat,
+        );
+      }
+      return next;
+    });
+    site[blocoNome] = bloco;
+  }
 }
 
 /** Garante campos que o schema 1.0.0 exige, sem inventar gente nem endereço. */
@@ -178,6 +315,13 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
   empresa.email = email.length >= 3 && !ehFicticio(email) ? email : "nao-informado@guix.invalid";
 
   const end = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+  if (typeof end.logradouro !== "string") end.logradouro = "";
+  if (typeof end.numero !== "string") end.numero = "";
+  if (typeof end.complemento !== "string") end.complemento = "";
+  if (typeof end.bairro !== "string") end.bairro = "";
+  if (typeof end.cidade !== "string") end.cidade = String(entrada.cidade || "");
+  if (typeof end.cep !== "string") end.cep = "";
+  if (typeof end.mapa_embed_url !== "string") end.mapa_embed_url = "";
   const uf = String(entrada.estado || end.estado || "").trim().toUpperCase();
   if (/^[A-Z]{2}$/.test(uf)) end.estado = uf;
   else end.estado = "NA";
@@ -185,13 +329,41 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
   end.completo = completo || "Endereço a confirmar";
   empresa.endereco = end;
   if (typeof empresa.slogan !== "string") empresa.slogan = "";
-  empresa.cnpj = String(entrada.cnpj || "").trim();
+  if (!String(empresa.nome || "").trim()) empresa.nome = entrada.nome;
+  if (!String(empresa.horario_resumo || "").trim()) empresa.horario_resumo = "Horário a combinar";
+  empresa.cnpj = String(entrada.cnpj || empresa.cnpj || "").trim();
+  if (!Array.isArray(empresa.redes)) empresa.redes = [];
+  empresa.redes = (empresa.redes as Record<string, unknown>[])
+    .filter((r) => ["instagram", "facebook", "tiktok", "youtube"].includes(String(r.id || "")))
+    .slice(0, 4)
+    .map((r) => ({
+      id: String(r.id),
+      label: String(r.label || r.id),
+      url: String(r.url || ""),
+    }));
+  if (!Array.isArray(empresa.expediente) || !(empresa.expediente as unknown[]).length) {
+    empresa.expediente = EXPEDIENTE_NEUTRO;
+  } else {
+    empresa.expediente = (empresa.expediente as Record<string, unknown>[])
+      .filter((d) => ["dom", "seg", "ter", "qua", "qui", "sex", "sab"].includes(String(d.dia || "")))
+      .slice(0, 7)
+      .map((d) => ({
+        dia: String(d.dia),
+        label: String(d.label || d.dia),
+        intervalos: (Array.isArray(d.intervalos) ? (d.intervalos as string[]) : [])
+          .filter((h) => /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(h))
+          .slice(0, 48),
+      }))
+      .filter((d) => d.intervalos.length);
+    if (!(empresa.expediente as unknown[]).length) empresa.expediente = EXPEDIENTE_NEUTRO;
+  }
   empresa.logo = fotoOk(empresa.logo as Record<string, unknown>, "img_logo", entrada.nome, "logo");
   site.empresa = empresa;
 
   const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
   const pars = Array.isArray(sobre.paragrafos) ? (sobre.paragrafos as string[]).filter((p) => p.trim()) : [];
   if (!pars.length) sobre.paragrafos = [`${entrada.nome} atende com horário combinado.`];
+  else sobre.paragrafos = pars.slice(0, 3);
   if (!String(sobre.titulo || "").trim()) sobre.titulo = "Sobre";
   sobre.imagem = fotoOk(sobre.imagem as Record<string, unknown>, "img_sobre", "Sobre", "sobre");
   site.sobre = sobre;
@@ -217,16 +389,18 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
     const mins = Number(s.duracao_minutos) || 30;
     return {
       ...s,
-      id: String(s.id || `srv_item${i + 1}`).replace(/[^a-z0-9_]/g, "") || `srv_item${i + 1}`,
+      id: idComPrefixo(s.id, "srv_", `srv_item${i + 1}`),
       nome: String(s.nome || "Serviço"),
       descricao: String(s.descricao || ""),
-      preco: typeof s.preco === "number" ? s.preco : 0,
+      preco: typeof s.preco === "number" && s.preco >= 0 ? s.preco : 0,
       preco_label: String(s.preco_label || "Sob consulta"),
-      duracao_minutos: mins < 1 ? 30 : mins,
+      duracao_minutos: mins < 1 ? 30 : Math.floor(mins),
       duracao_label: String(s.duracao_label || `${mins} min`),
       imagem: img,
     };
   });
+  if (typeof servicos.titulo !== "string") servicos.titulo = "Serviços";
+  if (typeof servicos.subtitulo !== "string") servicos.subtitulo = "";
   site.servicos = servicos;
 
   const equipe = { ...((site.profissionais as Record<string, unknown>) || {}) };
@@ -235,17 +409,20 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
   if (informados.length) {
     pItens = informados.map((p, i) => {
       const base = (pItens[i] || {}) as Record<string, unknown>;
+      let waPro = soDigitos(String(base.whatsapp || ""));
+      if (waPro.length === 10 || waPro.length === 11) waPro = `55${waPro}`;
+      if (!/^55[0-9]{10,11}$/.test(waPro)) waPro = "";
       return {
         ...base,
-        id: String(base.id || `pro_p${i + 1}`),
+        id: idComPrefixo(base.id, "pro_", `pro_p${i + 1}`),
         nome: p.nome,
         cargo: p.cargo || "",
         descricao: p.descricao || "",
-        whatsapp: typeof base.whatsapp === "string" ? base.whatsapp : "",
+        whatsapp: waPro,
         foto: fotoOk(base.foto as Record<string, unknown>, `img_pro_p${i + 1}`, p.nome, "profissional"),
       };
     });
-  } else {
+  } else if (!pItens.length) {
     pItens = [
       {
         id: "pro_sempref",
@@ -256,11 +433,81 @@ export function repararParaSchema(site: Record<string, unknown>, entrada: Entrad
         foto: fotoOk(undefined, "img_pro_sempref", "Sem preferência", "profissional"),
       },
     ];
+  } else {
+    pItens = pItens.map((base, i) => {
+      let waPro = soDigitos(String(base.whatsapp || ""));
+      if (waPro.length === 10 || waPro.length === 11) waPro = `55${waPro}`;
+      if (!/^55[0-9]{10,11}$/.test(waPro)) waPro = "";
+      return {
+        ...base,
+        id: idComPrefixo(base.id, "pro_", `pro_p${i + 1}`),
+        nome: String(base.nome || `Profissional ${i + 1}`),
+        cargo: String(base.cargo || ""),
+        descricao: String(base.descricao || ""),
+        whatsapp: waPro,
+        foto: fotoOk(base.foto as Record<string, unknown>, `img_pro_p${i + 1}`, String(base.nome || "Profissional"), "profissional"),
+      };
+    });
   }
-  equipe.itens = pItens;
+  const chavesEquipe = new Set<string>();
+  equipe.itens = pItens.filter((item) => {
+    const nome = String(item.nome || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    const cargo = String(item.cargo || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    if (!nome || nome === "sem preferencia") return true;
+    const chave = `${nome}|${cargo}`;
+    if (chavesEquipe.has(chave)) return false;
+    chavesEquipe.add(chave);
+    return true;
+  });
   if (!equipe.titulo) equipe.titulo = "Equipe";
   if (typeof equipe.subtitulo !== "string") equipe.subtitulo = "";
   site.profissionais = equipe;
+
+  const difs = { ...((site.diferenciais as Record<string, unknown>) || {}) };
+  let difItens = Array.isArray(difs.itens) ? [...(difs.itens as Record<string, unknown>[])] : [];
+  difItens = difItens.map((item, i) => ({
+    ...item,
+    id: idComPrefixo(item.id, "dif_", `dif_${i + 1}`),
+    titulo: String(item.titulo || `Diferencial ${i + 1}`).slice(0, 60) || `Diferencial ${i + 1}`,
+    descricao: String(item.descricao || ""),
+    icone: ICONES_OK.has(String(item.icone || "")) ? item.icone : "check",
+  }));
+  while (difItens.length < 3) {
+    const n = difItens.length + 1;
+    difItens.push({ ...DIFERENCIAIS_NEUTROS[n - 1] });
+  }
+  difs.itens = difItens.slice(0, 6);
+  if (typeof difs.titulo !== "string") difs.titulo = "Por que escolher";
+  site.diferenciais = difs;
+
+  const faq = { ...((site.faq as Record<string, unknown>) || {}) };
+  if (Array.isArray(faq.itens)) {
+    faq.itens = (faq.itens as Record<string, unknown>[])
+      .filter((item) => String(item.pergunta || "").trim() && String(item.resposta || "").trim())
+      .slice(0, 10)
+      .map((item, i) => ({
+        id: idComPrefixo(item.id, "faq_", `faq_${String(i + 1).padStart(2, "0")}`),
+        pergunta: String(item.pergunta).trim().slice(0, 180),
+        resposta: String(item.resposta).trim().slice(0, 400),
+      }));
+  } else {
+    faq.itens = [];
+  }
+  if (typeof faq.titulo !== "string") faq.titulo = "Dúvidas";
+  site.faq = faq;
+
+  repararMenu(site);
+  repararImagensNoSite(site);
 
   return site;
 }

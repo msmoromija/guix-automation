@@ -7,6 +7,7 @@ export type CopiaViva = {
   contato?: { titulo?: string; subtitulo?: string };
   faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] };
   profissionais?: { titulo?: string; subtitulo?: string };
+  galeria?: { titulo?: string; itens?: { legenda?: string }[] };
 };
 
 function corta(v: unknown, max: number) {
@@ -24,6 +25,7 @@ export function normalizarCopia(raw: unknown): CopiaViva {
   const contato = (o.contato || {}) as Record<string, unknown>;
   const faq = (o.faq || {}) as Record<string, unknown>;
   const pro = (o.profissionais || {}) as Record<string, unknown>;
+  const galeria = (o.galeria || {}) as Record<string, unknown>;
   const paragrafos = Array.isArray(sobre.paragrafos) ? sobre.paragrafos.map((p) => corta(p, 420)).filter(Boolean).slice(0, 3) : [];
   const itensSrv = Array.isArray(servicos.itens)
     ? servicos.itens.slice(0, 12).map((item) => ({ descricao: corta((item as { descricao?: string })?.descricao, 320) }))
@@ -37,6 +39,9 @@ export function normalizarCopia(raw: unknown): CopiaViva {
         })
         .filter((f) => f.pergunta && f.resposta)
     : [];
+  const itensGaleria = Array.isArray(galeria.itens)
+    ? galeria.itens.slice(0, 12).map((item) => ({ legenda: corta((item as { legenda?: string })?.legenda, 100) }))
+    : [];
   return soltarRepeticao({
     hero: { titulo: corta(hero.titulo, 90), subtitulo: corta(hero.subtitulo, 220) },
     sobre: { titulo: corta(sobre.titulo, 80), paragrafos },
@@ -44,6 +49,7 @@ export function normalizarCopia(raw: unknown): CopiaViva {
     contato: { titulo: corta(contato.titulo, 80), subtitulo: corta(contato.subtitulo, 220) },
     faq: { titulo: corta(faq.titulo, 60), itens: itensFaq },
     profissionais: { titulo: corta(pro.titulo, 60), subtitulo: corta(pro.subtitulo, 180) },
+    galeria: { titulo: corta(galeria.titulo, 80), itens: itensGaleria },
   });
 }
 
@@ -89,6 +95,7 @@ export function mesclarCopia(base: CopiaViva | null, nova: CopiaViva, travados: 
     contato: { ...(base?.contato || {}) },
     faq: { ...(base?.faq || {}), itens: [...(base?.faq?.itens || [])] },
     profissionais: { ...(base?.profissionais || {}) },
+    galeria: { ...(base?.galeria || {}), itens: [...(base?.galeria?.itens || [])] },
   };
   if (!travados.has("hero.titulo") && nova.hero?.titulo) out.hero!.titulo = nova.hero.titulo;
   if (!travados.has("hero.subtitulo") && nova.hero?.subtitulo) out.hero!.subtitulo = nova.hero.subtitulo;
@@ -119,6 +126,13 @@ export function mesclarCopia(base: CopiaViva | null, nova: CopiaViva, travados: 
   });
   if (!travados.has("equipe.titulo") && nova.profissionais?.titulo) out.profissionais!.titulo = nova.profissionais.titulo;
   if (!travados.has("equipe.subtitulo") && nova.profissionais?.subtitulo) out.profissionais!.subtitulo = nova.profissionais.subtitulo;
+  if (!travados.has("galeria.titulo") && nova.galeria?.titulo) out.galeria!.titulo = nova.galeria.titulo;
+  (nova.galeria?.itens || []).forEach((item, i) => {
+    if (!item.legenda || travados.has(`gal.${i}.legenda`)) return;
+    const itens = [...(out.galeria!.itens || [])];
+    itens[i] = { ...itens[i], legenda: item.legenda };
+    out.galeria!.itens = itens;
+  });
   return out;
 }
 
@@ -130,6 +144,7 @@ export function definirCampoCopia(copia: CopiaViva | null, campo: string, valor:
     contato: { ...(copia?.contato || {}) },
     faq: { ...(copia?.faq || {}), itens: (copia?.faq?.itens || []).map((item) => ({ ...item })) },
     profissionais: { ...(copia?.profissionais || {}) },
+    galeria: { ...(copia?.galeria || {}), itens: (copia?.galeria?.itens || []).map((item) => ({ ...item })) },
   };
   if (campo === "hero.titulo") c.hero!.titulo = valor;
   else if (campo === "hero.subtitulo") c.hero!.subtitulo = valor;
@@ -155,6 +170,16 @@ export function definirCampoCopia(copia: CopiaViva | null, campo: string, valor:
     c.faq!.itens = itens;
   } else if (campo === "equipe.titulo") c.profissionais!.titulo = valor;
   else if (campo === "equipe.subtitulo") c.profissionais!.subtitulo = valor;
+  else if (campo === "galeria.titulo") c.galeria!.titulo = valor;
+  else if (campo.startsWith("gal.")) {
+    const [, indice, chave] = campo.split(".");
+    const i = Number(indice) || 0;
+    const itens = [...(c.galeria!.itens || [])];
+    const atual = { ...(itens[i] || {}) };
+    if (chave === "legenda") atual.legenda = valor;
+    itens[i] = atual;
+    c.galeria!.itens = itens;
+  }
   return c;
 }
 
@@ -208,6 +233,16 @@ export function aplicarCopiaNoSite(site: Record<string, unknown>, copia?: CopiaV
     if (copia.profissionais.titulo) bloco.titulo = copia.profissionais.titulo;
     if (copia.profissionais.subtitulo) bloco.subtitulo = copia.profissionais.subtitulo;
     site.profissionais = bloco;
+  }
+  if (copia.galeria?.titulo || copia.galeria?.itens?.length) {
+    const galeria = { ...((site.galeria as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(galeria.itens) ? [...(galeria.itens as Record<string, unknown>[])] : [];
+    if (copia.galeria.titulo) galeria.titulo = copia.galeria.titulo;
+    galeria.itens = itens.map((item, i) => {
+      const legenda = copia.galeria?.itens?.[i]?.legenda;
+      return legenda ? { ...item, legenda } : item;
+    });
+    site.galeria = galeria;
   }
   return site;
 }

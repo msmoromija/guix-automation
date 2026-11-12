@@ -6,6 +6,22 @@ async function enviarEmailCodigo(opts: { para: string; nome: string; codigo: str
   if (!key) return { ok: false as const, motivo: "RESEND_API_KEY não configurada." };
   const de = process.env.RESEND_FROM || "GuiX.net <noreply@guix.net.br>";
   const casa = opts.negocioNome?.trim() || "o estabelecimento";
+  const nome = opts.nome.trim() || "olá";
+  const texto = [
+    `Olá, ${nome}.`,
+    ``,
+    `Seu código de verificação é: ${opts.codigo}`,
+    ``,
+    `Ele vale por 10 minutos. Se você não pediu para agendar em ${casa}, ignore este e-mail.`,
+  ].join("\n");
+  const html = `
+    <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.55;color:#0f172a;max-width:480px;margin:0 auto">
+      <p style="margin:0 0 12px">Olá, <strong>${nome.replace(/</g, "")}</strong>.</p>
+      <p style="margin:0 0 12px">Use o código abaixo para confirmar o agendamento em <strong>${casa.replace(/</g, "")}</strong>.</p>
+      <p style="margin:0 0 16px;font-size:28px;letter-spacing:0.2em;font-weight:700">${opts.codigo}</p>
+      <p style="margin:0;font-size:13px;color:#64748b">Válido por 10 minutos. Se você não pediu este código, ignore este e-mail.</p>
+    </div>
+  `.trim();
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -17,13 +33,8 @@ async function enviarEmailCodigo(opts: { para: string; nome: string; codigo: str
         from: de,
         to: [opts.para],
         subject: `Seu código para agendar — ${casa}`,
-        text: [
-          `Olá, ${opts.nome}.`,
-          ``,
-          `Seu código de verificação é: ${opts.codigo}`,
-          ``,
-          `Ele vale por 10 minutos. Se você não pediu para agendar em ${casa}, ignore este e-mail.`,
-        ].join("\n"),
+        text: texto,
+        html,
       }),
     });
     if (!res.ok) {
@@ -88,7 +99,6 @@ export async function enviarCodigoVerificacao(opts: {
     });
   }
 
-  // 1) SMS (Twilio ou webhook)
   const sms = await enviarSmsCodigo({
     telefoneDigitos: opts.telefoneDigitos,
     codigo: opts.codigo,
@@ -99,7 +109,6 @@ export async function enviarCodigoVerificacao(opts: {
     return { ok: true as const, canalEfetivo: "sms" as const };
   }
 
-  // 2) WhatsApp webhook (se houver)
   const wa = await enviarWhatsappCodigo({
     telefoneDigitos: opts.telefoneDigitos,
     nome: opts.nome,
@@ -110,7 +119,6 @@ export async function enviarCodigoVerificacao(opts: {
     return { ok: true as const, canalEfetivo: "telefone" as const };
   }
 
-  // 3) Sem SMS/WA: e-mail do cadastro (ainda exige posse do e-mail)
   const emailFallback = await enviarEmailCodigo({
     para: opts.email,
     nome: opts.nome,

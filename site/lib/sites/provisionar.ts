@@ -49,14 +49,16 @@ export async function provisionarSiteCliente(opts: {
     },
     site: opts.site,
     checklist: [
-      "Revisar site.json 1.0.0",
-      "Criar repo git site-<cliente> a partir do template",
-      "Publicar em Vercel/domínio do cliente",
-      "Configurar e-mail do domínio",
-      "Ativar Supabase (clientes, agendamentos, sessoes_otp, mensagens)",
+      "Baixar pacote.zip do pedido (painel) ou R2",
+      "Rodar: node scripts/processar-pacote-zip.mjs --zip pacote.zip",
+      "Conferir npm run dev no clientes/<slug>/repo",
+      "Push do repo site-<cliente> + deploy Vercel",
+      "Publicar domínio do cliente + e-mail profissional",
+      "Ativar Supabase (clientes, agendamentos, sessoes_otp, mensagens) se necessário",
       "Marcar status publicado no painel GuiX",
     ],
-    comandoLocal: `node scripts/criar-repo-site.mjs --cliente ${opts.clienteId} --nicho ${opts.nicho} --nome "${opts.nome}"`,
+    comandoLocal: `node scripts/processar-pacote-zip.mjs --zip caminho/pacote.zip --cliente ${opts.clienteId}`,
+    comandoPedido: `node scripts/baixar-e-processar-pedido.mjs --pedido ${opts.cobrancaId}`,
   };
 
   try {

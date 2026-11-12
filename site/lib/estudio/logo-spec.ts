@@ -222,6 +222,21 @@ const PALETA_NICHO: Record<string, { cores: string[]; fontes: string[]; layouts:
     fontes: ["optima", "georgia", "system", "trebuchet", "garamond"],
     layouts: ["lado", "selo", "marca", "empilhado", "lado"],
   },
+  dentista: {
+    cores: ["#0D9488", "#0F3D4A", "#0EA5E9", "#1A3654", "#D4B483"],
+    fontes: ["optima", "system", "georgia", "trebuchet", "garamond"],
+    layouts: ["lado", "selo", "marca", "empilhado", "lado"],
+  },
+  psicologia: {
+    cores: ["#1B365D", "#C6A15B", "#4C1D95", "#0F766E", "#D4B483"],
+    fontes: ["georgia", "garamond", "optima", "palatino", "system"],
+    layouts: ["lado", "selo", "marca", "empilhado", "lado"],
+  },
+  nutricionista: {
+    cores: ["#5B8C3E", "#1F3D2A", "#C6A15B", "#0F766E", "#D4B483"],
+    fontes: ["optima", "georgia", "system", "trebuchet", "garamond"],
+    layouts: ["lado", "selo", "marca", "empilhado", "lado"],
+  },
   generico: {
     cores: ["#D4B483", "#1A3654", "#0F766E", "#7C3AED", "#1A1614"],
     fontes: ["georgia", "optima", "trebuchet", "palatino", "gothic"],
@@ -230,8 +245,10 @@ const PALETA_NICHO: Record<string, { cores: string[]; fontes: string[]; layouts:
 };
 
 export function propostasBiblioteca(nicho: string): SpecLogo[] {
-  const chave = PALETA_NICHO[nicho] ? nicho : "barbearia";
-  const paleta = PALETA_NICHO[chave] || PALETA_NICHO.barbearia;
+  const chave = PALETA_NICHO[nicho] ? nicho : "generico";
+  const paleta = PALETA_NICHO[chave] || PALETA_NICHO.generico;
+  const layouts = (paleta.layouts || ["lado", "selo", "marca", "empilhado"]) as LayoutLogo[];
+
   const arquivos = arquivosDoNicho(chave);
   if (arquivos.length) {
     return arquivos.map((arquivo, i) => ({
@@ -239,14 +256,13 @@ export function propostasBiblioteca(nicho: string): SpecLogo[] {
       origem: "biblioteca" as const,
       icone: "",
       arquivo,
-      layout: "lado" as const,
+      layout: (layouts[i % layouts.length] || "lado") as LayoutLogo,
       fonteId: paleta.fontes[i % paleta.fontes.length],
       corIcone: paleta.cores[i % paleta.cores.length],
       corAcento: paleta.cores[(i + 2) % paleta.cores.length],
     }));
   }
   const marcas = emblemasDoNicho(chave);
-  const layouts: LayoutLogo[] = ["lado", "empilhado", "selo", "marca"];
   const out: SpecLogo[] = [];
   const total = Math.max(8, marcas.length);
   for (let i = 0; i < total; i++) {
@@ -265,18 +281,20 @@ export function propostasBiblioteca(nicho: string): SpecLogo[] {
       corAcento: acento,
     });
   }
-  return out.length ? out : [
-    {
-      id: `lib-${chave}-fallback`,
-      origem: "biblioteca",
-      icone: "",
-      emblema: "iniciais-disco",
-      layout: "lado",
-      fonteId: "georgia",
-      corIcone: "#D4B483",
-      corAcento: "#D4B483",
-    },
-  ];
+  return out.length
+    ? out
+    : [
+        {
+          id: `lib-${chave}-fallback`,
+          origem: "biblioteca",
+          icone: "",
+          emblema: "iniciais-disco",
+          layout: "lado",
+          fonteId: "georgia",
+          corIcone: "#D4B483",
+          corAcento: "#D4B483",
+        },
+      ];
 }
 
 export function specManual(

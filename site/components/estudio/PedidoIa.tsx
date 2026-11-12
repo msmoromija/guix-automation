@@ -14,6 +14,7 @@ export function PedidoIa({
   ocupado,
   fechado,
   onConfirmarFechar,
+  onReabrir,
   onDesfazer,
   passosDesfazer = 0,
   usos = 0,
@@ -28,6 +29,7 @@ export function PedidoIa({
   ocupado?: boolean;
   fechado?: boolean;
   onConfirmarFechar?: () => void;
+  onReabrir?: () => void;
   onDesfazer?: () => void;
   passosDesfazer?: number;
   usos?: number;
@@ -44,11 +46,22 @@ export function PedidoIa({
     return (
       <div className="bg-zinc-950 px-4 py-3 text-sm text-white">
         <p>{AVISO_SALVAR}</p>
-        {linkSuporte ? (
-          <a href={linkSuporte} className="mt-2 inline-block font-semibold text-orange-300 underline" target="_blank" rel="noreferrer">
-            Falar com o time GuiX
-          </a>
-        ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {onReabrir ? (
+            <button
+              type="button"
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-950"
+              onClick={() => onReabrir()}
+            >
+              Voltar à edição
+            </button>
+          ) : null}
+          {linkSuporte ? (
+            <a href={linkSuporte} className="font-semibold text-orange-300 underline" target="_blank" rel="noreferrer">
+              Falar com o time GuiX
+            </a>
+          ) : null}
+        </div>
       </div>
     );
   }

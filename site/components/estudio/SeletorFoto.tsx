@@ -38,7 +38,16 @@ export function SeletorFoto({
   const [termo, setTermo] = useState("");
   const [tituloGrade, setTituloGrade] = useState("Sugestões deste ofício");
   const corpoRef = useRef<HTMLDivElement>(null);
-  const q = slot?.tipo === "hero" ? "hero" : slot?.tipo === "sobre" ? "sobre" : slot?.tipo === "galeria" ? "galeria" : "servico";
+  const q =
+    slot?.tipo === "hero"
+      ? "hero"
+      : slot?.tipo === "sobre"
+        ? "sobre"
+        : slot?.tipo === "galeria"
+          ? "galeria"
+          : slot?.tipo === "profissional"
+            ? "profissional"
+            : "servico";
 
   async function carregar(opts?: { busca?: string }) {
     setErro("");

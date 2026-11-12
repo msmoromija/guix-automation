@@ -8,7 +8,8 @@ export function enquadrarFoto(src: string | undefined, w: number, h: number, fac
     u.searchParams.set("fit", "crop");
     u.searchParams.set("w", String(w));
     u.searchParams.set("h", String(h));
-    u.searchParams.set("q", "80");
+    // Hero e capas grandes pedem mais nitidez; thumbs menores seguem 82
+    u.searchParams.set("q", w >= 1200 ? "90" : "82");
     u.searchParams.set("crop", faces ? "faces,entropy" : "entropy");
     return u.toString();
   } catch {

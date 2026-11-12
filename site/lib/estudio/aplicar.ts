@@ -82,11 +82,12 @@ export function aplicarEstudio(
     const numero = pick("numero", opts.entrada.numero);
     const bairro = pick("bairro", opts.entrada.bairro);
     const cidade = pick("cidade", opts.entrada.cidade);
-    const estadoBruto = pick("estado", opts.entrada.estado);
-    const estado = String(estadoBruto || "").trim().toUpperCase() === "NA" ? "" : estadoBruto;
+    const estadoBruto = String(pick("estado", opts.entrada.estado) || "").trim().toUpperCase();
+    const estado = /^[A-Z]{2}$/.test(estadoBruto) && estadoBruto !== "NA" ? estadoBruto : String(endOld.estado || endNovo.estado || "").trim().toUpperCase();
+    const estadoFinal = /^[A-Z]{2}$/.test(estado) ? estado : "NA";
     const cep = pick("cep", opts.entrada.cep);
     const rua = [logradouro, numero].filter(Boolean).join(", ");
-    const resto = [bairro, [cidade, estado].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+    const resto = [bairro, [cidade, estadoFinal !== "NA" ? estadoFinal : ""].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
     const completoNovo = [rua, resto].filter(Boolean).join(" — ");
     const completoOld = String(endOld.completo || "");
     empresa.endereco = {
@@ -96,9 +97,9 @@ export function aplicarEstudio(
       numero,
       bairro,
       cidade,
-      estado: estado || endNovo.estado || "",
+      estado: estadoFinal,
       cep,
-      completo: completoNovo || (/\bNA\b|endereço a confirmar/i.test(completoOld) ? "" : completoOld),
+      completo: completoNovo || (/\bNA\b|endereço a confirmar/i.test(completoOld) ? "Endereço a confirmar" : completoOld) || "Endereço a confirmar",
     };
     site.empresa = empresa;
   }
@@ -236,7 +237,12 @@ export function aplicarEstudio(
       const waOk = waPro.length === 10 || waPro.length === 11 || (waPro.startsWith("55") && waPro.length >= 12 && waPro.length <= 13);
       return {
         ...base,
-        id: String(base.id || `pro_p${i + 1}`).replace(/[^a-z0-9_]/g, "") || `pro_p${i + 1}`,
+        id: (() => {
+          const limpo = String(base.id || `pro_p${i + 1}`)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, "");
+          return limpo.startsWith("pro_") && limpo.length > 4 ? limpo : `pro_p${i + 1}`;
+        })(),
         nome: p.nome,
         cargo: p.cargo || "",
         descricao: p.descricao || "",
@@ -305,6 +311,10 @@ const MARCAS_MODELO: Record<string, string[]> = {
   academia: ["Academia Farol", "Farol"],
   contabilidade: ["Lima Contabilidade", "Lima"],
   advocacia: ["Vale Luz Advogados", "Vale Luz"],
+  dentista: ["Consultório Costa Clara", "Costa Clara"],
+  clinica: ["Clínica Horizonte", "Horizonte"],
+  psicologia: ["Consultório Serena Vale", "Serena Vale"],
+  nutricionista: ["Consultório Nutri Farol", "Nutri Farol"],
 };
 
 const PULAR_CHAVE = new Set([
@@ -475,7 +485,7 @@ function aplicarFotoSrc(
   const imagem = { ...(imagemIn || {}) };
   imagem.src = src;
   imagem.origem = origemFoto(src);
-  imagem.alt = String(imagem.alt || alt);
+  imagem.alt = alt;
   if (!imagem.id) imagem.id = id;
   if (!imagem.categoria) imagem.categoria = categoria;
   if (credito && imagem.origem === "unsplash") imagem.credito = credito;
@@ -490,12 +500,12 @@ export function aplicarFotosSite(
   if (!fotos) return site;
   if (fotos.hero) {
     const hero = { ...((site.hero as Record<string, unknown>) || {}) };
-    hero.imagem = aplicarFotoSrc(hero.imagem as Record<string, unknown>, fotos.hero, "Capa", "img_hero", "hero", fotos.credito);
+    hero.imagem = aplicarFotoSrc(hero.imagem as Record<string, unknown>, fotos.hero, "Imagem ilustrativa de capa", "img_hero", "hero", fotos.credito);
     site.hero = hero;
   }
   if (fotos.sobre) {
     const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
-    sobre.imagem = aplicarFotoSrc(sobre.imagem as Record<string, unknown>, fotos.sobre, "Sobre", "img_sobre", "sobre", fotos.credito);
+    sobre.imagem = aplicarFotoSrc(sobre.imagem as Record<string, unknown>, fotos.sobre, "Imagem ilustrativa da seção sobre", "img_sobre", "sobre", fotos.credito);
     site.sobre = sobre;
   }
   if (fotos.galeria?.length) {
@@ -519,7 +529,7 @@ export function aplicarFotosSite(
 
 export function aplicarSrcNoSlot(
   site: Record<string, unknown>,
-  slot: { tipo: "hero" | "sobre" | "galeria" | "servico"; indice?: number },
+  slot: { tipo: "hero" | "sobre" | "galeria" | "servico" | "profissional" | "evento"; indice?: number },
   src: string,
   credito?: CreditoFoto,
 ) {
@@ -534,6 +544,46 @@ export function aplicarSrcNoSlot(
     lista[i] = src;
     return aplicarFotosSite(site, { galeria: lista, credito });
   }
+  if (slot.tipo === "profissional") {
+    const bloco = { ...((site.profissionais as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Math.max(0, Math.min(7, slot.indice ?? 0));
+    if (itens[i]) {
+      const base = { ...itens[i] };
+      base.foto = aplicarFotoSrc(
+        base.foto as Record<string, unknown>,
+        src,
+        "Imagem ilustrativa da equipe",
+        String(((base.foto as Record<string, unknown>) || {}).id || `img_pro_p${i + 1}`),
+        "profissional",
+        credito,
+      );
+      itens[i] = base;
+      bloco.itens = itens;
+      site.profissionais = bloco;
+    }
+    return site;
+  }
+  if (slot.tipo === "evento") {
+    const bloco = { ...((site.eventos as Record<string, unknown>) || {}) };
+    const itens = Array.isArray(bloco.itens) ? [...(bloco.itens as Record<string, unknown>[])] : [];
+    const i = Math.max(0, Math.min(3, slot.indice ?? 0));
+    if (itens[i]) {
+      const base = { ...itens[i] };
+      base.imagem = aplicarFotoSrc(
+        base.imagem as Record<string, unknown>,
+        src,
+        `Imagem ilustrativa de ${String(base.titulo || "evento")}`,
+        String(((base.imagem as Record<string, unknown>) || {}).id || `img_evt_${i + 1}`),
+        "evento",
+        credito,
+      );
+      itens[i] = base;
+      bloco.itens = itens;
+      site.eventos = bloco;
+    }
+    return site;
+  }
   const servicos = { ...((site.servicos as Record<string, unknown>) || {}) };
   const itens = Array.isArray(servicos.itens) ? [...(servicos.itens as Record<string, unknown>[])] : [];
   const i = slot.indice ?? 0;
@@ -542,7 +592,7 @@ export function aplicarSrcNoSlot(
     base.imagem = aplicarFotoSrc(
       base.imagem as Record<string, unknown>,
       src,
-      String(base.nome || "Serviço"),
+      `Imagem ilustrativa do serviço ${String(base.nome || "")}`.trim(),
       String(((base.imagem as Record<string, unknown>) || {}).id || `img_srv_${i + 1}`),
       "servico",
       credito,

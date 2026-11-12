@@ -8,14 +8,23 @@ export async function GET(_requisicao: Request, contexto: { params: Promise<{ id
   }
   try {
     const cobranca = await lerCobranca(id);
-    let preview: { id: string; url: string; downloadUrl: string; status: string } | null = null;
+    let preview: {
+      id: string;
+      token: string;
+      url: string;
+      downloadUrl: string;
+      contaUrl: string;
+      status: string;
+    } | null = null;
     try {
       const meta = await obterPreviewPorCobranca(id);
       if (meta) {
         preview = {
           id: meta.id,
+          token: meta.token,
           url: urlPreview(meta.id, meta.token),
           downloadUrl: `/api/prototipo/${meta.id}/site.json?t=${meta.token}`,
+          contaUrl: `/conta/${meta.id}?t=${encodeURIComponent(meta.token)}`,
           status: meta.status,
         };
       }

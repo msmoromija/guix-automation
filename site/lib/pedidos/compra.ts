@@ -11,8 +11,10 @@ export type PedidoCompra = {
   criadoEm: string;
   status: StatusPedido;
   pagoEm?: string;
-  plano: PlanoId;
+  plano: PlanoId | "personalizado";
   planoNome: string;
+  /** Orçamento sob medida (Presença Personalizada). */
+  orcamentoId?: string | null;
   nichoId: string;
   nichoNome: string;
   configuracao: Configuracao;

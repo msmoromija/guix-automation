@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BlackFridayPromo } from "@/components/BlackFridayPromo";
 import { Faq } from "@/components/Faq";
 import { DiferenciaisCards } from "@/components/DiferenciaisCards";
 import { FeatureCards } from "@/components/FeatureCards";
@@ -27,6 +28,10 @@ export default function HomePage() {
     academia: "academiafarol.com.br",
     contabilidade: "limacontabilidade.com.br",
     advocacia: "valeluzadvogados.com.br",
+    dentista: "consultoriocostaclara.com.br",
+    clinica: "clinicahorizonte.com.br",
+    psicologia: "consultorioserenavale.com.br",
+    nutricionista: "consultorionutrifarol.com.br",
   };
 
   return (
@@ -36,17 +41,18 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <p className="rise inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-xs font-semibold text-accent shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              IA configura. Você publica em até 24 horas.
+              Protótipo grátis · nada é publicado automaticamente
             </p>
             <h1 className="rise rise-2 mt-5 max-w-3xl text-4xl font-semibold leading-[1.02] tracking-[-0.045em] text-ink sm:text-6xl">
-              Seu negócio no ar em até <span className="text-accent">24 horas</span>
+              Veja seu site pronto <span className="text-accent">antes de publicar</span>
             </h1>
             <p className="rise rise-3 mt-5 max-w-xl text-lg leading-8 text-muted">
-              Domínio, e-mail profissional, site, agenda e WhatsApp. A IA monta a estrutura. Depois da publicação, o painel fica com você.
+              A IA monta uma prévia para você personalizar. Você decide se contrata: após a confirmação do pagamento e
+              dos dados completos, a publicação com domínio acontece em até 24 horas.
             </p>
             <div className="rise rise-4 mt-8 flex flex-wrap gap-3">
-              <Link href="/contratar" className={primario}>
-                Quero meu site
+              <Link href="/prototipar" className={primario}>
+                Criar meu protótipo grátis
               </Link>
               <Link href="/#exemplos" className={secundario}>
                 Ver exemplos reais
@@ -58,6 +64,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <BlackFridayPromo />
 
       <div className="overflow-hidden border-b border-line bg-white py-4">
         <div className="marquee-track flex w-max items-center text-sm font-medium text-ink">
@@ -167,9 +175,10 @@ export default function HomePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Preços</p>
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-ink sm:text-5xl">Preço simples e transparente</h2>
             <p className="mt-4 text-[15px] leading-7 text-slate-600">
-              Um pagamento pela estrutura completa. Sem mensalidade de site. Você escolhe o plano de acordo com a
-              complexidade do seu negócio e, se quiser, a configuração pela equipe. Em Avançada e Personalizada há
-              exemplos reais no ar — MEI em Dia e MOROX.
+              Um pagamento pela estrutura completa. Sem mensalidade de site. Modelos prontos entram na Presença
+              Completa; Avançada e Personalizada são para soluções um pouco ou bem mais complexas. Se quiser,
+              escolha configuração pela equipe. Em Avançada e Personalizada há exemplos reais no ar — MEI em Dia e
+              MOROX.
             </p>
           </div>
 

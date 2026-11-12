@@ -23,6 +23,7 @@ import { linkWhatsapp } from "@/lib/contato";
 import { MarcaStudio } from "@/components/estudio/MarcaStudio";
 import { LockupMarca } from "@/components/preview/LockupMarca";
 import { LIMITE_IA_LOGO, propostasBiblioteca, uriMarcaViva, type SpecLogo } from "@/lib/estudio/logo-spec";
+import { resolverOpcoesMarca } from "@/lib/estudio/resolver-opcoes-marca";
 import { IconeRede } from "@/components/estudio/IconeRede";
 import { GradeExpediente } from "@/components/estudio/GradeExpediente";
 import { SecaoColapsavel } from "@/components/estudio/SecaoColapsavel";
@@ -42,6 +43,7 @@ import {
   PRESETS,
   paletaPorId,
   visualPadrao,
+  sanitizarVisual,
   type VisualConfig,
 } from "@/lib/estudio/visual";
 import { tomDoEstilo } from "@/lib/media/catalogo";
@@ -62,6 +64,24 @@ const ETAPAS = [
 ];
 
 const LIMITE_FAQ_FORM = 10;
+const RASCUNHO_ESTUDIO_KEY = "guix.estudio.rascunho";
+const ESTUDIO_HISTORY_MARKER = "__guixEstudioRascunho";
+
+function registroDoRascunho(valor: unknown): Record<string, unknown> | null {
+  return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : null;
+}
+
+function gravarRascunhoEstudio(dados: Record<string, unknown>) {
+  try {
+    sessionStorage.setItem(
+      RASCUNHO_ESTUDIO_KEY,
+      JSON.stringify({ versao: 1, salvoEm: Date.now(), dados }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type ProForm = {
   nome: string;
@@ -83,6 +103,54 @@ function proVazio(): ProForm {
     expediente: expedienteProPadrao(),
     ausencias: [],
   };
+}
+
+function objeto(valor: unknown): Record<string, unknown> {
+  return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : {};
+}
+
+function stringDo(obj: Record<string, unknown>, chave: string) {
+  return String(obj[chave] ?? "").trim();
+}
+
+function expedienteDoSite(empresa: Record<string, unknown>, passoMinutos: number): DiaExpediente[] {
+  const raw = Array.isArray(empresa.expediente) ? empresa.expediente.map(objeto) : [];
+  if (!raw.length) return expedientePadrao();
+  const porDia = new Map(raw.map((dia) => [stringDo(dia, "dia"), dia]));
+  const bases = expedientePadrao();
+  const passo = Number.isFinite(passoMinutos) && passoMinutos > 0 ? passoMinutos : 30;
+  const paraMinutos = (hora: string) => {
+    const [h, m] = hora.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const paraHora = (minutos: number) =>
+    `${String(Math.floor(minutos / 60) % 24).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
+
+  return bases.map((base) => {
+    const dia = porDia.get(base.dia);
+    const intervalos = Array.isArray(dia?.intervalos)
+      ? dia.intervalos
+          .map((hora) => String(hora).slice(0, 5))
+          .filter((hora) => /^([01]\d|2[0-3]):[0-5]\d$/.test(hora))
+          .sort()
+      : [];
+    if (!dia || !intervalos.length) return { ...base, aberto: false };
+
+    const lacunas = intervalos.slice(1).flatMap((hora, indice) => {
+      const anterior = paraMinutos(intervalos[indice]);
+      const atual = paraMinutos(hora);
+      return atual - anterior > passo ? [{ inicio: anterior + passo, fim: atual }] : [];
+    });
+    return normalizarDiaExpediente({
+      ...base,
+      aberto: true,
+      inicio: intervalos[0],
+      fim: paraHora(paraMinutos(intervalos[intervalos.length - 1]) + passo),
+      pausa: lacunas.length === 1,
+      pausaInicio: lacunas[0] ? paraHora(lacunas[0].inicio) : "12:00",
+      pausaFim: lacunas[0] ? paraHora(lacunas[0].fim) : "13:00",
+    });
+  });
 }
 
 type FaqLivre = { titulo: string; itens: { pergunta: string; resposta: string }[] };
@@ -164,6 +232,8 @@ export function EstudioForm() {
   const router = useRouter();
   const sp = useSearchParams();
   const nichoInicial = sp.get("nicho") || "barbearia";
+  const tokenReconfigurar = (sp.get("reconfigurar") || "").toLowerCase();
+  const reconfigurando = /^[a-z0-9]{8}$/.test(tokenReconfigurar);
 
   const [etapa, setEtapa] = useState(1);
   const [previewAberta, setPreviewAberta] = useState(false);
@@ -190,6 +260,9 @@ export function EstudioForm() {
   const [usosIa, setUsosIa] = useState(0);
   const marcos = useRef<Array<{
     visual: VisualConfig;
+    nicho: string;
+    nome: string;
+    specLogo: SpecLogo | null;
     whatsapp: string;
     email: string;
     horario: string;
@@ -251,6 +324,7 @@ export function EstudioForm() {
   const [avisoIa, setAvisoIa] = useState("");
   const [escrevendo, setEscrevendo] = useState(false);
   const [ajustando, setAjustando] = useState(false);
+  const pedidoIaEmAndamentoRef = useRef(false);
   const manuais = useRef(new Set<string>());
   const porPedido = useRef(new Set<string>());
   const [erro, setErro] = useState("");
@@ -260,23 +334,36 @@ export function EstudioForm() {
   const [fotoSobre, setFotoSobre] = useState("");
   const [fotoGaleria, setFotoGaleria] = useState<string[]>([]);
   const [slotFoto, setSlotFoto] = useState<SlotFoto | null>(null);
+  const [rascunhoPronto, setRascunhoPronto] = useState(false);
+  const [rascunhoStatus, setRascunhoStatus] = useState("");
+  const [carregandoConfiguracao, setCarregandoConfiguracao] = useState(reconfigurando);
   const fotosTocadas = useRef({ hero: false, sobre: false, galeria: false });
+  const rascunhoRef = useRef<Record<string, unknown> | null>(null);
+  const rascunhoProntoRef = useRef(false);
+  const rascunhoAlteradoRef = useRef(false);
+  const navegarPendenteRef = useRef<{ tipo: "link"; href: string } | { tipo: "voltar" } | null>(null);
+  const ignorarPopstateRef = useRef(false);
+  const [confirmacaoSaidaAberta, setConfirmacaoSaidaAberta] = useState(false);
+  const [erroSalvarRascunho, setErroSalvarRascunho] = useState("");
+  const nichoModeloPuladoRef = useRef("");
+  const nichoLogoPuladoRef = useRef("");
+  const assinaturaIgnoradaRef = useRef("");
   const [modelo, setModelo] = useState<Record<string, unknown> | null>(null);
+  const estudioMainRef = useRef<HTMLElement>(null);
   const formColRef = useRef<HTMLDivElement>(null);
 
   const nichoAtual = useMemo(() => nichos.find((n) => n.slug === nicho) || nichos[0], [nicho]);
   const dicas = dicasDoNicho(nicho);
   const paleta = paletaPorId(visual.paletaId);
   const nomeMarca = nome.trim() || nichoAtual.negocio;
-  const logoSrc = logoIa
-    ? logoIa
-    : logoModo === "enviar"
+  const logoSrc =
+    logoModo === "enviar"
       ? logoUpload
-      : logoModo === "texto" || !specLogo
+      : logoModo === "texto"
         ? ""
-        : specLogo.arquivo
-          ? specLogo.arquivo
-          : uriMarcaViva(specLogo, { nome: nomeMarca, slogan, acento: paleta.color_accent });
+        : !specLogo
+          ? ""
+          : specLogo.arquivo || uriMarcaViva(specLogo, { nome: nomeMarca, slogan, acento: paleta.color_accent });
 
   const siteVivo = useMemo(() => {
     if (!modelo) return null;
@@ -382,6 +469,115 @@ export function EstudioForm() {
     etapa <= 1 ? [] : etapa === 2 || etapa === 3 ? ["negocio"] : etapa === 4 ? ["negocio", "marca"] : ["negocio", "marca", "contato", "servicos", "equipe"];
 
   useEffect(() => {
+    if (rascunhoProntoRef.current) return;
+    if (reconfigurando) {
+      rascunhoProntoRef.current = true;
+      setRascunhoStatus("Carregando as configurações salvas…");
+      setRascunhoPronto(true);
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(RASCUNHO_ESTUDIO_KEY);
+      if (raw) {
+        const envelope = registroDoRascunho(JSON.parse(raw));
+        const dados = registroDoRascunho(envelope?.dados);
+        const salvoEm = Number(envelope?.salvoEm || 0);
+        if (
+          envelope?.versao === 1 &&
+          dados &&
+          salvoEm > 0 &&
+          salvoEm <= Date.now() + 60_000
+        ) {
+          const nichoSalvo =
+            typeof dados.nicho === "string" && nichos.some((item) => item.slug === dados.nicho)
+              ? dados.nicho
+              : nichoInicial;
+          rascunhoAlteradoRef.current = true;
+          nichoModeloPuladoRef.current = nichoSalvo;
+          nichoLogoPuladoRef.current = nichoSalvo;
+          assinaturaIgnoradaRef.current = typeof dados.assinaturaTexto === "string" ? dados.assinaturaTexto : "";
+          setNicho(nichoSalvo);
+
+          if (typeof dados.etapa === "number" && dados.etapa >= 1 && dados.etapa <= 5) setEtapa(dados.etapa);
+          const definirTexto = (chave: string, definir: (valor: string) => void) => {
+            if (typeof dados[chave] === "string") definir(dados[chave] as string);
+          };
+          definirTexto("nome", setNome);
+          definirTexto("slogan", setSlogan);
+          definirTexto("cidade", setCidade);
+          definirTexto("estado", setEstado);
+          definirTexto("logradouro", setLogradouro);
+          definirTexto("numero", setNumero);
+          definirTexto("bairro", setBairro);
+          definirTexto("cep", setCep);
+          definirTexto("whatsapp", setWhatsapp);
+          definirTexto("email", setEmail);
+          definirTexto("tom", setTom);
+          definirTexto("destaque", setDestaque);
+          definirTexto("pedidoIa", setPedidoIa);
+          definirTexto("botaoLivre", setBotaoLivre);
+          definirTexto("horario", setHorario);
+          definirTexto("enderecoLivre", setEnderecoLivre);
+          definirTexto("blocoAberto", setBlocoAberto);
+
+          if (registroDoRascunho(dados.visual)) {
+            setVisual({ ...visualPadrao(nichoSalvo), ...sanitizarVisual(dados.visual as Partial<VisualConfig>) });
+          }
+          if (registroDoRascunho(dados.redes)) {
+            const valores = Object.entries(dados.redes as Record<string, unknown>).filter(
+              (item): item is [string, string] => typeof item[1] === "string",
+            );
+            setRedes(Object.fromEntries(valores));
+          }
+          if (Array.isArray(dados.canaisAtivos)) {
+            const ids = new Set(CANAIS.map((canal) => canal.id));
+            setCanaisAtivos(dados.canaisAtivos.filter((id): id is CanalId => typeof id === "string" && ids.has(id as CanalId)));
+          }
+          if (dados.logoModo === "gerar" || dados.logoModo === "enviar" || dados.logoModo === "texto") setLogoModo(dados.logoModo);
+          if (Array.isArray(dados.propostasLogo)) setPropostasLogo(dados.propostasLogo as SpecLogo[]);
+          if ("specLogo" in dados) setSpecLogo((dados.specLogo as SpecLogo | null) || null);
+          definirTexto("logoUpload", setLogoUpload);
+          definirTexto("logoIa", setLogoIa);
+          if (typeof dados.usosIa === "number" && dados.usosIa >= 0) setUsosIa(Math.min(dados.usosIa, LIMITE_PEDIDOS_IA));
+          if (Array.isArray(dados.servicos)) setServicos(dados.servicos as typeof servicos);
+          if (Array.isArray(dados.pros)) setPros(dados.pros as ProForm[]);
+          if (typeof dados.proAberto === "number" && dados.proAberto >= 0) setProAberto(dados.proAberto);
+          if (typeof dados.srvAberto === "number" && dados.srvAberto >= 0) setSrvAberto(dados.srvAberto);
+          if (typeof dados.iaEscreve === "boolean") setIaEscreve(dados.iaEscreve);
+          if ("copia" in dados) setCopia((dados.copia as CopiaViva | null) || null);
+          if ("menuLivre" in dados) setMenuLivre((dados.menuLivre as typeof menuLivre) || null);
+          if ("rodapeLivre" in dados) setRodapeLivre((dados.rodapeLivre as typeof rodapeLivre) || null);
+          if ("difsLivre" in dados) setDifsLivre((dados.difsLivre as typeof difsLivre) || null);
+          if (Array.isArray(dados.expediente)) setExpediente(dados.expediente as DiaExpediente[]);
+          if (Array.isArray(dados.eventos)) setEventos(dados.eventos as typeof eventos);
+          if (registroDoRascunho(dados.avulsos)) setAvulsos(dados.avulsos as Record<string, string>);
+          if ("faqs" in dados) setFaqs((dados.faqs as FaqLivre | null) || null);
+          definirTexto("fotoHero", setFotoHero);
+          definirTexto("fotoSobre", setFotoSobre);
+          if (Array.isArray(dados.fotoGaleria)) setFotoGaleria(dados.fotoGaleria.filter((src): src is string => typeof src === "string"));
+          const tocadas = registroDoRascunho(dados.fotosTocadas);
+          if (tocadas) {
+            fotosTocadas.current = {
+              hero: tocadas.hero === true,
+              sobre: tocadas.sobre === true,
+              galeria: tocadas.galeria === true,
+            };
+          }
+          setRascunhoStatus("Rascunho restaurado nesta aba");
+        } else {
+          sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+        }
+      }
+    } catch {
+      setRascunhoStatus("Não foi possível restaurar o rascunho salvo");
+    } finally {
+      rascunhoProntoRef.current = true;
+      setRascunhoPronto(true);
+    }
+  }, [nichoInicial, reconfigurando]);
+
+  useEffect(() => {
+    if (!rascunhoPronto || reconfigurando) return;
     let cancelado = false;
     void fetch(`/api/prototipo/modelo?nicho=${encodeURIComponent(nicho)}`)
       .then((r) => r.json())
@@ -389,28 +585,25 @@ export function EstudioForm() {
         if (cancelado || !d.site) return;
         const site = d.site as Record<string, unknown>;
         setModelo(site);
+        if (nichoModeloPuladoRef.current === nicho) {
+          nichoModeloPuladoRef.current = "";
+          return;
+        }
         fotosTocadas.current = { hero: false, sobre: false, galeria: false };
         setFotoHero(String(((site.hero as Record<string, unknown> | undefined)?.imagem as Record<string, unknown> | undefined)?.src || ""));
         setFotoSobre(String(((site.sobre as Record<string, unknown> | undefined)?.imagem as Record<string, unknown> | undefined)?.src || ""));
         const gItens = ((site.galeria as Record<string, unknown> | undefined)?.itens as Array<Record<string, unknown>>) || [];
-        setFotoGaleria(gItens.map((g) => String(((g.imagem as Record<string, unknown> | undefined)?.src || ""))).filter(Boolean));
+        setFotoGaleria(gItens.map((g) => String(((g.imagem as Record<string, unknown> | undefined)?.src || ""))));
         const itens = ((site.servicos as Record<string, unknown> | undefined)?.itens as Array<Record<string, unknown>>) || [];
-        const doModelo = itens.length
-          ? itens.map((i) => ({
-              nome: String(i.nome || ""),
-              preco: "Sob consulta",
-              duracao: String(i.duracao_label || "30 min"),
-              descricao: "",
-              imagemSrc: String((i.imagem as Record<string, unknown> | undefined)?.src || ""),
-            }))
-          : servicosDoNicho(nicho);
-        const extra = servicosDoNicho(nicho);
-        const lista = [...doModelo];
-        for (const s of extra) {
-          if (lista.length >= 3) break;
-          lista.push(s);
-        }
-        setServicos(lista);
+        const imagensModelo = itens.map((item) =>
+          String((item.imagem as Record<string, unknown> | undefined)?.src || ""),
+        );
+        setServicos(
+          servicosDoNicho(nicho).map((servico, indice) => ({
+            ...servico,
+            imagemSrc: imagensModelo[indice] || servico.imagemSrc,
+          })),
+        );
       })
       .catch(() => {
         if (!cancelado) setModelo(null);
@@ -418,7 +611,177 @@ export function EstudioForm() {
     return () => {
       cancelado = true;
     };
-  }, [nicho]);
+  }, [nicho, rascunhoPronto, reconfigurando]);
+
+  useEffect(() => {
+    if (!rascunhoPronto || !reconfigurando) return;
+    let cancelado = false;
+    void (async () => {
+      setCarregandoConfiguracao(true);
+      setErro("");
+      try {
+        const token = encodeURIComponent(tokenReconfigurar);
+        const [resMeta, resConteudo] = await Promise.all([
+          fetch(`/api/prototipo/${tokenReconfigurar}?t=${token}`),
+          fetch(`/api/prototipo/${tokenReconfigurar}/conteudo?t=${token}`),
+        ]);
+        const [meta, conteudo] = await Promise.all([
+          resMeta.json().catch(() => ({})),
+          resConteudo.json().catch(() => ({})),
+        ]);
+        if (cancelado) return;
+        if (!resMeta.ok || !resConteudo.ok || !conteudo.site) {
+          setErro(meta.erro || conteudo.erro || "Não foi possível abrir as configurações deste protótipo.");
+          return;
+        }
+        if (String(meta.status || "rascunho") !== "rascunho" || meta.edicaoFechada) {
+          setErro("Este protótipo já foi fechado para edição. Faça alterações pela área do cliente.");
+          return;
+        }
+
+        const site = objeto(conteudo.site);
+        const empresa = objeto(site.empresa);
+        const endereco = objeto(empresa.endereco);
+        const header = objeto(site.header);
+        const rodape = objeto(site.rodape);
+        const visualSalvo = {
+          ...visualPadrao(String(meta.nicho || nichoInicial)),
+          ...sanitizarVisual(objeto(conteudo.visual) as Partial<VisualConfig>),
+        };
+        const nichoSalvo =
+          typeof meta.nicho === "string" && nichos.some((item) => item.slug === meta.nicho)
+            ? meta.nicho
+            : nichoInicial;
+        const redesSite = Array.isArray(empresa.redes) ? empresa.redes.map(objeto) : [];
+        const redesExtraidas = Object.fromEntries(
+          redesSite.flatMap((rede) => {
+            const id = stringDo(rede, "id").toLowerCase();
+            const url = stringDo(rede, "url") || stringDo(rede, "href");
+            return id && url && CANAIS.some((canal) => canal.id === id) ? [[id, url]] : [];
+          }),
+        ) as Record<string, string>;
+        const slots = Number(visualSalvo.duracaoSlotMinutos || 30);
+        const passo = [15, 20, 30, 45, 60, 90, 120].includes(slots) ? slots : 30;
+        const expedienteSalvo = expedienteDoSite(empresa, passo);
+        const servicosSalvos = servicosDoSite(site);
+        let fotosProfissionaisQuebradas = 0;
+        const blocoEquipe = { ...objeto(site.profissionais) };
+        const itensEquipe = Array.isArray(blocoEquipe.itens)
+          ? (blocoEquipe.itens as Record<string, unknown>[])
+          : [];
+        for (const pessoa of itensEquipe) {
+          const foto = { ...objeto(pessoa.foto) };
+          const fotoSrc = String(foto.src || "");
+          if (fotoSrc.startsWith("data:")) {
+            const carregou = await new Promise<boolean>((resolve) => {
+              const imagem = new Image();
+              imagem.onload = () => resolve(imagem.naturalWidth > 0);
+              imagem.onerror = () => resolve(false);
+              imagem.src = fotoSrc;
+            });
+            if (!carregou) {
+              foto.src = "";
+              pessoa.foto = foto;
+              fotosProfissionaisQuebradas += 1;
+            }
+          }
+        }
+        site.profissionais = { ...blocoEquipe, itens: itensEquipe };
+        const profissionaisComFotoValidada = profissionaisDoSite(site).map((profissional) => ({
+          ...proVazio(),
+          ...profissional,
+        }));
+        const heroImagem = objeto(objeto(site.hero).imagem);
+        const sobreImagem = objeto(objeto(site.sobre).imagem);
+        const galeriaItens = Array.isArray(objeto(site.galeria).itens) ? (objeto(site.galeria).itens as unknown[]).map(objeto) : [];
+        const fotosGaleria = galeriaItens.map((item) => String(objeto(item.imagem).src || ""));
+        const eventosSalvos = eventosDoSite(site).filter((evento) => evento.titulo && evento.descricao);
+        const logoSrcSalva = String(objeto(empresa.logo).src || "");
+
+        nichoModeloPuladoRef.current = nichoSalvo;
+        nichoLogoPuladoRef.current = nichoSalvo;
+        setNicho(nichoSalvo);
+        setEtapa(1);
+        setModelo(site);
+        setNome(stringDo(empresa, "nome") || String(meta.nome || ""));
+        setSlogan(stringDo(empresa, "slogan"));
+        setCidade(stringDo(endereco, "cidade"));
+        setEstado(stringDo(endereco, "estado"));
+        setLogradouro(stringDo(endereco, "logradouro"));
+        setNumero(stringDo(endereco, "numero"));
+        setBairro(stringDo(endereco, "bairro"));
+        setCep(stringDo(endereco, "cep"));
+        setWhatsapp(stringDo(empresa, "whatsapp_label") || stringDo(empresa, "whatsapp"));
+        setEmail(stringDo(empresa, "email").endsWith("@guix.invalid") ? "" : stringDo(empresa, "email"));
+        setRedes(redesExtraidas);
+        setCanaisAtivos(Object.keys(redesExtraidas) as CanalId[]);
+        setVisual(visualSalvo);
+        setTom(tomDoEstilo(visualSalvo.estilo));
+        setLogoModo(logoSrcSalva ? "enviar" : "gerar");
+        setLogoUpload(logoSrcSalva);
+        setLogoIa("");
+        setPropostasLogo(propostasBiblioteca(nichoSalvo));
+        setSpecLogo(propostasBiblioteca(nichoSalvo)[0] || null);
+        setServicos(
+          servicosSalvos.map((servico) => ({
+            nome: servico.nome,
+            preco: servico.preco || "",
+            duracao: servico.duracao || "",
+            descricao: servico.descricao || "",
+            imagemSrc: servico.imagemSrc || "",
+          })),
+        );
+        setPros(profissionaisComFotoValidada);
+        setProAberto(0);
+        setCopia(copiaDoSite(site));
+        setFaqs(faqsDoSite(site as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } }));
+        setEventos(eventosSalvos);
+        setExpediente(expedienteSalvo);
+        setHorario(stringDo(empresa, "horario_resumo"));
+        setEnderecoLivre(
+          stringDo(endereco, "logradouro") ? "" : stringDo(endereco, "completo"),
+        );
+        setFotoHero(String(heroImagem.src || ""));
+        setFotoSobre(String(sobreImagem.src || ""));
+        setFotoGaleria(fotosGaleria);
+        fotosTocadas.current = {
+          hero: Boolean(heroImagem.src),
+          sobre: Boolean(sobreImagem.src),
+          galeria: fotosGaleria.some(Boolean),
+        };
+        setMenuLivre(Array.isArray(header.menu) ? (header.menu as typeof menuLivre) : null);
+        setBotaoLivre(stringDo(header, "botao_agendar"));
+        setRodapeLivre({
+          texto: stringDo(rodape, "texto"),
+          links: Array.isArray(rodape.links) ? (rodape.links as { id: string; label: string; href: string }[]) : [],
+        });
+        const diferenciais = objeto(site.diferenciais);
+        const itensDiferenciais = Array.isArray(diferenciais.itens)
+          ? (diferenciais.itens as unknown[]).map(objeto).map((item) => ({
+              titulo: stringDo(item, "titulo"),
+              descricao: stringDo(item, "descricao"),
+            }))
+          : [];
+        setDifsLivre(itensDiferenciais.length >= 3 ? itensDiferenciais : null);
+        setIaEscreve(false);
+        setAvulsos({});
+        rascunhoAlteradoRef.current = false;
+        setRascunhoStatus(`Configurações de ${stringDo(empresa, "nome") || meta.nome || "site"} carregadas`);
+        if (fotosProfissionaisQuebradas) {
+          setAviso(
+            `${fotosProfissionaisQuebradas} foto(s) da equipe não carregaram e foram removidas do formulário. Selecione outra imagem antes de salvar.`,
+          );
+        }
+      } catch {
+        if (!cancelado) setErro("Falha de conexão ao carregar as configurações.");
+      } finally {
+        if (!cancelado) setCarregandoConfiguracao(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [nichoInicial, reconfigurando, rascunhoPronto, tokenReconfigurar]);
 
   const assinaturaTexto = JSON.stringify({
     nicho,
@@ -432,6 +795,269 @@ export function EstudioForm() {
     servicos: servicos.map((s) => s.nome),
     iaEscreve,
   });
+
+  const dadosRascunho = useMemo(
+    () => ({
+      etapa,
+      nicho,
+      nome,
+      slogan,
+      cidade,
+      estado,
+      logradouro,
+      numero,
+      bairro,
+      cep,
+      whatsapp,
+      email,
+      redes,
+      canaisAtivos,
+      visual,
+      logoModo,
+      propostasLogo,
+      specLogo,
+      logoUpload,
+      logoIa,
+      usosIa,
+      servicos,
+      pros,
+      proAberto,
+      blocoAberto,
+      srvAberto,
+      tom,
+      destaque,
+      iaEscreve,
+      copia,
+      pedidoIa,
+      menuLivre,
+      botaoLivre,
+      rodapeLivre,
+      difsLivre,
+      horario,
+      expediente,
+      enderecoLivre,
+      eventos,
+      avulsos,
+      faqs,
+      fotoHero,
+      fotoSobre,
+      fotoGaleria,
+      fotosTocadas: fotosTocadas.current,
+      assinaturaTexto,
+    }),
+    [
+      etapa,
+      nicho,
+      nome,
+      slogan,
+      cidade,
+      estado,
+      logradouro,
+      numero,
+      bairro,
+      cep,
+      whatsapp,
+      email,
+      redes,
+      canaisAtivos,
+      visual,
+      logoModo,
+      propostasLogo,
+      specLogo,
+      logoUpload,
+      logoIa,
+      usosIa,
+      servicos,
+      pros,
+      proAberto,
+      blocoAberto,
+      srvAberto,
+      tom,
+      destaque,
+      iaEscreve,
+      copia,
+      pedidoIa,
+      menuLivre,
+      botaoLivre,
+      rodapeLivre,
+      difsLivre,
+      horario,
+      expediente,
+      enderecoLivre,
+      eventos,
+      avulsos,
+      faqs,
+      fotoHero,
+      fotoSobre,
+      fotoGaleria,
+      assinaturaTexto,
+    ],
+  );
+  rascunhoRef.current = dadosRascunho;
+
+  useEffect(() => {
+    if (!rascunhoPronto) return;
+    const marcarAlteracao = (evento: Event) => {
+      const alvo = evento.target;
+      if (!(alvo instanceof Node) || !estudioMainRef.current?.contains(alvo)) return;
+      if (
+        evento.type === "click" &&
+        (!(alvo instanceof Element) ||
+          !alvo.closest("button, input, select, textarea, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      if (rascunhoAlteradoRef.current) return;
+      rascunhoAlteradoRef.current = true;
+      setRascunhoStatus("");
+      const atual = window.history.state;
+      const estado =
+        atual && typeof atual === "object" && !Array.isArray(atual)
+          ? (atual as Record<string, unknown>)
+          : {};
+      if (!estado[ESTUDIO_HISTORY_MARKER]) {
+        window.history.pushState(
+          { ...estado, [ESTUDIO_HISTORY_MARKER]: true },
+          "",
+          window.location.href,
+        );
+      }
+    };
+
+    const interceptarLink = (evento: MouseEvent) => {
+      const alvo = evento.target;
+      if (
+        evento.defaultPrevented ||
+        evento.button !== 0 ||
+        evento.metaKey ||
+        evento.ctrlKey ||
+        evento.shiftKey ||
+        evento.altKey ||
+        !(alvo instanceof Element)
+      ) {
+        return;
+      }
+      const link = alvo.closest<HTMLAnchorElement>("a[href]");
+      const target = link?.getAttribute("target");
+      if (
+        !link ||
+        (target && target.toLowerCase() !== "_self") ||
+        link.hasAttribute("download") ||
+        navegarPendenteRef.current
+      ) {
+        return;
+      }
+      let destino: URL;
+      try {
+        destino = new URL(link.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (
+        destino.origin === window.location.origin &&
+        destino.pathname === window.location.pathname &&
+        destino.search === window.location.search
+      ) {
+        return;
+      }
+      if (!rascunhoAlteradoRef.current) return;
+      evento.preventDefault();
+      navegarPendenteRef.current = { tipo: "link", href: destino.href };
+      setErroSalvarRascunho("");
+      setConfirmacaoSaidaAberta(true);
+    };
+
+    const protegerVolta = (evento: PopStateEvent) => {
+      if (ignorarPopstateRef.current) {
+        ignorarPopstateRef.current = false;
+        return;
+      }
+      const estado = evento.state;
+      if (
+        estado &&
+        typeof estado === "object" &&
+        (estado as Record<string, unknown>)[ESTUDIO_HISTORY_MARKER]
+      ) {
+        return;
+      }
+      if (navegarPendenteRef.current) {
+        window.history.forward();
+        return;
+      }
+      if (!rascunhoAlteradoRef.current) return;
+      navegarPendenteRef.current = { tipo: "voltar" };
+      setErroSalvarRascunho("");
+      setConfirmacaoSaidaAberta(true);
+    };
+    const estado = window.history.state;
+    const estadoAtual =
+      estado && typeof estado === "object" && !Array.isArray(estado)
+        ? (estado as Record<string, unknown>)
+        : {};
+    if (rascunhoAlteradoRef.current && !estadoAtual[ESTUDIO_HISTORY_MARKER]) {
+      window.history.pushState(
+        { ...estadoAtual, [ESTUDIO_HISTORY_MARKER]: true },
+        "",
+        window.location.href,
+      );
+    }
+
+    document.addEventListener("input", marcarAlteracao, true);
+    document.addEventListener("change", marcarAlteracao, true);
+    document.addEventListener("click", marcarAlteracao, true);
+    document.addEventListener("click", interceptarLink, true);
+    window.addEventListener("popstate", protegerVolta);
+    return () => {
+      document.removeEventListener("input", marcarAlteracao, true);
+      document.removeEventListener("change", marcarAlteracao, true);
+      document.removeEventListener("click", marcarAlteracao, true);
+      document.removeEventListener("click", interceptarLink, true);
+      window.removeEventListener("popstate", protegerVolta);
+    };
+  }, [rascunhoPronto]);
+
+  function concluirSaida(salvar: boolean) {
+    const navegacao = navegarPendenteRef.current;
+    if (!navegacao) return;
+    if (salvar) {
+      const dados = rascunhoRef.current;
+      if (!dados || !gravarRascunhoEstudio(dados)) {
+        setErroSalvarRascunho("Não foi possível salvar. Verifique o espaço disponível no navegador.");
+        return;
+      }
+      setRascunhoStatus("Rascunho salvo nesta aba");
+    } else {
+      try {
+        sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+      } catch {
+        setErroSalvarRascunho("Não foi possível descartar o rascunho no navegador.");
+        return;
+      }
+    }
+    rascunhoAlteradoRef.current = false;
+    navegarPendenteRef.current = null;
+    setConfirmacaoSaidaAberta(false);
+    setErroSalvarRascunho("");
+    if (navegacao.tipo === "voltar") {
+      ignorarPopstateRef.current = true;
+      window.history.back();
+      return;
+    }
+    const destino = new URL(navegacao.href);
+    if (destino.origin === window.location.origin) {
+      router.push(`${destino.pathname}${destino.search}${destino.hash}`);
+    } else {
+      window.location.assign(destino.href);
+    }
+  }
+
+  function continuarEditando() {
+    const navegacao = navegarPendenteRef.current;
+    navegarPendenteRef.current = null;
+    setConfirmacaoSaidaAberta(false);
+    setErroSalvarRascunho("");
+    if (navegacao?.tipo === "voltar") window.history.forward();
+  }
 
   function aplicarRespostaTextos(data: { copia?: CopiaViva; aviso?: string; erro?: string }, nomeNegocio: string) {
     if (!data.copia) {
@@ -491,6 +1117,11 @@ export function EstudioForm() {
 
   useEffect(() => {
     if (!iaEscreve || nome.trim().length < 2) return;
+    if (assinaturaIgnoradaRef.current && assinaturaIgnoradaRef.current === assinaturaTexto && copia) {
+      assinaturaIgnoradaRef.current = "";
+      return;
+    }
+    if (assinaturaIgnoradaRef.current === assinaturaTexto) assinaturaIgnoradaRef.current = "";
     porPedido.current.clear();
     const ctrl = new AbortController();
     const timer = window.setTimeout(() => {
@@ -513,6 +1144,10 @@ export function EstudioForm() {
   }, [previewAberta]);
 
   useEffect(() => {
+    if (nichoLogoPuladoRef.current === nicho) {
+      nichoLogoPuladoRef.current = "";
+      return;
+    }
     const seed = propostasBiblioteca(nicho);
     setPropostasLogo(seed);
     setSpecLogo(seed[0] || null);
@@ -708,6 +1343,9 @@ export function EstudioForm() {
   function capturarMarco() {
     return {
       visual,
+      nicho,
+      nome,
+      specLogo,
       whatsapp,
       email,
       horario,
@@ -741,6 +1379,9 @@ export function EstudioForm() {
 
   function restaurarMarco(m: (typeof marcos.current)[number]) {
     setVisual(m.visual);
+    setNicho(m.nicho);
+    setNome(m.nome);
+    setSpecLogo(m.specLogo);
     setWhatsapp(m.whatsapp);
     setEmail(m.email);
     setHorario(m.horario);
@@ -793,13 +1434,35 @@ export function EstudioForm() {
 
   function aplicarResultado(resultado: ResultadoPedido) {
     const empresa = (resultado.site.empresa || {}) as {
+      nome?: string;
       telefone_label?: string;
       email?: string;
       slogan?: string;
       horario_resumo?: string;
       endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string; cep?: string };
     };
+    if (resultado.nicho) {
+      // Troca de modelo: base do novo nicho + apenas os ajustes visuais que a IA realmente fez.
+      const base = visualPadrao(resultado.nicho);
+      const deltas: Partial<VisualConfig> = {};
+      const atual = visual as unknown as Record<string, unknown>;
+      const novo = resultado.visual as unknown as Record<string, unknown>;
+      for (const chave of Object.keys(novo)) {
+        if (JSON.stringify(novo[chave]) !== JSON.stringify(atual[chave])) {
+          (deltas as Record<string, unknown>)[chave] = novo[chave];
+        }
+      }
+      setVisual({ ...base, ...deltas });
+      setNicho(resultado.nicho);
+      setLogoIa("");
+      setLogoUpload("");
+      setLogoModo("gerar");
+    }
+    if (resultado.expediente?.length) {
+      setExpediente(resultado.expediente.map((d) => normalizarDiaExpediente(d)));
+    }
     if (resultado.tocou.contato) {
+      if (empresa.nome) setNome(empresa.nome);
       if (empresa.telefone_label) setWhatsapp(empresa.telefone_label);
       if (empresa.email && !empresa.email.endsWith("@guix.invalid")) setEmail(empresa.email);
       if (empresa.slogan) {
@@ -858,6 +1521,7 @@ export function EstudioForm() {
             descricao: p.descricao,
             whatsapp: p.whatsapp,
             email: p.email,
+            fotoSrc: p.fotoSrc,
           })),
         );
       }
@@ -869,7 +1533,33 @@ export function EstudioForm() {
         linhas.forEach((_, i) => manuais.current.add(`srv.${i}.descricao`));
       }
     }
-    if (resultado.tocou.visual) setVisual(resultado.visual);
+    if (resultado.tocou.visual && !resultado.nicho) setVisual(resultado.visual);
+    if (resultado.tocou.marca && resultado.marca) {
+      const m = resultado.marca;
+      setLogoIa("");
+      setLogoUpload("");
+      setLogoModo("gerar");
+      setSpecLogo((atual) => {
+        const base = atual || propostasBiblioteca(nicho)[0] || null;
+        if (!base) return atual;
+        return {
+          ...base,
+          ...(m.tipo
+            ? {
+                origem: m.gerarOpcoes ? ("ia" as const) : ("manual" as const),
+                icone: m.tipo === "icone" ? m.icone || "" : "",
+                emblema: m.tipo === "emblema" ? m.emblema : undefined,
+                arquivo: m.tipo === "arquivo" ? m.arquivo : undefined,
+              }
+            : {}),
+          ...(m.layout ? { layout: m.layout } : {}),
+          ...(m.fonteId ? { fonteId: m.fonteId } : {}),
+          corIcone: m.corIcone !== undefined ? m.corIcone || undefined : base.corIcone,
+          corNome: m.corNome !== undefined ? m.corNome || undefined : base.corNome,
+          corAcento: m.corAcento !== undefined ? m.corAcento || undefined : base.corAcento,
+        };
+      });
+    }
     if (resultado.tocou.menu) {
       const header = (resultado.site.header || {}) as { menu?: { id: string; label: string; href: string }[]; botao_agendar?: string };
       if (header.menu?.length) setMenuLivre(header.menu);
@@ -909,6 +1599,28 @@ export function EstudioForm() {
         fotosTocadas.current.sobre = true;
         setFotoSobre(sobreAgora);
       }
+      const galeriaAgora = (((resultado.site.galeria || {}) as { itens?: { imagem?: { src?: string } }[] }).itens || [])
+        .map((g) => String(g.imagem?.src || ""));
+      if (galeriaAgora.length && JSON.stringify(galeriaAgora) !== JSON.stringify(fotoGaleria)) {
+        fotosTocadas.current.galeria = true;
+        setFotoGaleria(galeriaAgora);
+      }
+      if (!resultado.tocou.servicos) {
+        const linhasFoto = servicosDoSite(resultado.site);
+        if (linhasFoto.length) {
+          setServicos((atual) => atual.map((s, i) => (linhasFoto[i]?.imagemSrc ? { ...s, imagemSrc: linhasFoto[i].imagemSrc } : s)));
+        }
+      }
+      if (!resultado.tocou.profissionais) {
+        const equipeFoto = profissionaisDoSite(resultado.site);
+        if (equipeFoto.length) {
+          setPros((atual) => atual.map((p, i) => (equipeFoto[i] ? { ...p, fotoSrc: equipeFoto[i].fotoSrc } : p)));
+        }
+      }
+      if (!resultado.tocou.eventos) {
+        const eventosFoto = eventosDoSite(resultado.site);
+        if (eventosFoto.length) setEventos(eventosFoto);
+      }
     }
     if (resultado.abrir === "logo" && !resultado.tocou.midia) setStudioAberto(true);
     if (resultado.abrir === "hero" || resultado.abrir === "sobre" || resultado.abrir === "galeria") setSlotFoto({ tipo: resultado.abrir });
@@ -917,6 +1629,7 @@ export function EstudioForm() {
 
   async function pedirTexto() {
     const pedido = pedidoIa.trim();
+    if (pedidoIaEmAndamentoRef.current) return;
     if (!siteVivo) {
       setAvisoIa("O quadro ainda está carregando.");
       return;
@@ -933,11 +1646,40 @@ export function EstudioForm() {
       setAvisoIa(AVISO_ESTRUTURA);
       return;
     }
+    pedidoIaEmAndamentoRef.current = true;
     setAjustando(true);
     setAvisoIa("OpenAI conectada · aplicando no motor…");
     const ctrl = new AbortController();
     const prazo = window.setTimeout(() => ctrl.abort(), 90000);
+    const expedientePadraoAtual = expedienteParaSchema(expedientePadrao(), visual.duracaoSlotMinutos || 30);
+    const expedienteAtual = expedienteParaSchema(expediente, visual.duracaoSlotMinutos || 30);
+    const horarioTexto = horario.trim();
+    const horarioTextoConfigurado = Boolean(
+      horarioTexto &&
+        !/hor[aá]rio a combinar/i.test(horarioTexto) &&
+        horarioTexto !== resumoDoExpediente(expedientePadrao()),
+    );
+    const gradeHorarioConfigurada =
+      expediente.some((dia) => dia.aberto) && JSON.stringify(expedienteAtual) !== JSON.stringify(expedientePadraoAtual);
+    const horarioConfigurado = horarioTextoConfigurado || gradeHorarioConfigurada;
     try {
+      const fatosConfirmados = {
+        nome: nome.trim(),
+        slogan: slogan.trim(),
+        whatsapp: whatsapp.trim(),
+        email: email.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim(),
+        logradouro: logradouro.trim(),
+        numero: numero.trim(),
+        bairro: bairro.trim(),
+        cep: cep.trim(),
+        enderecoCompleto: enderecoLivre.trim(),
+        redes,
+        ...(horarioConfigurado
+          ? { horario: horario.trim(), expediente: expedienteAtual }
+          : {}),
+      };
       const res = await fetch("/api/prototipo/textos", {
         method: "POST",
         signal: ctrl.signal,
@@ -949,30 +1691,186 @@ export function EstudioForm() {
           nome,
           cidade,
           bairro,
-          contexto: contextoEditavel(siteVivo, visual),
+          dadosFornecidos: fatosConfirmados,
+          contexto: contextoEditavel(
+            siteVivo,
+            logoModo === "gerar"
+              ? visual
+              : { ...visual, logoOrigem: undefined, logoIcone: undefined, logoEmblema: undefined, logoArquivo: undefined },
+            logoModo === "gerar" ? specLogo || undefined : undefined,
+            nicho,
+          ),
         }),
       });
       const data = (await res.json()) as {
         patch?: PatchPedido;
+        modelo_nicho?: Record<string, unknown>;
         aviso?: string;
         erro?: string;
         resumo?: string;
-        via?: "openai" | "atalho" | "nenhum";
+        via?: "openai" | "atalho" | "motor" | "nenhum";
       };
       if (!data.patch) {
         setAvisoIa(data.aviso || data.erro || "OpenAI não devolveu alteração. Tente de novo.");
         return;
       }
+      let modeloNovo: Record<string, unknown> | null = null;
+      const nichoNovo = String(data.patch.nicho || "");
+      if (nichoNovo && nichoNovo !== nicho) {
+        setAvisoIa("Carregando o modelo do novo segmento antes de aplicar o restante…");
+        if (data.modelo_nicho) {
+          modeloNovo = data.modelo_nicho;
+        } else {
+          const respostaModelo = await fetch(`/api/prototipo/modelo?nicho=${encodeURIComponent(nichoNovo)}`, {
+            signal: ctrl.signal,
+          });
+          const dadosModelo = (await respostaModelo.json()) as { site?: Record<string, unknown>; erro?: string };
+          if (!respostaModelo.ok || !dadosModelo.site) {
+            throw new Error(dadosModelo.erro || "Não foi possível carregar o modelo escolhido.");
+          }
+          modeloNovo = dadosModelo.site;
+        }
+      }
+      const resolvido = await resolverOpcoesMarca(data.patch, {
+        nome: nome.trim() || (nichos.find((item) => item.slug === nichoNovo)?.negocio || nomeMarca),
+        nicho: nichoNovo || nicho,
+        pedido,
+        evitar: propostasLogo,
+        atual: specLogo || undefined,
+      });
+      let resultado: ResultadoPedido;
+      if (modeloNovo) {
+        const nichoBase = nichoNovo;
+        const imagemSrc = (bloco: unknown) =>
+          String((((bloco || {}) as Record<string, unknown>).imagem as Record<string, unknown> | undefined)?.src || "");
+        const galeriaBase = (((modeloNovo.galeria || {}) as { itens?: Record<string, unknown>[] }).itens || []);
+        const servicosBase = servicosDoSite(modeloNovo);
+        nichoModeloPuladoRef.current = nichoBase;
+        nichoLogoPuladoRef.current = nichoBase;
+        setModelo(modeloNovo);
+        setFotoHero(imagemSrc(modeloNovo.hero));
+        setFotoSobre(imagemSrc(modeloNovo.sobre));
+        setFotoGaleria(galeriaBase.map((item) => imagemSrc(item)));
+        fotosTocadas.current = { hero: false, sobre: false, galeria: false };
+        setServicos(
+          servicosDoNicho(nichoBase).map((servico, indice) => ({
+            ...servico,
+            imagemSrc: servicosBase[indice]?.imagemSrc || servico.imagemSrc,
+          })),
+        );
+        setCopia(null);
+        setFaqs(faqsDoSite(modeloNovo as { faq?: { titulo?: string; itens?: { pergunta?: string; resposta?: string }[] } }));
+        setPros([]);
+        setEventos([]);
+        setMenuLivre(null);
+        setBotaoLivre("");
+        setDifsLivre(null);
+        setRodapeLivre(null);
+        if (!horarioConfigurado) {
+          const semHorario = expedientePadrao().map((dia) => ({ ...dia, aberto: false, pausa: false }));
+          setHorario(resumoDoExpediente(semHorario));
+          setExpediente(semHorario);
+        }
+        const propostas = propostasBiblioteca(nichoBase);
+        setPropostasLogo(propostas);
+        setSpecLogo(propostas[0] || null);
+        resultado = aplicarPedido(structuredClone(modeloNovo), visualPadrao(nichoBase), resolvido.patch, nicho);
+      } else {
+        resultado = aplicarPedido(structuredClone(siteVivo), visual, resolvido.patch, nicho);
+      }
+      let avisoRevisao = "";
+      let resumoRevisao = "";
+      let revisaoConcluida = false;
+      try {
+        const respostaRevisao = await fetch("/api/prototipo/textos", {
+          method: "POST",
+          signal: ctrl.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modo: "revisar-final",
+            nicho: nichoNovo || nicho,
+            pedido,
+            site: resultado.site,
+            visual: resultado.visual,
+            fatosConfirmados,
+          }),
+        });
+        if (!respostaRevisao.ok) throw new Error("A revisão final não respondeu.");
+        const revisao = (await respostaRevisao.json()) as {
+          patch?: PatchPedido;
+          aviso?: string;
+          resumo?: string;
+          revisado?: boolean;
+        };
+        avisoRevisao = String(revisao.aviso || "");
+        resumoRevisao = String(revisao.resumo || "");
+        revisaoConcluida = revisao.revisado === true;
+        if (revisao.patch && Object.keys(revisao.patch).length) {
+          const correcoes = aplicarPedido(
+            structuredClone(resultado.site),
+            resultado.visual,
+            revisao.patch,
+            nichoNovo || nicho,
+          );
+          const tocou = { ...resultado.tocou };
+          for (const chave of Object.keys(tocou) as (keyof typeof tocou)[]) {
+            tocou[chave] = tocou[chave] || correcoes.tocou[chave];
+          }
+          resultado = {
+            ...resultado,
+            site: correcoes.site,
+            visual: correcoes.visual,
+            tocou,
+            resumo: resultado.resumo || correcoes.resumo,
+            aviso: [resultado.aviso, correcoes.aviso].filter(Boolean).join(" "),
+          };
+        }
+      } catch {
+        avisoRevisao = "A alteração foi aplicada, mas a revisão final não terminou. Confira textos, dados e imagens antes de publicar.";
+      }
+      const houveEfeito = Boolean(resultado.abrir) || Object.values(resultado.tocou).some(Boolean);
+      if (!houveEfeito) {
+        setAvisoIa(
+          [
+            resolvido.aviso,
+            resultado.aviso || data.aviso || "A IA não aplicou uma mudança verificável. Tente reformular o pedido.",
+            resumoRevisao,
+            avisoRevisao,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        );
+        return;
+      }
       guardarMarco();
-      const resultado = aplicarPedido(structuredClone(siteVivo), visual, data.patch);
       aplicarResultado(resultado);
+      if (resolvido.aviso) setAvisoIa((atual) => [atual, resolvido.aviso].filter(Boolean).join(" "));
       setUsosIa((n) => n + 1);
       setPedidoIa("");
-      const selo = data.via === "openai" ? "via OpenAI" : data.via === "atalho" ? "via atalho local" : "";
-      setAvisoIa([selo, resultado.resumo || data.resumo, resultado.aviso || data.aviso].filter(Boolean).join(" · "));
-    } catch {
-      setAvisoIa("OpenAI demorou demais. Peça de novo em uma frase objetiva.");
+      const selo =
+        data.via === "openai"
+          ? "via OpenAI"
+          : data.via === "motor"
+            ? "via transição de modelo"
+            : data.via === "atalho"
+              ? "via atalho local"
+              : "";
+      const statusRevisao = revisaoConcluida ? "revisão final concluída" : "";
+      setAvisoIa(
+        [selo, resultado.resumo || data.resumo, resultado.aviso || data.aviso, resumoRevisao, statusRevisao, avisoRevisao]
+          .filter(Boolean)
+          .join(" · "),
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setAvisoIa("A solicitação excedeu o tempo limite. Tente novamente com um pedido mais curto.");
+      } else if (error instanceof TypeError) {
+        setAvisoIa("Falha de conexão com o editor. Verifique sua conexão e tente novamente.");
+      } else {
+        setAvisoIa(error instanceof Error ? error.message : "Não foi possível aplicar a alteração. Tente novamente.");
+      }
     } finally {
+      pedidoIaEmAndamentoRef.current = false;
       window.clearTimeout(prazo);
       setAjustando(false);
     }
@@ -1095,7 +1993,7 @@ export function EstudioForm() {
         uf?: string;
       };
       if (!res.ok || data.erro) {
-        setErro("CEP não encontrado. Confira os números.");
+          setErro("Não encontramos esse CEP. Preencha o endereço manualmente.");
         setCepOk("");
         return;
       }
@@ -1105,7 +2003,8 @@ export function EstudioForm() {
       setEstado((data.uf || "").toUpperCase().slice(0, 2));
       setCepOk(`${data.logradouro || "Rua"} · ${data.bairro || ""} · ${data.localidade}/${data.uf}`);
     } catch {
-      setErro("Não deu para consultar o CEP agora.");
+      setErro("Não encontramos esse CEP. Preencha o endereço manualmente.");
+      setCepOk("");
     } finally {
       setBuscandoCep(false);
     }
@@ -1158,7 +2057,7 @@ export function EstudioForm() {
     const waOk = digitosWa.length === 10 || digitosWa.length === 11 || (digitosWa.startsWith("55") && digitosWa.length >= 12 && digitosWa.length <= 13);
     if (!waOk) {
       setEtapa(4);
-      setErro("Informe o WhatsApp com DDD. Sem ele, os botões do site não chamam o seu número.");
+      setErro("Informe o WhatsApp para o botão e as confirmações funcionarem no teste.");
       return;
     }
     if (cidade.trim().length < 2 || !/^[A-Za-z]{2}$/.test(estado.trim())) {
@@ -1169,6 +2068,35 @@ export function EstudioForm() {
     setErro("");
     setLoading(true);
     try {
+      if (reconfigurando) {
+        if (!siteVivo) {
+          setErro("As configurações ainda estão carregando. Tente novamente em instantes.");
+          return;
+        }
+        const token = encodeURIComponent(tokenReconfigurar);
+        const res = await fetch(`/api/prototipo/${tokenReconfigurar}?t=${token}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reconfigurar: true,
+            site: siteVivo,
+            visual: visualPreview,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setErro(data.erro || "Não foi possível salvar as configurações.");
+          return;
+        }
+        try {
+          sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+        } catch {
+          // The prototype is already saved; storage cleanup is best effort.
+        }
+        router.push(data.previewUrl || `/visualizar/${tokenReconfigurar}`);
+        return;
+      }
+
       const res = await fetch("/api/prototipo/criar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1196,13 +2124,38 @@ export function EstudioForm() {
           diferenciais: difsLivre || undefined,
           avulsos: Object.keys(avulsos).length ? avulsos : undefined,
           redes,
-          visual,
+          visual: {
+            ...visual,
+            ...(logoModo === "gerar" && specLogo
+              ? {
+                  logoIcone: specLogo.layout === "wordmark" ? undefined : specLogo.icone,
+                  logoEmblema: specLogo.layout === "wordmark" ? undefined : specLogo.emblema,
+                  logoArquivo: specLogo.layout === "wordmark" ? undefined : specLogo.arquivo,
+                  logoOrigem: specLogo.layout === "wordmark" ? "texto" : specLogo.arquivo ? "arquivo" : specLogo.emblema ? "emblema" : specLogo.icone ? "icone" : "texto",
+                  logoLayout: specLogo.layout,
+                  logoFonteId: specLogo.fonteId,
+                  logoCorIcone: specLogo.corIcone,
+                  logoCorNome: specLogo.corNome,
+                  logoCorAcento: specLogo.corAcento,
+                }
+              : {
+                  logoIcone: undefined,
+                  logoEmblema: undefined,
+                  logoArquivo: undefined,
+                  logoOrigem: undefined,
+                  logoLayout: undefined,
+                  logoFonteId: undefined,
+                  logoCorIcone: undefined,
+                  logoCorNome: undefined,
+                  logoCorAcento: undefined,
+                }),
+          },
           tom,
           destaque,
           iaEscreve,
           copia,
           pedidosIa: usosIa,
-          logoSrc: logoModo === "texto" && !logoIa ? undefined : logoSrc,
+          logoSrc: logoModo === "texto" ? undefined : logoSrc,
           servicos: servicos.filter((s) => s.nome.trim()),
           profissionais: pros.filter((p) => p.nome.trim() && p.nome.trim() !== "Novo nome"),
           fotos: {
@@ -1218,6 +2171,11 @@ export function EstudioForm() {
         return;
       }
       const t = String(data.token || "");
+      try {
+        sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+      } catch {
+        // The prototype is already saved; storage cleanup is best effort.
+      }
       router.push(data.contaUrl || `/conta/${t}?t=${encodeURIComponent(t)}&novo=1`);
     } catch {
       setErro("Falha de conexão. Tente de novo.");
@@ -1253,7 +2211,10 @@ export function EstudioForm() {
       /** Na criação, cada profissional herda o horário da casa; grade fina fica no admin. */
       agendaEquipe: pros
         .filter((p) => p.nome.trim())
-        .map((p) => agendaProParaVisual(p.nome, expediente, [])),
+        .map((p) => {
+          const agendaSalva = v.agendaEquipe?.find((a) => a.nome.trim().toLowerCase() === p.nome.trim().toLowerCase());
+          return agendaSalva || agendaProParaVisual(p.nome, expediente, []);
+        }),
     }));
   }, [pros, expediente]);
 
@@ -1264,37 +2225,82 @@ export function EstudioForm() {
     redesExtra: extrasDeRedes(redes),
   };
 
+  if (!rascunhoPronto) {
+    return (
+      <main className="px-5 py-16 text-sm text-muted" aria-live="polite">
+        Restaurando seu rascunho…
+      </main>
+    );
+  }
+  if (reconfigurando && carregandoConfiguracao) {
+    return (
+      <main className="px-5 py-16 text-sm text-muted" aria-live="polite">
+        Carregando as configurações salvas…
+      </main>
+    );
+  }
+
   return (
-    <main className="lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden">
+    <main ref={estudioMainRef} className="lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden">
       <div className="lg:grid lg:h-full lg:grid-cols-[minmax(300px,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(320px,28rem)_minmax(0,1fr)]">
         <div ref={formColRef} className="flex h-full flex-col overflow-y-auto px-5 py-6 lg:border-r lg:border-line">
       <p className="text-xs font-semibold tracking-[0.16em] text-accent">MONTAR MEU SITE</p>
       <h1 className="mt-2 text-2xl font-bold tracking-[-0.035em] sm:text-3xl">
-        O site já está à direita. Você só personaliza.
+        {reconfigurando ? "Voltar às configurações do site" : "O site já está à direita. Você só personaliza."}
       </h1>
       <p className="mt-2 text-sm text-muted">
-        Personalize nos passos abaixo. No fim, <strong className="text-ink">Salvar protótipo</strong> guarda o rascunho e
-        cria o <strong className="text-ink">link</strong> para enviar ao cliente (vale cerca de 3 dias). Depois, na área
-        do cliente, você compra com domínio.
+        {reconfigurando ? (
+          <>
+            Os dados salvos foram carregados para você corrigir textos, fotos, equipe e horários. Ao salvar, as mudanças
+            atualizam este mesmo link do protótipo.
+          </>
+        ) : (
+          <>
+            Personalize nos passos abaixo. No fim, <strong className="text-ink">Salvar protótipo</strong> guarda o rascunho e
+            cria o <strong className="text-ink">link</strong> para enviar ao cliente (vale cerca de 3 dias). Depois, na área
+            do cliente, você compra com domínio.
+          </>
+        )}
       </p>
+      {rascunhoStatus ? (
+        <p className="mt-3 text-xs text-muted" role="status" aria-live="polite">
+          {rascunhoStatus}
+        </p>
+      ) : null}
       <details className="mt-4 rounded-2xl border border-line bg-white px-4 py-3 text-sm open:pb-4">
         <summary className="cursor-pointer list-none font-semibold text-ink [&::-webkit-details-marker]:hidden">
           Como funciona: salvar, link e comprar →
         </summary>
         <ol className="mt-3 space-y-2 text-muted leading-6">
-          <li>
-            <strong className="text-ink">1.</strong> Preencha negócio, visual, marca e contato.
-          </li>
-          <li>
-            <strong className="text-ink">2.</strong> Clique em <strong className="text-ink">Salvar protótipo e gerar link</strong>.
-          </li>
-          <li>
-            <strong className="text-ink">3.</strong> Na área do cliente: copie o código de acesso, o link do site e envie no WhatsApp.
-          </li>
-          <li>
-            <strong className="text-ink">4.</strong> Para publicar de verdade: <strong className="text-ink">Quero comprar e publicar</strong>{" "}
-            (domínio + e-mail + site).
-          </li>
+          {reconfigurando ? (
+            <>
+              <li>
+                <strong className="text-ink">1.</strong> Revise o que quiser: textos, imagens, serviços e equipe.
+              </li>
+              <li>
+                <strong className="text-ink">2.</strong> Clique em <strong className="text-ink">Salvar alterações no mesmo link</strong>.
+              </li>
+              <li>
+                <strong className="text-ink">3.</strong> O link enviado ao cliente continua o mesmo e mostra as mudanças salvas.
+              </li>
+            </>
+          ) : (
+            <>
+              <li>
+                <strong className="text-ink">1.</strong> Preencha negócio, visual, marca e contato.
+              </li>
+              <li>
+                <strong className="text-ink">2.</strong> Clique em <strong className="text-ink">Salvar protótipo e gerar link</strong>.
+              </li>
+              <li>
+                <strong className="text-ink">3.</strong> Na área do cliente: copie o código de acesso, o link do site e envie no WhatsApp.
+              </li>
+              <li>
+                <strong className="text-ink">4.</strong> Para publicar de verdade: <strong className="text-ink">Quero comprar e publicar</strong>{" "}
+                (domínio + e-mail + site).
+              </li>
+            </>
+          )}
         </ol>
         <p className="mt-3 text-xs text-muted">
           Já tem o código?{" "}
@@ -1316,8 +2322,8 @@ export function EstudioForm() {
             </p>
             <p className="mt-1 text-sm font-semibold text-ink">{ETAPAS.find((e) => e.id === etapa)?.titulo}</p>
           </div>
-          <p className="text-[11px] text-muted">
-            {prontos}/{marcosProntos.length} prontos
+          <p className="max-w-[9rem] shrink-0 text-right text-[11px] leading-4 text-muted sm:max-w-none">
+            {prontos} de {marcosProntos.length} itens preenchidos
           </p>
         </div>
         <ol className="relative mt-4 flex items-center justify-between">
@@ -1365,6 +2371,7 @@ export function EstudioForm() {
                   <select
                     className={campo}
                     value={nicho}
+                    disabled={reconfigurando}
                     onChange={(e) => {
                       const slug = e.target.value;
                       setNicho(slug);
@@ -1379,6 +2386,9 @@ export function EstudioForm() {
                       </option>
                     ))}
                   </select>
+                  {reconfigurando ? (
+                    <span className="mt-1 block text-xs text-muted">Para trocar o tipo de negócio, gere um novo protótipo.</span>
+                  ) : null}
                 </label>
                 <label className="block text-sm font-medium">
                   Nome no site
@@ -1566,7 +2576,7 @@ export function EstudioForm() {
                   <p className="mt-1 text-xs text-muted">
                     Biblioteca de logomarcas deste ramo. O nome do negócio entra ao lado. Sem fundo, vale no claro e no escuro.
                   </p>
-                  <div className="mt-3 flex h-16 items-center overflow-hidden rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
+                  <div className="mt-3 flex h-16 items-center overflow-visible rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
                     {specLogo ? (
                       <LockupMarca
                         spec={specLogo}
@@ -1639,9 +2649,9 @@ export function EstudioForm() {
                         key={p.id}
                         type="button"
                         onClick={() => setSpecLogo(p)}
-                        className={`overflow-hidden rounded-xl border p-2 text-left ${specLogo?.id === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                        className={`overflow-visible rounded-xl border p-2 text-left ${specLogo?.id === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
                       >
-                        <div className="flex h-12 items-center rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
+                        <div className="flex h-12 items-center overflow-visible rounded-lg px-2" style={{ background: paleta.color_background, color: paleta.color_text }}>
                           <LockupMarca
                             spec={p}
                             nome={nomeMarca}
@@ -1664,6 +2674,9 @@ export function EstudioForm() {
 
           {etapa === 4 ? (
             <>
+              <p className="rounded-xl border border-accent/20 bg-[#FFF7ED] px-3 py-2.5 text-sm leading-5 text-ink">
+                Preencha o essencial (WhatsApp + horários). O resto você ajusta depois no painel.
+              </p>
               <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted sm:hidden">
                 Toque em cada bloco para abrir. Só um fica aberto — assim você não se perde no celular.
               </p>
@@ -2072,7 +3085,10 @@ export function EstudioForm() {
                 onToggle={() => toggleBloco("servicos")}
               >
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                  <p className="text-sm text-muted">Edite, troque a foto e veja no preview. Toque no serviço para expandir.</p>
+                  <p className="text-sm text-muted">
+                    Sugestões editáveis para começar. Confirme nomes, preços e durações com o negócio antes de publicar.
+                    Toque no serviço para expandir.
+                  </p>
                   <button
                     type="button"
                     className="rounded-full bg-ink px-4 py-2 text-sm text-white"
@@ -2350,10 +3366,12 @@ export function EstudioForm() {
 
           {etapa === 5 ? (
             <section className="gx-step gx-form-card p-5 sm:p-6">
-              <h2 className="text-base font-semibold">Salvar o protótipo</h2>
+              <h2 className="text-base font-semibold">{reconfigurando ? "Salvar alterações" : "Salvar o protótipo"}</h2>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Este é o “salvar” do GuiX: guarda o rascunho e cria um <strong className="text-ink">link</strong> para o
-                cliente abrir. O teste vale 3 dias — ainda não é a publicação no domínio.
+                {reconfigurando
+                  ? "As mudanças serão validadas e gravadas no mesmo link do protótipo. O prazo atual não será reiniciado."
+                  : <>Este é o “salvar” do GuiX: guarda o rascunho e cria um <strong className="text-ink">link</strong> para o
+                    cliente abrir. O teste vale 3 dias — ainda não é a publicação no domínio.</>}
               </p>
               <ol className="mt-4 space-y-3 text-sm leading-6">
                 <li>
@@ -2398,11 +3416,15 @@ export function EstudioForm() {
               {loading
                 ? "Salvando protótipo…"
                 : etapa === 5
-                  ? "Salvar protótipo e gerar link"
+                  ? reconfigurando
+                    ? "Salvar alterações no mesmo link"
+                    : "Salvar protótipo e gerar link"
                   : "Continuar"}
             </button>
             {etapa === 5 ? (
-              <p className="text-xs text-muted">Gera o link do teste. Sem cartão. Sem publicar ainda.</p>
+              <p className="text-xs text-muted">
+                {reconfigurando ? "O link continua o mesmo. Sem publicar ainda." : "Gera o link do teste. Sem cartão. Sem publicar ainda."}
+              </p>
             ) : null}
           </div>
         </div>
@@ -2505,6 +3527,60 @@ export function EstudioForm() {
             </p>
             <p className="mt-5 text-sm font-medium text-ink">Salvando e gerando o link…</p>
           </div>
+        </div>
+      ) : null}
+      {confirmacaoSaidaAberta ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 px-5 backdrop-blur-sm"
+          onMouseDown={(evento) => {
+            if (evento.target === evento.currentTarget) continuarEditando();
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmar-saida-estudio"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            onKeyDown={(evento) => {
+              if (evento.key === "Escape") continuarEditando();
+            }}
+          >
+            <h2 id="confirmar-saida-estudio" className="text-lg font-bold text-ink">
+              Guardar este rascunho?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Você pode salvar e voltar a este protótipo enquanto continuar nesta aba. Ao fechar a aba, o rascunho será removido.
+            </p>
+            {erroSalvarRascunho ? (
+              <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                {erroSalvarRascunho}
+              </p>
+            ) : null}
+            <div className="mt-5 grid gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => concluirSaida(true)}
+                className="rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white"
+              >
+                Salvar e sair
+              </button>
+              <button
+                type="button"
+                onClick={() => concluirSaida(false)}
+                className="rounded-xl border border-line px-4 py-3 text-sm font-semibold text-ink"
+              >
+                Descartar rascunho e sair
+              </button>
+              <button
+                type="button"
+                onClick={continuarEditando}
+                className="rounded-xl px-4 py-3 text-sm font-semibold text-muted hover:bg-canvas"
+              >
+                Continuar editando
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
     </main>

@@ -76,6 +76,16 @@ export function urlPublica(key: string) {
   return pathProxy(key, false);
 }
 
+/** S3 só aceita US-ASCII na metadata; normaliza acentos e remove o restante. */
+function metaAscii(valor: string, max = 900) {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .trim()
+    .slice(0, max);
+}
+
 export async function enviarBuffer(opts: {
   key: string;
   body: Buffer | Uint8Array;
@@ -97,18 +107,18 @@ export async function enviarBuffer(opts: {
     origem: opts.origem,
     status: opts.status || "aprovada",
   };
-  if (opts.alt) metadata.alt = opts.alt;
-  if (opts.tags?.length) metadata.tags = opts.tags.join(",");
+  if (opts.alt) metadata.alt = metaAscii(opts.alt);
+  if (opts.tags?.length) metadata.tags = metaAscii(opts.tags.join(","));
   if (opts.clienteId) metadata.cliente_id = sanitizarClienteId(opts.clienteId);
   if (opts.categoria) metadata.categoria = opts.categoria;
-  if (opts.motivo) metadata.motivo = opts.motivo.slice(0, 200);
+  if (opts.motivo) metadata.motivo = metaAscii(opts.motivo, 200);
   if (opts.width) metadata.width = String(opts.width);
   if (opts.height) metadata.height = String(opts.height);
   if (opts.credito) {
-    metadata.credito_fotografo = opts.credito.fotografo;
-    metadata.credito_perfil = opts.credito.perfil_url;
-    metadata.credito_unsplash = opts.credito.unsplash_url;
-    metadata.credito_texto = opts.credito.texto;
+    metadata.credito_fotografo = metaAscii(opts.credito.fotografo, 120);
+    metadata.credito_perfil = metaAscii(opts.credito.perfil_url, 300);
+    metadata.credito_unsplash = metaAscii(opts.credito.unsplash_url, 300);
+    metadata.credito_texto = metaAscii(opts.credito.texto, 200);
   }
 
   await client.send(
@@ -199,6 +209,9 @@ export const NICHOS_PASTA = [
   "contabilidade",
   "advocacia",
   "clinica",
+  "dentista",
+  "psicologia",
+  "nutricionista",
   "generico",
 ] as const;
 

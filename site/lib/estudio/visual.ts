@@ -7,6 +7,7 @@ export type EstiloVisual = "moderno" | "luxo" | "urbano" | "classico" | "suave";
 export type CabecalhoLayout = "logo-esquerda" | "centralizado" | "logo-slogan" | "logo-direita" | "menu-abaixo" | "compacto";
 export type RodapeLayout = "centralizado" | "dividido" | "empilhado" | "minimo";
 export type LogoTamanho = "pequeno" | "medio" | "grande";
+export type OrigemMarca = "icone" | "emblema" | "arquivo" | "texto";
 export type LogoAlinhamento = "centro" | "topo" | "base";
 export type BannerLayout = "automatico" | "solido" | "degrade";
 export type Animacao = "suave" | "media" | "intensa";
@@ -28,6 +29,21 @@ export interface VisualConfig {
   logoCorIcone?: string;
   logoCorNome?: string;
   logoCorAcento?: string;
+  /** Configuração da marca gerada pela IA e persistida no protótipo. */
+  logoIcone?: string;
+  logoEmblema?: string;
+  logoArquivo?: string;
+  logoOrigem?: OrigemMarca;
+  logoLayout?: "lado" | "empilhado" | "selo" | "marca" | "wordmark";
+  logoFonteId?: string;
+  /** Cor de destaque manual (sobrepõe a paleta). Aceita #RRGGBB. */
+  corAccent?: string;
+  /** Cor de fundo manual (sobrepõe a paleta). Aceita #RRGGBB. */
+  corFundo?: string;
+  /** Cores de texto personalizadas (sobrepõem os tons da paleta). */
+  corTitulos?: string;
+  corTexto?: string;
+  corTextoSuave?: string;
   banner: BannerLayout;
   botao: BotaoEstilo;
   animacao: Animacao;
@@ -280,6 +296,18 @@ export function sanitizarVisual(raw: Partial<VisualConfig> | null | undefined): 
       }))
       .filter((r) => r.id && r.url);
   }
+  if (out.logoOrigem && !["icone", "emblema", "arquivo", "texto"].includes(out.logoOrigem)) out.logoOrigem = undefined;
+  if (out.logoLayout && !["lado", "empilhado", "selo", "marca", "wordmark"].includes(out.logoLayout)) out.logoLayout = undefined;
+  if (out.logoIcone && !/^[A-Za-z][A-Za-z0-9-]{0,39}$/.test(out.logoIcone)) out.logoIcone = undefined;
+  if (out.logoEmblema && !/^[a-z0-9-]{1,48}$/.test(out.logoEmblema)) out.logoEmblema = undefined;
+  if (out.logoArquivo && !/^\/marcas\/[a-z0-9-]+\/\d{2}\.png$/.test(out.logoArquivo)) out.logoArquivo = undefined;
+  if (out.logoFonteId && !/^[a-z]{3,16}$/.test(out.logoFonteId)) out.logoFonteId = undefined;
+  for (const campo of ["logoCorIcone", "logoCorNome", "logoCorAcento"] as const) {
+    if (out[campo] && !/^#[0-9A-Fa-f]{6}$/.test(out[campo] || "")) out[campo] = undefined;
+  }
+  for (const campo of ["corTitulos", "corTexto", "corTextoSuave"] as const) {
+    if (out[campo] && !/^#[0-9A-Fa-f]{6}$/.test(out[campo] || "")) out[campo] = undefined;
+  }
   return out;
 }
 
@@ -292,8 +320,12 @@ export function visualPadrao(nicho?: string): VisualConfig {
     contabilidade: "corporativo",
     advocacia: "premium",
     petshop: "salao-quente",
+    dentista: "spa",
+    clinica: "spa",
+    psicologia: "premium",
+    nutricionista: "spa",
   };
-  const preset = PRESETS.find((p) => p.id === (map[nicho || ""] || "barbearia-classica"))!;
+  const preset = PRESETS.find((p) => p.id === (map[nicho || ""] || "corporativo"))!;
   return {
     aparencia: "escuro",
     paletaId: "latao-escuro",
@@ -318,8 +350,8 @@ export function visualPadrao(nicho?: string): VisualConfig {
     agendamento: true,
     // Cliente finaliza no site; dono pode mudar para manual/WhatsApp no painel
     modoConfirmacaoAgenda: "automatico",
-    presetId: preset.id,
     ...preset.visual,
+    presetId: preset.id,
   };
 }
 
@@ -344,18 +376,26 @@ export function raioDoBotao(botao: BotaoEstilo): "none" | "sm" | "md" | "lg" {
   return "lg";
 }
 
+function hexCor(v?: string) {
+  return v && /^#[0-9A-Fa-f]{6}$/.test(v) ? v : "";
+}
+
 export function aplicarVisualNoTema(site: Record<string, unknown>, visual: VisualConfig) {
   const paleta = paletaPorId(visual.paletaId);
   const tipo = tipoPorId(visual.tipografiaId);
   const tema = { ...((site.tema as Record<string, unknown>) || {}) };
+  const accent = hexCor(visual.corAccent) || paleta.color_accent;
+  const fundo = hexCor(visual.corFundo);
+  const corTexto = hexCor(visual.corTexto) || paleta.color_text;
+  const corTextoSuave = hexCor(visual.corTextoSuave) || paleta.color_text_muted;
   Object.assign(tema, {
     color_primary: paleta.color_primary,
     color_secondary: paleta.color_secondary,
-    color_accent: paleta.color_accent,
-    color_background: paleta.color_background,
-    color_surface: paleta.color_surface,
-    color_text: paleta.color_text,
-    color_text_muted: paleta.color_text_muted,
+    color_accent: accent,
+    color_background: fundo || paleta.color_background,
+    color_surface: fundo || paleta.color_surface,
+    color_text: corTexto,
+    color_text_muted: corTextoSuave,
     font_heading: tipo.font_heading,
     font_body: tipo.font_body,
     radius: raioDoBotao(visual.botao),

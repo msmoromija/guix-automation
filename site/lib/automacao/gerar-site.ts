@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { gerarTextosSite } from "@/lib/media/openai";
 import type { GeracaoSiteJson } from "@/lib/media/tipos";
-import { escolherImagensDoNicho } from "@/lib/media/escolher-imagens";
+import { escolherImagensDoNicho, reservaDoModelo } from "@/lib/media/escolher-imagens";
 import type { CategoriaImagem } from "@/lib/media/tipos";
 import { sanitizarClienteId } from "@/lib/media/isolamento";
 import { personalizarCopia } from "@/lib/estudio/aplicar";
@@ -12,6 +12,7 @@ import { carregarExemplo } from "./carregar-exemplo";
 import { limparIdentidadeExemplo, polirTextosSite, repararParaSchema } from "./limpar-exemplo";
 import type { EntradaAutomacao, ResultadoAutomacao } from "./tipos";
 import { validarSiteJson } from "./validar-site";
+import { revisarSiteFinal } from "@/lib/estudio/revisao-final";
 
 function raizRepo() {
   return path.resolve(process.cwd(), process.cwd().endsWith(`${path.sep}site`) ? ".." : ".");
@@ -29,6 +30,8 @@ export async function gerarSiteCliente(
   if (!entrada.nome?.trim()) throw new Error("nome obrigatório");
 
   let site = await carregarExemplo(entrada.nicho);
+  // Acervo real do modelo do nicho — usado como reserva se o Unsplash não responder.
+  const reserva = reservaDoModelo(site);
   const endModelo = { ...(((site.empresa as Record<string, unknown> | undefined)?.endereco as Record<string, unknown>) || {}) };
   const bairroModelo = String(endModelo.bairro || "");
   const cidadeModelo = String(endModelo.cidade || "");
@@ -63,7 +66,7 @@ export async function gerarSiteCliente(
     Boolean(entrada.imagensCliente?.some((i) => i.categoria === cat && i.src));
 
   const sugestoes = (textos.imagens_sugeridas || [])
-    .filter((s) => !temFotoCliente(s.categoria))
+    .filter((s) => s.categoria !== "profissional" && !temFotoCliente(s.categoria))
     .map((s) => ({
       categoria: s.categoria as CategoriaImagem,
       tags: s.tags || [],
@@ -84,11 +87,26 @@ export async function gerarSiteCliente(
   while (sugestoes.filter((s) => s.categoria === "galeria").length + nGal < 6) {
     sugestoes.push({ categoria: "galeria", tags: [], motivo: `espaço ${sugestoes.length}` });
   }
+  // Eventos e promoções também rotacionam a cada cliente (não herdam a foto fixa do modelo).
+  const itensEvento = (((site.eventos as Record<string, unknown> | undefined)?.itens as unknown[]) || []).length;
+  for (let i = 0; i < itensEvento; i++) {
+    if (!temFotoCliente("evento")) sugestoes.push({ categoria: "evento", tags: [], motivo: `evento ${i + 1}` });
+  }
+  const itensPromocao = (((site.promocoes as Record<string, unknown> | undefined)?.itens as unknown[]) || []).length;
+  for (let i = 0; i < itensPromocao; i++) {
+    if (!temFotoCliente("promocao")) sugestoes.push({ categoria: "promocao", tags: [], motivo: `promoção ${i + 1}` });
+  }
+  // Retratos da equipe também rotacionam a cada cliente (não herdam o retrato fixo do modelo).
+  const nProfissional = entrada.profissionaisDetalhe?.length || 0;
+  for (let i = 0; i < nProfissional; i++) {
+    if (!temFotoCliente("profissional")) sugestoes.push({ categoria: "profissional", tags: [], motivo: `profissional ${i + 1}` });
+  }
 
   const resolvidas = sugestoes.length
     ? await escolherImagensDoNicho({
         nicho: entrada.nicho,
         sugestoes,
+        reserva,
       })
     : [];
 
@@ -108,6 +126,41 @@ export async function gerarSiteCliente(
   else if (entrada.iaEscreve !== false) avisos.push("textos escritos pela IA");
   if (resolvidas.some((r) => r.origem === "unsplash")) avisos.push("fotos do ofício via Unsplash (nicho filtrado)");
   if (resolvidas.every((r) => r.origem === "pendente")) avisos.push("sem foto nova — mantidas as do modelo do nicho");
+
+  const revisao = await revisarSiteFinal({
+    site,
+    nicho: entrada.nicho,
+    pedido: `Criação do site de ${entrada.nome} no segmento ${entrada.nicho}. Revise todo o conteúdo final e as imagens.`,
+    fatosConfirmados: {
+      nome: entrada.nome,
+      slogan: entrada.slogan || "",
+      cidade: entrada.cidade || "",
+      estado: entrada.estado || "",
+      bairro: entrada.bairro || "",
+      logradouro: entrada.logradouro || "",
+      numero: entrada.numero || "",
+      cep: entrada.cep || "",
+      telefone: entrada.telefone || "",
+      whatsapp: entrada.whatsapp || "",
+      email: entrada.email || "",
+      cnpj: entrada.cnpj || "",
+      horario: entrada.horario || "",
+      servicos: entrada.servicosDetalhe?.length ? entrada.servicosDetalhe : entrada.servicos || [],
+      profissionais: entrada.profissionaisDetalhe || [],
+      redes: {
+        instagram: entrada.instagram || "",
+        facebook: entrada.facebook || "",
+        tiktok: entrada.tiktok || "",
+        youtube: entrada.youtube || "",
+        linkedin: entrada.linkedin || "",
+      },
+    },
+  });
+  site = repararParaSchema(revisao.site, { ...entrada, clienteId });
+  if (revisao.aviso) avisos.push(revisao.aviso);
+  if (!revisao.revisado && !revisao.aviso) {
+    avisos.push("A revisão final não pôde confirmar o conteúdo; confira os dados antes de publicar.");
+  }
 
   const validacao = await validarSiteJson(site);
   if (!validacao.ok) {

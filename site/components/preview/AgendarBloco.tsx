@@ -206,7 +206,8 @@ export function AgendarBloco({
 
   function nomeValido() {
     const n = nomeCompleto.replace(/\s+/g, " ").trim();
-    return n.length >= 5 && n.includes(" ");
+    // Nome + sobrenome (evita só "João" e strings curtas sem espaço)
+    return n.length >= 5 && /\S+\s+\S+/.test(n);
   }
 
   function emailValido() {
@@ -214,13 +215,14 @@ export function AgendarBloco({
   }
 
   function telValido() {
-    const d = tel.replace(/\D/g, "");
-    return d.length === 10 || d.length === 11 || (d.startsWith("55") && d.length >= 12 && d.length <= 13);
+    let d = tel.replace(/\D/g, "");
+    if (d.startsWith("55") && (d.length === 12 || d.length === 13)) d = d.slice(2);
+    return d.length === 10 || d.length === 11;
   }
 
   const podePedirCodigo = nomeValido() && emailValido() && telValido() && !enviando;
   const podeConfirmarCodigo = codigo.replace(/\D/g, "").length === 6 && !enviando;
-  const podeEnviar = Boolean(servico && data && hora && sessao?.token && !enviando);
+  const podeEnviar = Boolean(servico && data && hora && (studio || sessao?.token) && !enviando);
 
   const estiloBorda = (ativo: boolean) => ({
     borderColor: ativo ? "var(--a)" : "color-mix(in srgb, var(--tx) 14%, transparent)",
@@ -357,7 +359,14 @@ export function AgendarBloco({
   }
 
   async function enviar() {
-    if (studio || !podeEnviar || !siteId || !sessao) return;
+    if (studio) {
+      if (!podeEnviar) return;
+      const dataLegivel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(`${data}T12:00:00`));
+      setCancelUrl("");
+      setAviso(`Simulação concluída: ${servico} em ${dataLegivel}, às ${hora}. Nenhuma reserva real foi criada.`);
+      return;
+    }
+    if (!podeEnviar || !siteId || !sessao) return;
     setEnviando(true);
     setAviso("");
     setCancelUrl("");
@@ -623,7 +632,10 @@ export function AgendarBloco({
                   <button
                     key={s.id || s.nome}
                     type="button"
-                    onClick={() => setServico(s.nome || "")}
+                    onClick={() => {
+                      setServico(s.nome || "");
+                      setAviso("");
+                    }}
                     className="rounded-xl border px-3 py-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5"
                     style={estiloBorda(servico === s.nome)}
                   >
@@ -646,6 +658,7 @@ export function AgendarBloco({
                   onClick={() => {
                     setPro("Sem preferência");
                     setHora("");
+                    setAviso("");
                   }}
                   className={chipBase}
                   style={estiloBorda(pro === "Sem preferência")}
@@ -659,6 +672,7 @@ export function AgendarBloco({
                     onClick={() => {
                       setPro(p.nome || "");
                       setHora("");
+                      setAviso("");
                     }}
                     className={chipBase}
                     style={estiloBorda(pro === p.nome)}
@@ -682,6 +696,7 @@ export function AgendarBloco({
                   onChange={(e) => {
                     setData(e.target.value);
                     setHora("");
+                    setAviso("");
                   }}
                   className={campo}
                   style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}
@@ -711,8 +726,12 @@ export function AgendarBloco({
                           key={h}
                           type="button"
                           disabled={!livre}
-                          onClick={() => livre && setHora(h)}
-                          title={livre ? `Reservar ${h}` : `${h} já reservado`}
+                          onClick={() => {
+                            if (!livre) return;
+                            setHora(h);
+                            setAviso("");
+                          }}
+                          title={livre ? `${studio ? "Simular" : "Reservar"} ${h}` : `${h} já reservado`}
                           className="rounded-lg border px-2 py-2 text-sm shadow-sm transition disabled:cursor-not-allowed"
                           style={
                             !livre
@@ -758,21 +777,21 @@ export function AgendarBloco({
             <button
               type="button"
               onClick={() => void enviar()}
-              disabled={!podeEnviar || studio}
+              disabled={!podeEnviar}
               className="w-full rounded-full px-5 py-3 text-sm font-semibold shadow-md disabled:opacity-40"
               style={{ background: "var(--a)", color: "var(--bg)" }}
             >
               {enviando
                 ? "Confirmando horário…"
                 : studio
-                  ? "No site publicado, o cliente confirma aqui"
+                  ? "Simular agendamento"
                   : modo === "automatico"
                     ? "Confirmar horário no site"
                     : "Solicitar horário ao profissional"}
             </button>
             <p className="text-xs" style={{ color: "var(--mt)" }}>
               {studio
-                ? "Simulação: escolha dia e horário. No site publicado, nome + WhatsApp + e-mail liberam a agenda; horário reservado fica vermelho para os outros."
+                ? "Escolha um dia e horário e clique em Simular agendamento. É apenas uma demonstração; nenhuma reserva real será criada."
                 : modo === "automatico"
                   ? "O horário fica reservado na hora. Você recebe o link para cancelar até 3 horas antes do procedimento."
                   : "O horário fica reservado enquanto o profissional confirma. Depois de confirmado, cancele pelo link até 3 horas antes."}
@@ -781,7 +800,7 @@ export function AgendarBloco({
         )}
 
         {aviso ? (
-          <p className="rounded-xl border px-3 py-2 text-sm shadow-sm" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
+          <p role="status" className="rounded-xl border px-3 py-2 text-sm shadow-sm" style={{ borderColor: "color-mix(in srgb, var(--tx) 14%, transparent)" }}>
             {aviso}
             {cancelUrl ? (
               <>

@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
- * Monta a pasta git de um site-cliente a partir do DNA GuiX + site.json.
+ * Monta pasta git mínima (DNA + site.json) — legado / smoke.
  *
- * Uso:
+ * Para o fluxo completo com ZIP de entrega (assets + visual + template do nicho), use:
+ *   node scripts/processar-pacote-zip.mjs --zip pacote.zip
+ *   node scripts/montar-projeto-cliente.mjs --pacote pasta-extraida
+ *
+ * Uso deste script:
  *   node scripts/criar-repo-site.mjs --cliente lucia-batos --nicho estetica --nome "Lucia Batos" --site path/to/site.json
- *
- * Gera:
- *   clientes/<cliente>/repo/   (git init + README + DNA + site.json)
- *
- * Próximo passo (manual ou CI): git remote add + push para GUIX_SITES_GIT_ORG.
  */
 import { mkdir, writeFile, readFile, access } from "fs/promises";
 import path from "path";

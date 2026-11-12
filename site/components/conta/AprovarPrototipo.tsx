@@ -69,8 +69,8 @@ export function AprovarPrototipo({
         .map(([k, v]) => `${k}: ${(v as { motivo?: string }).motivo || "falhou"}`);
       setOk(
         falhas.length
-          ? `Protótipo aprovado. Token ${token}. Alguns envios falharam (${falhas.join("; ")}). Use os botões abaixo.`
-          : `Protótipo aprovado. Token ${token} enviado. A GuiX recebeu a documentação com prazo de integração.`,
+          ? `Rascunho fechado. Token ${token} guardado. Alguns envios falharam (${falhas.join("; ")}). Use os botões abaixo — a publicação só começa depois da compra.`
+          : `Rascunho fechado e token enviado. Guarde o código. A publicação no domínio só começa depois que você contratar.`,
       );
       const wa = (j.envios?.whatsapp as { waMe?: string } | undefined)?.waMe;
       if (wa) setWaManual(wa);
@@ -83,11 +83,11 @@ export function AprovarPrototipo({
 
   return (
     <article className={`rounded-2xl border border-line bg-white ${compacto ? "p-4" : "p-5"}`}>
-      <h2 className="font-semibold">{aprovado ? "Protótipo aprovado" : "Aprovar protótipo"}</h2>
+      <h2 className="font-semibold">{aprovado ? "Rascunho fechado" : "Fechar o rascunho (opcional)"}</h2>
       <p className="mt-2 text-sm text-muted">
         {aprovado
-          ? "Baixe o extrato, guarde o token e contrate com PIX ou cartão. A GuiX já tem o prazo de integração."
-          : `Feche o ciclo de ${nome || "seu site"}: aprovamos o rascunho, enviamos o token e liberamos a compra.`}
+          ? "Você fechou o teste e guardou o token. Isso ainda não publica no domínio — o próximo passo é contratar."
+          : `Fecha o ciclo de edição de ${nome || "seu site"} e envia o token por e-mail/WhatsApp. Não substitui a compra: domínio e e-mail só saem depois do pagamento.`}
       </p>
 
       {!aprovado ? (
@@ -138,8 +138,14 @@ export function AprovarPrototipo({
             onClick={() => void aprovar()}
             className="w-full rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {loading ? "Aprovando…" : "Aprovar protótipo e enviar token"}
+            {loading ? "Salvando…" : "Fechar rascunho e enviar token"}
           </button>
+          <p className="text-xs text-muted">
+            Quer publicar de uma vez?{" "}
+            <Link href={contratarUrl} className="font-semibold text-accent underline">
+              Ir para comprar e publicar
+            </Link>
+          </p>
         </div>
       ) : (
         <div className="mt-4 space-y-3">
@@ -148,18 +154,18 @@ export function AprovarPrototipo({
           </p>
           {prazo ? (
             <p className="text-xs text-muted">
-              Prazo GuiX para integração: {new Date(prazo).toLocaleString("pt-BR")}
+              Referência de prazo (após a compra): {new Date(prazo).toLocaleString("pt-BR")}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Link href={extratoUrl} className="rounded-full border border-line px-4 py-2 text-xs font-semibold">
-              Baixar PDF / imagem
-            </Link>
             <Link
               href={contratarUrl}
               className="rounded-full bg-orange-400 px-4 py-2 text-xs font-semibold text-slate-950"
             >
-              Comprar · PIX ou cartão
+              Comprar e publicar
+            </Link>
+            <Link href={extratoUrl} className="rounded-full border border-line px-4 py-2 text-xs font-semibold">
+              Baixar PDF
             </Link>
             <button
               type="button"

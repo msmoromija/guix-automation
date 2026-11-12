@@ -10,6 +10,10 @@ const NICHOS = [
   "academia",
   "contabilidade",
   "advocacia",
+  "dentista",
+  "clinica",
+  "psicologia",
+  "nutricionista",
 ] as const;
 
 export default function PainelAutomacaoPage() {

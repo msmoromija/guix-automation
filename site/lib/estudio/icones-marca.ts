@@ -168,6 +168,18 @@ const porNicho: Record<string, FaixaNicho> = {
     preferidos: ["Stethoscope", "Heart", "Cross", "Plus", "HandHeart", "Leaf", "Shield", "Clock"],
     extras: ["Droplet", "UserRound"],
   },
+  dentista: {
+    preferidos: ["Sparkle", "Cross", "Shield", "Clock", "Heart", "HandHeart", "BadgeCheck", "UserRound"],
+    extras: ["Leaf", "Star"],
+  },
+  psicologia: {
+    preferidos: ["Heart", "HandHeart", "Leaf", "Feather", "Shield", "Clock", "Sparkles", "UserRound"],
+    extras: ["Star", "BadgeCheck"],
+  },
+  nutricionista: {
+    preferidos: ["Leaf", "Heart", "Sparkles", "Clock", "HandHeart", "BadgeCheck", "Store", "Droplet"],
+    extras: ["Star", "Feather"],
+  },
   generico: {
     preferidos: ["Sparkles", "Star", "Hexagon", "Diamond", "Award", "Aperture", "Circle", "Feather"],
     extras: ["Store", "Heart"],
@@ -175,7 +187,7 @@ const porNicho: Record<string, FaixaNicho> = {
 };
 
 function faixa(nicho: string): FaixaNicho {
-  return porNicho[nicho] || porNicho.barbearia;
+  return porNicho[nicho] || porNicho.generico;
 }
 
 function resolver(ids: string[]): ItemIconeMarca[] {
@@ -191,6 +203,9 @@ export const ROTULO_NICHO: Record<string, string> = {
   advocacia: "advocacia",
   contabilidade: "contabilidade",
   clinica: "clínica",
+  dentista: "dentista",
+  psicologia: "psicologia",
+  nutricionista: "nutricionista",
   generico: "negócio",
 };
 

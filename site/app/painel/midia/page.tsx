@@ -35,6 +35,9 @@ const NICHOS = [
   "contabilidade",
   "advocacia",
   "clinica",
+  "dentista",
+  "psicologia",
+  "nutricionista",
   "generico",
 ] as const;
 

@@ -9,6 +9,9 @@ const TEMPLATE_ID: Record<Nicho, string> = {
   contabilidade: "contabilidade-v1",
   advocacia: "advocacia-v1",
   clinica: "clinica-v1",
+  dentista: "dentista-v1",
+  psicologia: "psicologia-v1",
+  nutricionista: "nutricionista-v1",
   generico: "generico-v1",
 };
 

@@ -7,7 +7,7 @@
   },
   "empresa": {
     "nome": "Vale Luz Advogados",
-    "slogan": "Consulta com hora marcada.",
+    "slogan": "Escuta clara antes de qualquer processo.",
     "cnpj": "00.000.000/0000-00",
     "logo": {
       "id": "img_logo",
@@ -34,16 +34,87 @@
       "mapa_embed_url": ""
     },
     "redes": [
-      { "id": "instagram", "label": "Instagram", "url": "https://instagram.com/valeluzadvogados" },
-      { "id": "facebook", "label": "Facebook", "url": "" },
-      { "id": "tiktok", "label": "TikTok", "url": "" }
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/valeluzadvogados"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
     ],
     "expediente": [
-      { "dia": "seg", "label": "Segunda", "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-      { "dia": "ter", "label": "Terça", "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-      { "dia": "qua", "label": "Quarta", "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-      { "dia": "qui", "label": "Quinta", "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"] },
-      { "dia": "sex", "label": "Sexta", "intervalos": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"] }
+      {
+        "dia": "seg",
+        "label": "Segunda",
+        "intervalos": [
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": [
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": [
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": [
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": [
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00"
+        ]
+      }
     ],
     "horario_resumo": "Segunda a sexta, 9h às 18h"
   },
@@ -62,13 +133,18 @@
   "seo": {
     "title": "Vale Luz Advogados | Consulta no Centro de Aracaju",
     "description": "Agende consulta trabalhista, de família, do consumidor ou de contratos na Vale Luz Advogados, no Centro de Aracaju. Horário marcado de segunda a sexta.",
-    "keywords": ["advogado em Aracaju", "consulta jurídica", "advocacia no Centro", "agendamento"],
+    "keywords": [
+      "advogado em Aracaju",
+      "consulta jurídica",
+      "advocacia no Centro",
+      "agendamento"
+    ],
     "og_title": "Vale Luz Advogados | Consulta no Centro",
-    "og_description": "Consulta com hora marcada no Centro de Aracaju. Agende pelo site ou chame no WhatsApp.",
+    "og_description": "Consulta jurídica com escuta clara. Agende pelo site ou chame no WhatsApp.",
     "og_image": {
       "id": "img_og",
-      "src": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
-      "alt": "Fachada clássica de um escritório",
+      "src": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Estante de livros jurídicos",
       "categoria": "og"
     },
     "canonical_url": ""
@@ -76,17 +152,45 @@
   "header": {
     "botao_agendar": "Agendar consulta",
     "menu": [
-      { "id": "inicio", "label": "Início", "href": "#inicio" },
-      { "id": "sobre", "label": "O escritório", "href": "#sobre" },
-      { "id": "servicos", "label": "Atuação", "href": "#servicos" },
-      { "id": "profissionais", "label": "Advogados", "href": "#profissionais" },
-      { "id": "promocoes", "label": "Condições", "href": "#promocoes" },
-      { "id": "faq", "label": "Dúvidas", "href": "#faq" },
-      { "id": "contato", "label": "Contato", "href": "#contato" }
+      {
+        "id": "inicio",
+        "label": "Início",
+        "href": "#inicio"
+      },
+      {
+        "id": "sobre",
+        "label": "O escritório",
+        "href": "#sobre"
+      },
+      {
+        "id": "servicos",
+        "label": "Atuação",
+        "href": "#servicos"
+      },
+      {
+        "id": "profissionais",
+        "label": "Advogados",
+        "href": "#profissionais"
+      },
+      {
+        "id": "promocoes",
+        "label": "Condições",
+        "href": "#promocoes"
+      },
+      {
+        "id": "faq",
+        "label": "Dúvidas",
+        "href": "#faq"
+      },
+      {
+        "id": "contato",
+        "label": "Contato",
+        "href": "#contato"
+      }
     ]
   },
   "hero": {
-    "titulo": "A consulta tem dia e hora.",
+    "titulo": "Primeiro a gente ouve o seu caso.",
     "subtitulo": "Trabalhista, família, consumidor e contratos no Centro. Você marca, traz o que tiver em mãos e conversa com um advogado.",
     "botao_principal": "Agendar consulta",
     "botao_secundario": "Chamar no WhatsApp",
@@ -106,8 +210,8 @@
     ],
     "imagem": {
       "id": "img_sobre",
-      "src": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=1200&q=80",
-      "alt": "Livros de direito alinhados na estante",
+      "src": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Advogada em conversa com cliente",
       "categoria": "sobre"
     }
   },
@@ -125,8 +229,8 @@
         "duracao_label": "40 min",
         "imagem": {
           "id": "img_srv_inicial",
-          "src": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80",
-          "alt": "Sala com estante de livros",
+          "src": "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta inicial em diálogo",
           "categoria": "servico"
         }
       },
@@ -140,8 +244,8 @@
         "duracao_label": "50 min",
         "imagem": {
           "id": "img_srv_trabalhista",
-          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
-          "alt": "Documentos de trabalho sobre a mesa",
+          "src": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta trabalhista com documentos",
           "categoria": "servico"
         }
       },
@@ -155,8 +259,8 @@
         "duracao_label": "50 min",
         "imagem": {
           "id": "img_srv_familia",
-          "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
-          "alt": "Sala reservada para atendimento",
+          "src": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta de família",
           "categoria": "servico"
         }
       },
@@ -170,8 +274,8 @@
         "duracao_label": "40 min",
         "imagem": {
           "id": "img_srv_consumidor",
-          "src": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80",
-          "alt": "Detalhe da fachada do escritório",
+          "src": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta do consumidor",
           "categoria": "servico"
         }
       },
@@ -185,8 +289,8 @@
         "duracao_label": "50 min",
         "imagem": {
           "id": "img_srv_imovel",
-          "src": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&q=80",
-          "alt": "Livros e mesa de leitura",
+          "src": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta imobiliária",
           "categoria": "servico"
         }
       },
@@ -201,7 +305,7 @@
         "imagem": {
           "id": "img_srv_contrato",
           "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=80",
-          "alt": "Contrato em papel sobre a mesa",
+          "alt": "Análise de contrato sobre a mesa",
           "categoria": "servico"
         }
       }
@@ -219,7 +323,7 @@
         "whatsapp": "",
         "foto": {
           "id": "img_pro_lorena",
-          "src": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=800&q=80",
+          "src": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80",
           "alt": "Retrato de Lorena Vale",
           "categoria": "profissional"
         }
@@ -232,7 +336,7 @@
         "whatsapp": "",
         "foto": {
           "id": "img_pro_paulo",
-          "src": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&q=80",
+          "src": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=800&q=80",
           "alt": "Retrato de Paulo Luz",
           "categoria": "profissional"
         }
@@ -245,7 +349,7 @@
         "whatsapp": "",
         "foto": {
           "id": "img_pro_sofia",
-          "src": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80",
+          "src": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80",
           "alt": "Retrato de Sofia Andrade",
           "categoria": "profissional"
         }
@@ -292,7 +396,7 @@
         "validade_label": "Até 30/11/2026",
         "imagem": {
           "id": "img_prm_novembro",
-          "src": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1200&q=80",
+          "src": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80",
           "alt": "Escritório preparado para consultas",
           "categoria": "promocao"
         }
@@ -311,8 +415,8 @@
         "horario": "18:00",
         "imagem": {
           "id": "img_evt_aluguel",
-          "src": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=1200&q=80",
-          "alt": "Mesa com livros para o encontro",
+          "src": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Conversa sobre contrato de aluguel",
           "categoria": "evento"
         }
       },
@@ -325,8 +429,8 @@
         "horario": "09:00",
         "imagem": {
           "id": "img_evt_consumidor",
-          "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
-          "alt": "Sala do escritório em manhã de encontro",
+          "src": "https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Manhã do consumidor",
           "categoria": "evento"
         }
       }
@@ -340,8 +444,8 @@
         "legenda": "Estante",
         "imagem": {
           "id": "img_gal_01",
-          "src": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=900&q=80",
-          "alt": "Estante de livros do escritório",
+          "src": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=900&q=80",
+          "alt": "Livros e mesa de leitura",
           "categoria": "galeria"
         }
       },
@@ -350,8 +454,8 @@
         "legenda": "Livros",
         "imagem": {
           "id": "img_gal_02",
-          "src": "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=900&q=80",
-          "alt": "Livros alinhados",
+          "src": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Fachada clássica do escritório",
           "categoria": "galeria"
         }
       },
@@ -360,8 +464,8 @@
         "legenda": "Fachada",
         "imagem": {
           "id": "img_gal_03",
-          "src": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=900&q=80",
-          "alt": "Entrada de um escritório clássico",
+          "src": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=80",
+          "alt": "Aperto de mãos após a conversa",
           "categoria": "galeria"
         }
       },
@@ -370,8 +474,8 @@
         "legenda": "Sala",
         "imagem": {
           "id": "img_gal_04",
-          "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80",
-          "alt": "Sala de reunião clara",
+          "src": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80",
+          "alt": "Equipe em alinhamento",
           "categoria": "galeria"
         }
       },
@@ -380,8 +484,8 @@
         "legenda": "Contrato",
         "imagem": {
           "id": "img_gal_05",
-          "src": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=900&q=80",
-          "alt": "Contrato sobre a mesa",
+          "src": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80",
+          "alt": "Reunião no escritório",
           "categoria": "galeria"
         }
       },
@@ -390,8 +494,8 @@
         "legenda": "Atendimento",
         "imagem": {
           "id": "img_gal_06",
-          "src": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80",
-          "alt": "Corredor do escritório",
+          "src": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=900&q=80",
+          "alt": "Advogado em atendimento",
           "categoria": "galeria"
         }
       }
@@ -485,8 +589,16 @@
   "rodape": {
     "texto": "Vale Luz Advogados · Centro, Aracaju - SE",
     "links": [
-      { "id": "agendar", "label": "Agendar consulta", "href": "/agendar" },
-      { "id": "privacidade", "label": "Privacidade", "href": "/privacidade" }
+      {
+        "id": "agendar",
+        "label": "Agendar consulta",
+        "href": "/agendar"
+      },
+      {
+        "id": "privacidade",
+        "label": "Privacidade",
+        "href": "/privacidade"
+      }
     ]
   }
 }

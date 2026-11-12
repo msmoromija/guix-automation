@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gravarPacote, horasRestantes, lerPacote, sanitizarToken } from "@/lib/prototipos/cofre";
+import { persistirFotoPrototipo } from "@/lib/prototipos/persistir-foto";
 import { aprovarPrototipo, type CanalAprovacao } from "@/lib/prototipos/aprovar";
 import { aplicarEstudio, aplicarSrcNoSlot, minutosDeRotulo, sanitizarFotoSrc, sanitizarLogoSrc } from "@/lib/estudio/aplicar";
 import { normalizarPassoMinutos } from "@/lib/estudio/expediente";
@@ -9,6 +10,8 @@ import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { AVISO_FECHADO, AVISO_LIMITE, LIMITE_PEDIDOS_IA } from "@/lib/estudio/pedido-fechado";
 import type { Nicho } from "@/lib/media/tipos";
 import { sanitizarVisual, visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
+import { repararParaSchema } from "@/lib/automacao/limpar-exemplo";
+import { validarSiteJson } from "@/lib/automacao/validar-site";
 
 export const runtime = "nodejs";
 
@@ -112,7 +115,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     });
   }
 
-  if (pacote.edicaoFechada && body.fechar !== true && body.somenteAgenda !== true && body.somenteAdmin !== true) {
+  if (
+    pacote.edicaoFechada &&
+    body.fechar !== true &&
+    body.reabrir !== true &&
+    body.somenteAgenda !== true &&
+    body.somenteAdmin !== true &&
+    body.reconfigurar !== true
+  ) {
     return NextResponse.json({
       aviso: AVISO_FECHADO,
       edicaoFechada: true,
@@ -135,6 +145,151 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       visual: pacote.visual,
       aviso: AVISO_FECHADO,
     });
+  }
+
+  /** Volta um passo: o cliente reabre a edição do rascunho antes de comprar. */
+  if (body.reabrir === true) {
+    const statusAtual = String(pacote.status || "");
+    if (statusAtual === "pago" || statusAtual === "em_integracao" || statusAtual === "publicado") {
+      return NextResponse.json({
+        aviso: "Este site já está em publicação. Alterações agora são com o time GuiX no contato.",
+        edicaoFechada: true,
+        site: pacote.site,
+        visual: pacote.visual,
+      });
+    }
+    const atualizado = { ...pacote, edicaoFechada: false };
+    delete atualizado.fechadoEm;
+    await gravarPacote(atualizado);
+    return NextResponse.json({
+      ok: true,
+      edicaoFechada: false,
+      site: pacote.site,
+      visual: pacote.visual,
+      pedidosIa: pacote.pedidosIa || 0,
+      desfazer: (pacote.historico || []).length,
+      aviso: "Edição reaberta. Continue ajustando o site de teste.",
+    });
+  }
+
+  if (body.reconfigurar === true) {
+    if (String(pacote.status || "rascunho") !== "rascunho" || pacote.edicaoFechada) {
+      return NextResponse.json({
+        erro: "Este protótipo não aceita reconfiguração pelo estúdio. Sites aprovados ou publicados são alterados pela área do cliente.",
+      }, { status: 409 });
+    }
+    if (!body.site || typeof body.site !== "object" || Array.isArray(body.site)) {
+      return NextResponse.json({ erro: "As configurações enviadas não são válidas." }, { status: 400 });
+    }
+
+    const site = structuredClone(body.site) as Record<string, unknown>;
+    const empresa = { ...((site.empresa as Record<string, unknown>) || {}) };
+    const endereco = { ...((empresa.endereco as Record<string, unknown>) || {}) };
+    const nome = String(empresa.nome || pacote.nome || "").trim().slice(0, 100);
+    const cidade = String(endereco.cidade || pacote.cidade || "").trim().slice(0, 80);
+    const estado = String(endereco.estado || "").trim().toUpperCase().slice(0, 2);
+    const whatsapp = String(empresa.whatsapp_label || empresa.whatsapp || pacote.whatsapp || "").trim().slice(0, 40);
+    const email = String(empresa.email || pacote.email || "").trim().slice(0, 120);
+    if (nome.length < 2) {
+      return NextResponse.json({ erro: "Informe o nome do negócio antes de salvar." }, { status: 400 });
+    }
+
+    const visual: VisualConfig = {
+      ...visualPadrao(pacote.nicho),
+      ...sanitizarVisual(body.visual || {}),
+    };
+    const clienteId = `t${token}`;
+    const gravarImagem = async (
+      item: Record<string, unknown>,
+      categoria: "hero" | "sobre" | "servico" | "profissional" | "evento" | "galeria",
+      alt: string,
+    ) => {
+      const imagem = { ...((item.imagem as Record<string, unknown>) || {}) };
+      const src = String(imagem.src || "");
+      if (!src.startsWith("data:")) return;
+      imagem.src = await persistirFotoPrototipo(src, clienteId, categoria, alt);
+      imagem.origem = "upload";
+      item.imagem = imagem;
+    };
+
+    try {
+      const hero = { ...((site.hero as Record<string, unknown>) || {}) };
+      const sobre = { ...((site.sobre as Record<string, unknown>) || {}) };
+      await gravarImagem(hero, "hero", `Capa de ${nome}`);
+      await gravarImagem(sobre, "sobre", `Sobre ${nome}`);
+      site.hero = hero;
+      site.sobre = sobre;
+
+      for (const [blocoNome, categoria] of [
+        ["galeria", "galeria"],
+        ["servicos", "servico"],
+        ["profissionais", "profissional"],
+        ["eventos", "evento"],
+      ] as const) {
+        const bloco = { ...((site[blocoNome] as Record<string, unknown>) || {}) };
+        const itens = Array.isArray(bloco.itens) ? (bloco.itens as Record<string, unknown>[]) : [];
+        for (const [indice, item] of itens.entries()) {
+          const titulo = String(item.nome || item.titulo || `Imagem ${indice + 1}`).slice(0, 100);
+          await gravarImagem(item, categoria, titulo);
+        }
+        bloco.itens = itens;
+        site[blocoNome] = bloco;
+      }
+
+      const logo = { ...((empresa.logo as Record<string, unknown>) || {}) };
+      const logoSrc = String(logo.src || "");
+      if (logoSrc && !sanitizarLogoSrc(logoSrc)) {
+        return NextResponse.json({ erro: "A logo não está em um formato válido. Selecione-a novamente." }, { status: 422 });
+      }
+      empresa.logo = logo;
+      site.empresa = empresa;
+      repararParaSchema(site, {
+        clienteId,
+        nicho: pacote.nicho,
+        nome,
+        slogan: String(empresa.slogan || "").trim(),
+        cidade,
+        estado,
+        whatsapp,
+        email,
+      });
+      const validacao = await validarSiteJson(site);
+      if (!validacao.ok) {
+        return NextResponse.json({
+          erro: "As configurações ainda não formam um site válido. Revise os campos destacados e tente novamente.",
+          detalhe: validacao.erros.slice(0, 6),
+        }, { status: 422 });
+      }
+
+      const historico = [...(pacote.historico || []), { site: pacote.site, visual: pacote.visual }].slice(-3);
+      const atualizado = {
+        ...pacote,
+        nome,
+        cidade,
+        whatsapp,
+        email,
+        slogan: String(empresa.slogan || "").trim(),
+        site,
+        visual,
+        historico,
+      };
+      await gravarPacote(atualizado);
+      return NextResponse.json({
+        ok: true,
+        token,
+        site,
+        visual,
+        desfazer: historico.length,
+        expiraEm: pacote.expiraEm,
+        previewUrl: `/visualizar/${token}`,
+        aviso: "Configurações salvas no mesmo link do protótipo.",
+      });
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "";
+      return NextResponse.json({
+        erro: mensagem || "Não foi possível guardar as imagens. Confira a conexão e tente novamente.",
+      }, { status: 422 });
+    }
   }
 
   if (body.desfazer === true) {
@@ -212,8 +367,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     delete logo.credito;
     empresa.logo = logo;
     site.empresa = empresa;
-    await gravarPacote({ ...pacote, site });
-    return NextResponse.json({ ok: true, token, site, expiraEm: pacote.expiraEm });
+    const visual: VisualConfig = { ...visualPadrao(pacote.nicho), ...(pacote.visual || {}) };
+    delete visual.logoOrigem;
+    delete visual.logoIcone;
+    delete visual.logoEmblema;
+    delete visual.logoArquivo;
+    delete visual.logoLayout;
+    delete visual.logoFonteId;
+    delete visual.logoCorIcone;
+    delete visual.logoCorNome;
+    delete visual.logoCorAcento;
+    await gravarPacote({ ...pacote, site, visual });
+    return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
   }
 
   /** Atualiza só horário da casa + grade/ausências por profissional (área do cliente). */
@@ -537,8 +702,31 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ ok: true, token, site, visual, expiraEm: pacote.expiraEm });
   }
 
-  const fotoSrc = sanitizarFotoSrc(body.fotoSrc);
-  const slot = body.slot as { tipo?: "hero" | "sobre" | "galeria" | "servico"; indice?: number } | undefined;
+  const fotoSrcBruta = body.fotoSrc == null ? "" : String(body.fotoSrc);
+  let fotoSrc = sanitizarFotoSrc(body.fotoSrc);
+  const slot = body.slot as {
+    tipo?: "hero" | "sobre" | "galeria" | "servico" | "profissional";
+    indice?: number;
+  } | undefined;
+  if (fotoSrcBruta && !fotoSrc) {
+    return NextResponse.json({ erro: "A foto é inválida ou excede o limite permitido." }, { status: 400 });
+  }
+  if (fotoSrc?.startsWith("data:") && slot?.tipo) {
+    const nome =
+      slot.tipo === "profissional"
+        ? String(
+            ((pacote.site.profissionais as { itens?: { nome?: string }[] } | undefined)?.itens || [])[
+              slot.indice || 0
+            ]?.nome || "Equipe",
+          )
+        : String((pacote.site.empresa as { nome?: string } | undefined)?.nome || "Negócio");
+    try {
+      fotoSrc = await persistirFotoPrototipo(fotoSrc, `t${token}`, slot.tipo, nome);
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Não foi possível guardar a foto.";
+      return NextResponse.json({ erro: mensagem }, { status: 422 });
+    }
+  }
   const creditoFoto =
     body.credito && typeof body.credito === "object" ? (body.credito as Record<string, unknown>) : undefined;
   const soFoto = Boolean(fotoSrc && slot?.tipo && body.nome == null && body.cidade == null && body.whatsapp == null && body.slogan == null && !body.visual && !body.logoSrc);

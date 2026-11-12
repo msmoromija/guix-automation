@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 type Dados = {
   id: string;
@@ -22,12 +22,7 @@ function ExtratoInner() {
   const token = sp.get("t") || params.id || "";
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState("");
-  const [origem, setOrigem] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    setOrigem(window.location.origin);
-  }, []);
 
   useEffect(() => {
     if (!params.id || !token) {
@@ -43,25 +38,13 @@ function ExtratoInner() {
       .catch((e: unknown) => setErro(e instanceof Error ? e.message : "Falha"));
   }, [params.id, token]);
 
-  const contaUrl = useMemo(
-    () => (origem && dados ? `${origem}/conta/${dados.id}?t=${encodeURIComponent(token)}` : ""),
-    [origem, dados, token],
-  );
-  const qrSrc = useMemo(
-    () =>
-      contaUrl
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=480x480&margin=12&data=${encodeURIComponent(contaUrl)}`
-        : "",
-    [contaUrl],
-  );
-
   async function baixarPng() {
     if (!dados || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const W = 1080;
-    const H = 1480;
+    const H = 900;
     canvas.width = W;
     canvas.height = H;
     ctx.fillStyle = "#0B1220";
@@ -93,18 +76,9 @@ function ExtratoInner() {
         /* */
       }
     }
-    if (qrSrc) {
-      const qr = await carregar(qrSrc);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(64, 760, 420, 420);
-      ctx.drawImage(qr, 88, 784, 372, 372);
-      ctx.fillStyle = "#CBD5E1";
-      ctx.font = "500 24px system-ui, sans-serif";
-      ctx.fillText("Área do cliente", 64, 1220);
-    }
     ctx.fillStyle = "#64748B";
     ctx.font = "500 22px system-ui, sans-serif";
-    ctx.fillText("guix.net.br", 64, 1400);
+    ctx.fillText("guix.net.br", 64, 840);
 
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
@@ -168,10 +142,6 @@ function ExtratoInner() {
             </div>
           ) : null}
         </dl>
-        {qrSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrSrc} alt="QR da área do cliente" className="mt-6 h-40 w-40 rounded-xl border border-line p-2" />
-        ) : null}
       </article>
 
       <div className="mt-6 flex flex-wrap gap-3 print:hidden">

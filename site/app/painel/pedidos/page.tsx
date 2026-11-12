@@ -162,6 +162,9 @@ function PainelPedidos() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="/painel/orcamentos" className="rounded-full border border-line px-4 py-2 text-xs font-semibold">
+            Orçamentos
+          </a>
           <a href="/painel/cupons" className="rounded-full border border-line px-4 py-2 text-xs font-semibold">
             Cupons
           </a>

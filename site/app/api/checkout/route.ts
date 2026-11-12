@@ -86,9 +86,10 @@ export async function POST(requisicao: Request) {
       const { autenticarPreview, espelharPrototipoNoRegistry } = await import("@/lib/previews/store");
       let meta = await autenticarPreview(previewId, previewToken);
       if (!meta) {
-        const { lerPacote, sanitizarToken } = await import("@/lib/prototipos/cofre");
+        // Bruto: permite contratar mesmo após o TTL de 72h do rascunho grátis.
+        const { lerPacoteBruto, sanitizarToken } = await import("@/lib/prototipos/cofre");
         const tok = sanitizarToken(previewToken);
-        const pacote = await lerPacote(tok);
+        const pacote = await lerPacoteBruto(tok);
         if (pacote && pacote.token === sanitizarToken(previewId)) {
           meta = await espelharPrototipoNoRegistry({
             token: pacote.token,
@@ -184,7 +185,16 @@ export async function POST(requisicao: Request) {
         avisos: prep.avisos,
       };
       try {
-        aviso = await avisarCompra({ pedido: prep.pedido, evento: "cobranca_criada" });
+        const ops = await avisarCompra({ pedido: prep.pedido, evento: "cobranca_criada" });
+        let cliente: unknown = null;
+        try {
+          const { avisarClienteCobrancaCriada } = await import("@/lib/automacao/emails-institucionais");
+          cliente = await avisarClienteCobrancaCriada(prep.pedido);
+        } catch (e) {
+          console.error("email cliente cobrança", e);
+          cliente = { ok: false, motivo: e instanceof Error ? e.message : "falha" };
+        }
+        aviso = { ops, cliente };
       } catch (e) {
         aviso = { ok: false, motivo: e instanceof Error ? e.message : "e-mail indisponível (use o painel)" };
       }

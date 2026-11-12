@@ -16,6 +16,7 @@ import {
   PROTOTIPO_TTL_MS,
   sanitizarToken,
 } from "@/lib/prototipos/cofre";
+import { persistirFotoPrototipo } from "@/lib/prototipos/persistir-foto";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -28,6 +29,10 @@ const NICHOS_OK = new Set([
   "academia",
   "contabilidade",
   "advocacia",
+  "dentista",
+  "clinica",
+  "psicologia",
+  "nutricionista",
 ]);
 
 const hits = new Map<string, { n: number; reset: number }>();
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
     const visual: VisualConfig = { ...visualPadrao(nicho), ...sanitizarVisual(body.visual || {}) };
     const logoSrc = sanitizarLogoSrc(body.logoSrc);
     const fotosIn = body.fotos && typeof body.fotos === "object" ? body.fotos : {};
-    const fotos = {
+    let fotos = {
       hero: sanitizarFotoSrc(fotosIn.hero),
       sobre: sanitizarFotoSrc(fotosIn.sobre),
       galeria: Array.isArray(fotosIn.galeria)
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
     };
     const servicosRaw = Array.isArray(body.servicos) ? body.servicos : [];
     const profissionaisRaw = Array.isArray(body.profissionais) ? body.profissionais : [];
-    const servicos = servicosRaw
+    let servicos = servicosRaw
       .map((s: { nome?: string; descricao?: string; preco?: string; duracao?: string; imagemSrc?: string }) => ({
         nome: String(s.nome || "").trim(),
         descricao: String(s.descricao || "").trim(),
@@ -96,7 +101,7 @@ export async function POST(req: NextRequest) {
       }))
       .filter((s: { nome: string }) => s.nome && s.nome !== "Novo serviço")
       .slice(0, 12);
-    const profissionais = profissionaisRaw
+    let profissionais = profissionaisRaw
       .map((p: { nome?: string; cargo?: string; descricao?: string; fotoSrc?: string }) => ({
         nome: String(p.nome || "").trim(),
         cargo: String(p.cargo || "").trim(),
@@ -118,13 +123,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: "nicho inválido" }, { status: 400 });
     }
 
+    const token = sanitizarToken(novoToken());
+    const clienteId = `t${token}`;
+    const persistirSeLocal = (
+      src: string | undefined,
+      categoria: "hero" | "sobre" | "servico" | "profissional" | "galeria",
+      alt: string,
+    ) =>
+      src?.startsWith("data:")
+        ? persistirFotoPrototipo(src, clienteId, categoria, alt)
+        : Promise.resolve(src);
+
+    fotos = {
+      ...fotos,
+      hero: await persistirSeLocal(fotos.hero, "hero", `Capa de ${nome}`),
+      sobre: await persistirSeLocal(fotos.sobre, "sobre", `Sobre ${nome}`),
+      galeria: fotos.galeria
+        ? await Promise.all(
+            fotos.galeria.map(async (src, i) => (await persistirSeLocal(src, "galeria", `Galeria ${i + 1} de ${nome}`)) || ""),
+          )
+        : undefined,
+    };
+    servicos = await Promise.all(
+      servicos.map(async (servico: { nome: string; descricao: string; preco: string; duracao: string; imagemSrc?: string }) => ({
+        ...servico,
+        imagemSrc: await persistirSeLocal(servico.imagemSrc, "servico", servico.nome),
+      })),
+    );
+    profissionais = await Promise.all(
+      profissionais.map(async (profissional: { nome: string; cargo: string; descricao: string; fotoSrc: string }) => ({
+        ...profissional,
+        fotoSrc: await persistirSeLocal(profissional.fotoSrc, "profissional", profissional.nome),
+      })),
+    );
+
     const imagensCliente = [
       ...(fotos.hero ? [{ categoria: "hero", src: fotos.hero, origem: "upload" as const }] : []),
       ...(fotos.sobre ? [{ categoria: "sobre", src: fotos.sobre, origem: "upload" as const }] : []),
       ...(fotos.galeria || []).map((src, i) => ({ categoria: "galeria", src, origem: "upload" as const, alt: `Galeria ${i + 1}` })),
     ];
 
-    const token = sanitizarToken(novoToken());
     const horarioCliente = String(body.horario || "").replace(/\s+/g, " ").trim().slice(0, 160);
     const enderecoLivre = String(body.enderecoLivre || body.enderecoCompleto || "").replace(/\s+/g, " ").trim().slice(0, 180);
     const gerado = await gerarSiteCliente({
@@ -218,11 +256,12 @@ export async function POST(req: NextRequest) {
       end.bairro = "";
       end.cidade = "";
       end.completo = "";
-      if (String(end.estado || "").toUpperCase() === "NA") end.estado = "";
     } else if (enderecoLivre) {
       end.completo = enderecoLivre;
     }
-    if (String(end.estado || "").toUpperCase() === "NA") end.estado = estado || "";
+    const ufBody = String(estado || "").trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(ufBody)) end.estado = ufBody;
+    else if (!/^[A-Z]{2}$/.test(String(end.estado || "").trim().toUpperCase())) end.estado = "NA";
     empresaHorario.endereco = end;
     gerado.site.empresa = empresaHorario;
 
@@ -258,13 +297,21 @@ export async function POST(req: NextRequest) {
     const menuBody = Array.isArray(body.menu) ? body.menu : null;
     const botaoAgendar = String(body.botaoAgendar || "").trim().slice(0, 40);
     if (menuBody?.length || botaoAgendar) {
+      const MENU_OK = new Set(["inicio", "sobre", "servicos", "profissionais", "promocoes", "faq", "contato"]);
       const header = { ...((gerado.site.header as Record<string, unknown>) || {}) };
       if (menuBody?.length) {
-        header.menu = menuBody.slice(0, 7).map((m: { id?: string; label?: string; href?: string }) => ({
-          id: String(m.id || "inicio"),
-          label: String(m.label || "").slice(0, 48),
-          href: urlSegura(String(m.href || "")) || "#inicio",
-        }));
+        header.menu = menuBody
+          .slice(0, 7)
+          .map((m: { id?: string; label?: string; href?: string }) => {
+            const id = MENU_OK.has(String(m.id || "")) ? String(m.id) : "inicio";
+            const hrefBruto = String(urlSegura(String(m.href || "")) || `#${id}`).toLowerCase();
+            return {
+              id,
+              label: String(m.label || id).slice(0, 48),
+              href: /^#[a-z]+$/.test(hrefBruto) ? hrefBruto : `#${id}`,
+            };
+          })
+          .filter((m: { id: string }, i: number, arr: { id: string }[]) => arr.findIndex((x) => x.id === m.id) === i);
       }
       if (botaoAgendar) header.botao_agendar = botaoAgendar;
       gerado.site.header = header;
@@ -323,10 +370,33 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    const validacao = await validarSiteJson(gerado.site);
+    let validacao = await validarSiteJson(gerado.site);
     if (!validacao.ok) {
+      console.error("prototipo/criar validação (1ª)", nicho, validacao.erros?.slice(0, 12));
+      repararParaSchema(gerado.site, {
+        clienteId: `t${token}`,
+        nicho,
+        nome,
+        slogan,
+        cidade,
+        estado,
+        whatsapp,
+        email,
+        profissionaisDetalhe: profissionais.map((p: { nome: string; cargo: string; descricao: string }) => ({
+          nome: p.nome,
+          cargo: p.cargo || undefined,
+          descricao: p.descricao || undefined,
+        })),
+      });
+      validacao = await validarSiteJson(gerado.site);
+    }
+    if (!validacao.ok) {
+      console.error("prototipo/criar validação (2ª)", nicho, validacao.erros?.slice(0, 12));
       return NextResponse.json(
-        { erro: "O site ficou inconsistente na validação. Tente de novo." },
+        {
+          erro: "O site ficou inconsistente na validação. Tente de novo.",
+          detalhe: validacao.erros?.slice(0, 4),
+        },
         { status: 500 },
       );
     }

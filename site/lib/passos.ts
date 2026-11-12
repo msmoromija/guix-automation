@@ -13,7 +13,7 @@ export const passos: PassoItem[] = [
     slug: "informacoes",
     numero: "01",
     titulo: "Você monta no estúdio",
-    texto: "Nome, visual, marca, WhatsApp e serviços no /prototipar.",
+    texto: "Você ajusta nome, visual, WhatsApp e serviços e já vê o site pronto do lado.",
     resumo: "No estúdio você personaliza o modelo do ofício. O preview mostra o site na hora, sem pagar ainda.",
     pontos: [
       "Nome, segmento, endereço e tom dos textos.",

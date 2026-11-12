@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { checklistDadosPublicacao, mensagemWaDadosPendentes } from "@/lib/cliente/jornada";
 import { linkWhatsapp } from "@/lib/contato";
 import { pagamentoConfirmado, type Cobranca } from "@/lib/cobranca";
 import { formatarReais } from "@/lib/dinheiro";
@@ -18,28 +20,35 @@ function imagemPix(valor: string) {
 export function PainelCobranca({
   cobranca,
   preview,
+  contaHref,
 }: {
   cobranca: Cobranca;
   preview?: { url?: string; downloadUrl?: string } | null;
+  /** Link da área do cliente (pós-pago). */
+  contaHref?: string;
 }) {
   const [copiado, setCopiado] = useState<"pix" | "boleto" | null>(null);
   const pago = pagamentoConfirmado(cobranca.status);
   let previewHref = preview?.url || "";
-  let downloadHref = preview?.downloadUrl || "";
-  if (!previewHref && typeof window !== "undefined") {
+  let conta = contaHref || "";
+  if (typeof window !== "undefined") {
     try {
       const raw = sessionStorage.getItem("guix.preview");
       if (raw) {
         const p = JSON.parse(raw) as { id?: string; token?: string };
         if (p.id && p.token) {
-          previewHref = `/p/${p.id}?t=${p.token}`;
-          downloadHref = `/api/prototipo/${p.id}/site.json?t=${p.token}`;
+          if (!previewHref) previewHref = `/p/${p.id}?t=${p.token}`;
+          if (!conta) conta = `/conta/${p.id}?t=${encodeURIComponent(p.token)}`;
         }
       }
     } catch {
       /* ignore */
     }
   }
+
+  const waDados = mensagemWaDadosPendentes({
+    nomeNegocio: cobranca.descricao || "meu negócio",
+  });
 
   async function copiar(texto: string, tipo: "pix" | "boleto") {
     await navigator.clipboard.writeText(texto);
@@ -55,35 +64,47 @@ export function PainelCobranca({
       <p className="mt-1 text-sm text-muted">Vencimento {formatarData(cobranca.vencimento)}</p>
 
       {pago ? (
-        <div className="mt-5 space-y-3 text-sm leading-6">
-          <p>
-            Pagamento confirmado. Seu protótipo segue no ar enquanto publicamos domínio e e-mail em até 24 horas.
+        <div className="mt-5 space-y-4 text-sm leading-6">
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-950">
+            Pagamento confirmado. Você está na fila de publicação. Domínio, e-mail, site, agenda e WhatsApp entram no ar
+            em <strong>até 24 horas</strong> após a confirmação dos dados do negócio.
           </p>
-          {previewHref ? (
-            <p>
-              <a href={previewHref} className="font-semibold text-accent underline">
-                Abrir o site gerado
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {conta ? (
+              <Link
+                href={conta}
+                className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-dark"
+              >
+                Abrir área do cliente
+              </Link>
+            ) : null}
+            {previewHref ? (
+              <a
+                href={previewHref}
+                className="inline-flex items-center justify-center rounded-full border border-line px-4 py-2.5 text-sm font-semibold hover:border-accent"
+              >
+                Ver o site de teste
               </a>
-              {downloadHref ? (
-                <>
-                  {" · "}
-                  <a href={downloadHref} className="font-semibold text-accent underline">
-                    Baixar site.json
-                  </a>
-                </>
-              ) : null}
-            </p>
-          ) : null}
-          <p>
-            Se quiser adiantar dados extras,{" "}
+            ) : null}
             <a
-              href={linkWhatsapp("Olá, acabei de pagar o GuiX.net e quero enviar os dados do negócio.")}
-              className="font-semibold text-accent"
+              href={waDados}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2.5 text-sm font-semibold text-[#128C7E]"
             >
-              fale no WhatsApp
+              Enviar dados no WhatsApp
             </a>
-            .
-          </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Confirme para acelerar</p>
+            <ul className="mt-2 space-y-1 text-muted">
+              {checklistDadosPublicacao()
+                .slice(0, 4)
+                .map((i) => (
+                  <li key={i.id}>· {i.titulo}</li>
+                ))}
+            </ul>
+          </div>
         </div>
       ) : null}
 
@@ -133,6 +154,15 @@ export function PainelCobranca({
             Pagar com cartão
           </a>
         </div>
+      ) : null}
+
+      {!pago ? (
+        <p className="mt-4 text-sm leading-6 text-muted">
+          Dúvida no pagamento?{" "}
+          <a className="font-semibold text-accent" href={linkWhatsapp("Olá, estou na tela de pagamento do GuiX.net e preciso de ajuda.")}>
+            Falar no WhatsApp
+          </a>
+        </p>
       ) : null}
 
       {cobranca.aviso ? <p className="mt-4 text-sm leading-6 text-muted">{cobranca.aviso}</p> : null}

@@ -11,6 +11,7 @@ import { aplicarSrcNoSlot } from "@/lib/estudio/aplicar";
 import { aplicarPedido, contextoEditavel, patchRapido, type PatchPedido } from "@/lib/estudio/aplicar-pedido";
 import { aplicarCampoNoSite } from "@/lib/estudio/copia-viva";
 import { linkWhatsapp } from "@/lib/contato";
+import { resolverOpcoesMarca } from "@/lib/estudio/resolver-opcoes-marca";
 import { visualPadrao, type VisualConfig } from "@/lib/estudio/visual";
 
 export default function VisualizarRascunhoPage() {
@@ -34,6 +35,8 @@ export default function VisualizarRascunhoPage() {
   const [avisoIa, setAvisoIa] = useState("");
   const [ajustando, setAjustando] = useState(false);
   const [fechado, setFechado] = useState(false);
+  /** No link final a edição começa travada; o cliente libera com o botão. */
+  const [editando, setEditando] = useState(false);
   const [usos, setUsos] = useState(0);
   const [passosDesfazer, setPassosDesfazer] = useState(0);
   const [copiado, setCopiado] = useState(false);
@@ -102,7 +105,17 @@ export default function VisualizarRascunhoPage() {
 
   async function guardarPatch(patch: PatchPedido) {
     const geracao = ++geracaoRef.current;
-    let data: { aviso?: string; abrir?: string; resumo?: string; site?: Record<string, unknown>; visual?: VisualConfig; edicaoFechada?: boolean; pedidosIa?: number; desfazer?: number } = {};
+    let data: {
+      ok?: boolean;
+      aviso?: string;
+      abrir?: string;
+      resumo?: string;
+      site?: Record<string, unknown>;
+      visual?: VisualConfig;
+      edicaoFechada?: boolean;
+      pedidosIa?: number;
+      desfazer?: number;
+    } = {};
     await new Promise<void>((resolve, reject) => {
       filaRef.current = filaRef.current
         .catch(() => undefined)
@@ -127,17 +140,35 @@ export default function VisualizarRascunhoPage() {
     });
     const texto = [data.resumo, data.aviso].filter(Boolean).join(" ");
     if (texto) setAvisoIa(texto);
-    return data as { aviso?: string; abrir?: string };
+    return data;
   }
 
   async function aplicarNaHora(patch: PatchPedido) {
     if (!site) return;
     const local = aplicarPedido(structuredClone(site), visual || visualPadrao(nicho), patch);
-    setSite(local.site);
-    setVisual(local.visual);
-    setAvisoIa([local.resumo, local.aviso].filter(Boolean).join(" "));
+    const mudou =
+      Boolean(
+        local.resumo ||
+          local.abrir ||
+          local.avisos?.length ||
+          (local.redes && Object.keys(local.redes).length),
+      ) ||
+      JSON.stringify({ site, visual: visual || visualPadrao(nicho) }) !==
+        JSON.stringify({ site: local.site, visual: local.visual });
+    if (!mudou) {
+      setAvisoIa(local.aviso || "Não houve alteração para salvar. Revise o pedido e tente outra vez.");
+      return false;
+    }
+    const salvo = await guardarPatch(patch);
+    const alteracaoPersistida =
+      JSON.stringify({ site, visual: visual || visualPadrao(nicho) }) !==
+      JSON.stringify({ site: salvo.site || site, visual: salvo.visual || visual || visualPadrao(nicho) });
+    if (!alteracaoPersistida && !salvo.abrir && !local.abrir) {
+      setAvisoIa(salvo.aviso || local.aviso || "O pedido não alterou o site. Ajuste a solicitação e tente novamente.");
+      return false;
+    }
     abrirDoPedido(local.abrir);
-    await guardarPatch(patch);
+    return true;
   }
 
   async function pedirTexto() {
@@ -180,7 +211,7 @@ export default function VisualizarRascunhoPage() {
           pedido: texto,
           nicho,
           nome: empresa?.nome || meta?.nome || "Negócio",
-          contexto: contextoEditavel(site, visual),
+          contexto: contextoEditavel(site, visual, undefined, nicho),
         }),
       });
       const data = (await res.json()) as { patch?: PatchPedido; aviso?: string; erro?: string; resumo?: string };
@@ -188,8 +219,77 @@ export default function VisualizarRascunhoPage() {
         setAvisoIa(data.aviso || data.erro || "Não consegui aplicar agora.");
         return;
       }
+      const resolvido = await resolverOpcoesMarca(data.patch, {
+        nome: empresa?.nome || meta?.nome || "Negócio",
+        nicho,
+        pedido: texto,
+        atual: {
+          icone: visual?.logoIcone,
+          emblema: visual?.logoEmblema,
+          arquivo: visual?.logoArquivo,
+          layout: visual?.logoLayout,
+          fonteId: visual?.logoFonteId,
+          corIcone: visual?.logoCorIcone,
+          corNome: visual?.logoCorNome,
+          corAcento: visual?.logoCorAcento,
+        },
+      });
+      const local = aplicarPedido(
+        structuredClone(site),
+        visual || visualPadrao(nicho),
+        resolvido.patch,
+        nicho,
+      );
+      const contextoFatos = contextoEditavel(site, visual, undefined, nicho) as Record<string, unknown>;
       setPedido("");
-      await aplicarNaHora(data.patch);
+      const aplicado = await aplicarNaHora(resolvido.patch);
+      if (!aplicado) return;
+      let avisoRevisao = "";
+      let resumoRevisao = "";
+      try {
+        const respostaRevisao = await fetch("/api/prototipo/textos", {
+          method: "POST",
+          signal: ctrl.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modo: "revisar-final",
+            pedido: texto,
+            nicho,
+            site: local.site,
+            visual: local.visual,
+            fatosConfirmados: {
+              nome: contextoFatos.nome,
+              slogan: contextoFatos.slogan,
+              whatsapp: contextoFatos.whatsapp,
+              email: contextoFatos.email,
+              endereco: contextoFatos.endereco,
+              horario: contextoFatos.horario,
+            },
+          }),
+        });
+        if (!respostaRevisao.ok) throw new Error("revisão indisponível");
+        const revisao = (await respostaRevisao.json()) as {
+          patch?: PatchPedido;
+          aviso?: string;
+          resumo?: string;
+          revisado?: boolean;
+        };
+        avisoRevisao = String(revisao.aviso || "");
+        resumoRevisao = String(revisao.resumo || "");
+        if (revisao.patch && Object.keys(revisao.patch).length) {
+          await guardarPatch(revisao.patch);
+        }
+        if (revisao.revisado !== true && !avisoRevisao) {
+          avisoRevisao = "A revisão final não conseguiu inspecionar todo o conteúdo.";
+        }
+      } catch {
+        avisoRevisao = "A alteração foi aplicada, mas a revisão final não terminou. Confira textos, dados e imagens antes de publicar.";
+      }
+      setAvisoIa(
+        [data.resumo, resolvido.aviso, resumoRevisao, avisoRevisao || "revisão final concluída"]
+          .filter(Boolean)
+          .join(" · "),
+      );
     } catch {
       setAvisoIa("Demorou demais. Nada mudou. Tente uma frase mais curta.");
     } finally {
@@ -233,6 +333,31 @@ export default function VisualizarRascunhoPage() {
     }
   }
 
+  /** Um passo atrás: reabre a edição depois do encerramento. */
+  async function reabrirEdicao() {
+    try {
+      const res = await fetch(`/api/prototipo/${token}?t=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reabrir: true }),
+      });
+      const data = (await res.json()) as { aviso?: string; erro?: string; edicaoFechada?: boolean };
+      if (data.edicaoFechada) {
+        setAvisoIa(data.aviso || data.erro || "Não deu para reabrir a edição.");
+        return;
+      }
+      if (data.erro) {
+        setAvisoIa(data.erro);
+        return;
+      }
+      setFechado(false);
+      setEditando(true);
+      setAvisoIa(data.aviso || "Edição reaberta. Continue ajustando o site.");
+    } catch {
+      setAvisoIa("Não deu para reabrir a edição agora. Tente de novo.");
+    }
+  }
+
   async function enviarLogo(file: File) {
     const src = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -257,7 +382,10 @@ export default function VisualizarRascunhoPage() {
       });
       const data = await res.json();
       if (!res.ok) setAvisoIa(data.erro || "Não deu para guardar a logo.");
-      else if (geracao === geracaoRef.current && data.site) setSite(data.site);
+      else if (geracao === geracaoRef.current && data.site) {
+        setSite(data.site);
+        if (data.visual) setVisual(data.visual);
+      }
     });
   }
 
@@ -306,8 +434,12 @@ export default function VisualizarRascunhoPage() {
     return <main className="px-5 py-16 text-sm text-muted">Abrindo o seu site de teste…</main>;
   }
 
+  const podeEditar = !fechado && editando;
+  /** Pode voltar um passo depois de encerrar, enquanto o site não entrou em publicação. */
+  const podeReabrir = !["pago", "em_integracao", "publicado"].includes(String(meta?.status || ""));
+
   return (
-    <div className="min-h-screen bg-black pb-44">
+    <div className={`min-h-screen bg-black ${podeEditar || fechado ? "pb-44" : "pb-20"}`}>
       <input
         ref={logoRef}
         type="file"
@@ -323,12 +455,12 @@ export default function VisualizarRascunhoPage() {
         site={site as Parameters<typeof SiteLivePreview>[0]["site"]}
         visual={visual}
         siteId={token}
-        onTrocarFoto={fechado ? undefined : setSlotFoto}
-        onTrocarLogo={fechado ? undefined : () => logoRef.current?.click()}
-        onTexto={fechado ? undefined : (campo, valor) => void gravarTexto(campo, valor)}
+        onTrocarFoto={podeEditar ? setSlotFoto : undefined}
+        onTrocarLogo={podeEditar ? () => logoRef.current?.click() : undefined}
+        onTexto={podeEditar ? (campo, valor) => void gravarTexto(campo, valor) : undefined}
       />
       <SeletorFoto
-        aberto={Boolean(slotFoto)}
+        aberto={Boolean(slotFoto) && podeEditar}
         nicho={nicho}
         slot={slotFoto}
         onEscolher={(src, credito) => {
@@ -343,6 +475,25 @@ export default function VisualizarRascunhoPage() {
             Token · {token}
           </p>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {!fechado ? (
+              <button
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  editando
+                    ? "border border-amber-300/60 bg-amber-400/20 text-amber-100"
+                    : "border border-violet-300/50 bg-violet-500/25 text-violet-100"
+                }`}
+                onClick={() => {
+                  setEditando((v) => !v);
+                  if (editando) {
+                    setSlotFoto(null);
+                    setAvisoIa("");
+                  }
+                }}
+              >
+                {editando ? "Travar edição" : "Editar fotos e textos"}
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/90"
@@ -358,8 +509,22 @@ export default function VisualizarRascunhoPage() {
               href={`/conta/${token}/agenda?t=${token}`}
               className="rounded-full border border-sky-400/50 bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-100"
             >
-              Minha agenda · horários
+              Horários da casa e equipe
             </Link>
+            <Link
+              href={`/conta/${token}/admin?t=${token}`}
+              className="rounded-full border border-cyan-300/50 bg-cyan-500/20 px-3 py-1 text-xs font-semibold text-cyan-100"
+            >
+              Configurações, equipe e fotos
+            </Link>
+            {!fechado && meta?.status === "rascunho" ? (
+              <Link
+                href={`/prototipar?reconfigurar=${encodeURIComponent(token)}`}
+                className="rounded-full border border-fuchsia-300/50 bg-fuchsia-500/20 px-3 py-1 text-xs font-semibold text-fuchsia-100"
+              >
+                Voltar às configurações
+              </Link>
+            ) : null}
             <Link
               href={meta?.contaUrl || `/conta/${token}?t=${token}`}
               className="rounded-full border border-emerald-400/50 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100"
@@ -374,22 +539,25 @@ export default function VisualizarRascunhoPage() {
             </Link>
           </div>
         </div>
-        <PedidoIa
-          texto={pedido}
-          onTexto={setPedido}
-          onEnviar={() => void pedirTexto()}
-          aviso={avisoIa}
-          ocupado={ajustando}
-          fechado={fechado}
-          onConfirmarFechar={() => void fecharAlteracao()}
-          onDesfazer={() => void desfazer()}
-          passosDesfazer={passosDesfazer}
-          usos={usos}
-          onAnexarFoto={() => setSlotFoto({ tipo: "hero" })}
-          onAnexarLogo={() => logoRef.current?.click()}
-          linkSuporte={suporte}
-        />
-        {avisoFoto ? <p className="bg-slate-950 px-4 py-1 text-center text-xs text-amber-300">{avisoFoto}</p> : null}
+        {podeEditar || fechado ? (
+          <PedidoIa
+            texto={pedido}
+            onTexto={setPedido}
+            onEnviar={() => void pedirTexto()}
+            aviso={avisoIa}
+            ocupado={ajustando}
+            fechado={fechado}
+            onConfirmarFechar={() => void fecharAlteracao()}
+            onReabrir={podeReabrir ? () => void reabrirEdicao() : undefined}
+            onDesfazer={() => void desfazer()}
+            passosDesfazer={passosDesfazer}
+            usos={usos}
+            onAnexarFoto={() => setSlotFoto({ tipo: "hero" })}
+            onAnexarLogo={() => logoRef.current?.click()}
+            linkSuporte={suporte}
+          />
+        ) : null}
+        {avisoFoto && podeEditar ? <p className="bg-slate-950 px-4 py-1 text-center text-xs text-amber-300">{avisoFoto}</p> : null}
       </div>
     </div>
   );

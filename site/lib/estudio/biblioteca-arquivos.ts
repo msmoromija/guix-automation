@@ -8,10 +8,14 @@ export const MARCAS_ARQUIVO: Record<string, string[]> = {
   barbearia: faixa("barbearia", 28),
   salao: faixa("salao", 32),
   estetica: faixa("estetica", 23),
-  petshop: faixa("petshop", 15),
-  academia: faixa("academia", 15),
+  petshop: faixa("petshop", 19),
+  academia: faixa("academia", 22),
   contabilidade: faixa("contabilidade", 13),
-  advocacia: faixa("advocacia", 17),
+  advocacia: faixa("advocacia", 27),
+  dentista: faixa("dentista", 25),
+  clinica: faixa("clinica", 20),
+  psicologia: faixa("psicologia", 26),
+  nutricionista: faixa("nutricionista", 25),
 };
 
 export function arquivosDoNicho(nicho: string): string[] {

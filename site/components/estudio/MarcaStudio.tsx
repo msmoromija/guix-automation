@@ -257,9 +257,18 @@ export function MarcaStudio({
 
         <div ref={corpoRef} className="min-h-0 flex-1 overflow-y-auto">
           <div className="sticky top-0 z-10 border-b border-line bg-white px-5 py-3 sm:px-6">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Como fica agora</p>
-            <div className="flex h-[88px] items-center overflow-hidden rounded-xl px-4" style={{ background: fundoSite, color: tintaSite }}>
-              <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={tintaSite} acento={corAcento || acento} className="h-16 w-full" />
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Como fica agora</p>
+              <button
+                type="button"
+                className="shrink-0 rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white"
+                onClick={() => usar(specVivo)}
+              >
+                Aplicar no site
+              </button>
+            </div>
+            <div className="flex h-[88px] items-center overflow-visible rounded-xl px-4" style={{ background: fundoSite, color: tintaSite }}>
+              <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={tintaSite} acento={corAcento || acento} className="h-14 w-full" />
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {(
@@ -271,8 +280,8 @@ export function MarcaStudio({
               ).map((m) => (
                 <div key={m.label}>
                   <p className="mb-1 text-[10px] uppercase tracking-wider text-muted">{m.label}</p>
-                  <div className="flex h-12 items-center overflow-hidden rounded-lg px-2" style={{ background: m.fundo, color: m.tinta }}>
-                    <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={m.tinta} acento={corAcento || acento} className="h-9 w-full" />
+                  <div className="flex h-12 items-center overflow-visible rounded-lg px-2" style={{ background: m.fundo, color: m.tinta }}>
+                    <LockupMarca spec={specVivo} nome={nome} slogan={slogan} tinta={m.tinta} acento={corAcento || acento} className="h-8 w-full" />
                   </div>
                 </div>
               ))}
@@ -303,11 +312,11 @@ export function MarcaStudio({
                   {[...propostas.filter((p) => p.origem === "biblioteca"), ...propostas.filter((p) => p.origem !== "biblioteca")].map((p) => (
                     <div
                       key={p.id}
-                      className={`overflow-hidden rounded-xl border p-3 ${selecionada === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
+                      className={`rounded-xl border p-3 ${selecionada === p.id ? "border-ink ring-1 ring-ink" : "border-line"}`}
                     >
                       <button type="button" className="w-full text-left" onClick={() => escolherModelo(p)}>
-                        <div className="flex h-16 items-center rounded-lg px-2" style={{ background: fundoSite, color: tintaSite }}>
-                          <LockupMarca spec={p} nome={nome} slogan={slogan} tinta={tintaSite} acento={acento} className="h-14 w-full" />
+                        <div className="flex h-16 items-center overflow-visible rounded-lg px-2" style={{ background: fundoSite, color: tintaSite }}>
+                          <LockupMarca spec={p} nome={nome} slogan={slogan} tinta={tintaSite} acento={acento} className="h-12 w-full" />
                         </div>
                         <span className="mt-1 block text-[11px] text-muted">
                           {p.origem === "ia" ? "IA · " : ""}

@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomInt, randomUUID } from "crypto";
 import type { CategoriaImagem, CreditoUnsplash, Nicho, UnsplashFoto } from "./tipos";
 import { chaveBiblioteca, chaveClienteInbox, enviarBuffer } from "./r2";
 import { enquadrarParaSlot } from "./processar-imagem";
@@ -20,13 +20,31 @@ export function montarCredito(foto: UnsplashFoto): CreditoUnsplash {
   };
 }
 
-export async function buscarUnsplash(termo: string, porPagina = 12): Promise<UnsplashFoto[]> {
+/** Varia a página para não servir sempre o topo dos mesmos resultados a cada cliente. */
+export function paginaAleatoriaUnsplash() {
+  return randomInt(1, 9);
+}
+
+export function escolherFotoAleatoria<T extends { id: string }>(fotos: T[], usadas = new Set<string>()) {
+  const candidatas = fotos.filter((foto) => !usadas.has(foto.id));
+  if (!candidatas.length) return undefined;
+  return candidatas[randomInt(0, candidatas.length)];
+}
+
+export async function buscarUnsplash(
+  termo: string,
+  porPagina = 12,
+  signal?: AbortSignal,
+  pagina = 1,
+): Promise<UnsplashFoto[]> {
   const params = new URLSearchParams({
     query: termo,
     per_page: String(porPagina),
     orientation: "landscape",
+    page: String(Math.max(1, pagina)),
   });
   const res = await fetch(`https://api.unsplash.com/search/photos?${params}`, {
+    signal,
     headers: {
       Authorization: `Client-ID ${accessKey()}`,
       "Accept-Version": "v1",

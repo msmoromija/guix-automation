@@ -13,8 +13,8 @@ export const diferenciais: DiferencialItem[] = [
     slug: "24-horas",
     numero: "01",
     titulo: "No ar em até 24 horas",
-    texto: "Com as informações completas, a presença entra no ar no dia seguinte — sem fila de agência e sem briefing eterno.",
-    resumo: "Velocidade de produto, não de agência. Com os dados completos, a presença digital entra no ar em até 24 horas.",
+    texto: "Na prática, após o pagamento e a confirmação dos dados, costuma ficar pronto em poucas horas.",
+    resumo: "Velocidade de produto, não de agência. Na prática, após o pagamento e a confirmação dos dados, costuma ficar pronto em poucas horas.",
     pontos: [
       "Prazo conta a partir das informações completas do negócio.",
       "Sem fila longa de briefing e revisão de agência.",

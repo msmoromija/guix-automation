@@ -24,7 +24,7 @@ const perguntas = [
   {
     pergunta: "Quanto tempo leva para ficar pronto?",
     resposta:
-      "O protótipo de teste sai na hora em que você clica em Salvar. A publicação com domínio leva até 24 horas depois que as informações do negócio chegam completas (nome, serviços, horários, contatos). Se faltar um dado essencial, o prazo só começa quando ele é enviado.",
+      "O protótipo de teste sai na hora em que você clica em Salvar. A publicação com domínio leva até 24 horas depois que as informações do negócio chegam completas (nome, serviços, horários, contatos). Na prática, após o pagamento e a confirmação dos dados, a publicação com domínio e e-mails costuma ser concluída em poucas horas. Se faltar um dado essencial, o prazo só começa quando ele é enviado.",
   },
   {
     pergunta: "Eu preciso saber de tecnologia?",
@@ -34,7 +34,7 @@ const perguntas = [
   {
     pergunta: "O que exatamente entra na entrega?",
     resposta:
-      "Na compra: domínio próprio, e-mail profissional no mesmo domínio, site responsivo, agenda online e WhatsApp no número da empresa. Tudo isso entra junto na publicação — não só o visual do site.",
+      "Na compra entram: domínio próprio, e-mail profissional no mesmo domínio, site responsivo, agenda online e WhatsApp no número da empresa. No e-mail profissional são até 5 contas Zoho no seu domínio (ex.: contato@, financeiro@, etc.), configuradas por nós. Tudo isso entra junto na publicação — não só o visual do site.",
   },
   {
     pergunta: "Posso mudar textos, horários e serviços depois?",
@@ -54,7 +54,7 @@ const perguntas = [
   {
     pergunta: "Qual a diferença entre Presença Completa, Avançada e Personalizada?",
     resposta:
-      "Presença Completa (R$ 499,90): modelo padrão — barbearias, salões, estética, pet shops, academias, contabilidade e advocacia. Presença Avançada (R$ 1.499,90): negócios médios com mais estrutura (imobiliárias, consultórios menores, catálogo ou agenda mais organizada). Presença Personalizada (a partir de R$ 2.999,90): operação complexa ou sob medida; o valor final depende da personalização.",
+      "Presença Completa (R$ 499,90): todos os modelos prontos com automação do projeto (barbearia, salão, estética, pet shop, academia, contabilidade, advocacia, dentista, clínica, psicologia e nutricionista). Presença Avançada (R$ 1.499,90): soluções um pouco mais complexas, sem modelo pronto — imobiliária, catálogo robusto ou fluxos extras. Presença Personalizada (a partir de R$ 2.999,90): operação bem mais complexa ou sob medida; o valor final depende da personalização.",
   },
   {
     pergunta: "Como eu pago?",
@@ -84,7 +84,7 @@ const perguntas = [
   {
     pergunta: "O que acontece depois que eu contrato?",
     resposta:
-      "Com o pagamento confirmado e os dados completos, em até 24 horas domínio, e-mail, site, agenda e WhatsApp entram no ar. O painel passa a ser seu. Se você já tinha um site de teste salvo, usamos esse rascunho na publicação.",
+      "Com o pagamento confirmado e os dados completos, domínio, e-mail, site, agenda e WhatsApp entram no ar em até 24 horas — na prática, costuma sair em poucas horas. O painel passa a ser seu. Se você já tinha um site de teste salvo, usamos esse rascunho na publicação.",
   },
 ];
 

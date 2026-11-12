@@ -142,9 +142,7 @@ export function expedienteParaSchema(dias: DiaExpediente[], passoMin = 30) {
       intervalos: slotsDoDia(d, passo),
     }))
     .filter((d) => d.intervalos.length);
-  return lista.length
-    ? lista
-    : [{ dia: "seg" as const, label: "Segunda", intervalos: intervalosEntre("09:00", "18:00", passo) }];
+  return lista;
 }
 
 /** Quantos slots consecutivos um serviço ocupa a partir da duração. */

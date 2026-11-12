@@ -1,0 +1,609 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "nicho": "dentista",
+    "template_id": "dentista-v1",
+    "locale": "pt-BR"
+  },
+  "empresa": {
+    "nome": "Consultório Costa Clara",
+    "slogan": "Avaliação e limpeza sem fila na recepção.",
+    "cnpj": "00.000.000/0000-00",
+    "logo": {
+      "id": "img_logo",
+      "src": "",
+      "alt": "Consultório Costa Clara",
+      "categoria": "logo"
+    },
+    "telefone": "7930000007",
+    "telefone_label": "(79) 3000-0007",
+    "whatsapp": "5579999990007",
+    "whatsapp_label": "(79) 99999-0007",
+    "whatsapp_mensagem": "Olá, vim pelo site do Consultório Costa Clara e quero agendar um horário.",
+    "whatsapp_aria": "Chamar o Consultório Costa Clara no WhatsApp",
+    "email": "contato@consultoriocostaclara.com.br",
+    "endereco": {
+      "logradouro": "Avenida Beira Mar",
+      "numero": "890",
+      "complemento": "sala 302",
+      "bairro": "Treze de Julho",
+      "cidade": "Aracaju",
+      "estado": "SE",
+      "cep": "49020-010",
+      "completo": "Avenida Beira Mar, 890, sala 302 — Treze de Julho, Aracaju - SE",
+      "mapa_embed_url": ""
+    },
+    "redes": [
+      {
+        "id": "instagram",
+        "label": "Instagram",
+        "url": "https://instagram.com/consultoriocostaclara"
+      },
+      {
+        "id": "facebook",
+        "label": "Facebook",
+        "url": ""
+      },
+      {
+        "id": "tiktok",
+        "label": "TikTok",
+        "url": ""
+      }
+    ],
+    "expediente": [
+      {
+        "dia": "seg",
+        "label": "Segunda",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "ter",
+        "label": "Terça",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qua",
+        "label": "Quarta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "qui",
+        "label": "Quinta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00",
+          "17:00"
+        ]
+      },
+      {
+        "dia": "sex",
+        "label": "Sexta",
+        "intervalos": [
+          "08:00",
+          "09:00",
+          "10:00",
+          "11:00",
+          "14:00",
+          "15:00",
+          "16:00"
+        ]
+      }
+    ],
+    "horario_resumo": "Segunda a sexta, 8h às 12h e 14h às 18h"
+  },
+  "tema": {
+    "color_primary": "#0F3D4A",
+    "color_secondary": "#0D9488",
+    "color_accent": "#0D9488",
+    "color_background": "#F3F8F9",
+    "color_surface": "#FFFFFF",
+    "color_text": "#0F3D4A",
+    "color_text_muted": "#5A6F76",
+    "font_heading": "Manrope",
+    "font_body": "Manrope",
+    "radius": "md"
+  },
+  "seo": {
+    "title": "Consultório Costa Clara | Dentista em Treze de Julho, Aracaju",
+    "description": "Agende consulta, limpeza, restauração ou urgência simples no Consultório Costa Clara, em Treze de Julho. Horário marcado de segunda a sexta.",
+    "keywords": [
+      "dentista em Aracaju",
+      "consultório odontológico",
+      "limpeza dental",
+      "agendamento"
+    ],
+    "og_title": "Consultório Costa Clara | Hora marcada em Treze de Julho",
+    "og_description": "Avaliação e limpeza com horário que você escolhe. Agende pelo site ou chame no WhatsApp.",
+    "og_image": {
+      "id": "img_og",
+      "src": "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Dentista atendendo paciente",
+      "categoria": "og"
+    },
+    "canonical_url": ""
+  },
+  "header": {
+    "botao_agendar": "Agendar horário",
+    "menu": [
+      {
+        "id": "inicio",
+        "label": "Início",
+        "href": "#inicio"
+      },
+      {
+        "id": "sobre",
+        "label": "O consultório",
+        "href": "#sobre"
+      },
+      {
+        "id": "servicos",
+        "label": "Serviços",
+        "href": "#servicos"
+      },
+      {
+        "id": "profissionais",
+        "label": "Dentistas",
+        "href": "#profissionais"
+      },
+      {
+        "id": "promocoes",
+        "label": "Condições",
+        "href": "#promocoes"
+      },
+      {
+        "id": "faq",
+        "label": "Dúvidas",
+        "href": "#faq"
+      },
+      {
+        "id": "contato",
+        "label": "Contato",
+        "href": "#contato"
+      }
+    ]
+  },
+  "hero": {
+    "titulo": "Seu sorriso, no horário que você escolhe.",
+    "subtitulo": "Avaliação, limpeza, restauração e urgência simples em Treze de Julho. Você marca, chega no horário e é atendido na sala reservada.",
+    "botao_principal": "Agendar horário",
+    "botao_secundario": "Chamar no WhatsApp",
+    "imagem": {
+      "id": "img_hero",
+      "src": "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=1600&q=80",
+      "alt": "Dentista atendendo paciente na cadeira",
+      "categoria": "hero"
+    }
+  },
+  "sobre": {
+    "titulo": "Consultório com horário reservado",
+    "paragrafos": [
+      "A Costa Clara atende com hora marcada, em Treze de Julho. A agenda do site separa o horário da sala — sem fila na recepção.",
+      "Os atendimentos da casa são avaliação, limpeza, restauração em resina, clareamento supervisionado e urgência simples (dor ou restauração caída).",
+      "Procedimentos hospitalares, cirurgia complexa e ortodontia completa ficam fora desta página. Se o caso pedir outro caminho, a dentista explica na própria consulta."
+    ],
+    "imagem": {
+      "id": "img_sobre",
+      "src": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80",
+      "alt": "Dentista analisando radiografia com o paciente",
+      "categoria": "sobre"
+    }
+  },
+  "servicos": {
+    "titulo": "Serviços",
+    "subtitulo": "Cada card é um horário. O preço é do atendimento marcado — sem surpresa de pacote fechado nesta página.",
+    "itens": [
+      {
+        "id": "srv_avaliacao",
+        "nome": "Consulta de avaliação",
+        "descricao": "Exame clínico, conversa sobre o que incomoda e o plano do que precisa ser feito.",
+        "preco": 120,
+        "preco_label": "R$ 120",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_avaliacao",
+          "src": "https://images.unsplash.com/photo-1666214280557-f1b5022eb634?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consulta de avaliação entre dentista e paciente",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_limpeza",
+        "nome": "Limpeza",
+        "descricao": "Profilaxia com remoção de placa e polimento. Ideal a cada seis meses, ou conforme a avaliação.",
+        "preco": 180,
+        "preco_label": "R$ 180",
+        "duracao_minutos": 50,
+        "duracao_label": "50 min",
+        "imagem": {
+          "id": "img_srv_limpeza",
+          "src": "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=800&q=80",
+          "alt": "Cuidados de higiene bucal e alinhadores",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_restauracao",
+        "nome": "Restauração",
+        "descricao": "Restauração em resina no tom combinado. O dente e o material ficam claros antes de começar.",
+        "preco": 250,
+        "preco_label": "R$ 250",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_restauracao",
+          "src": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
+          "alt": "Consultório preparado para restauração",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_clareamento",
+        "nome": "Clareamento supervisionado",
+        "descricao": "Sessão de clareamento no consultório, com orientação do que fazer em casa depois.",
+        "preco": 450,
+        "preco_label": "R$ 450",
+        "duracao_minutos": 60,
+        "duracao_label": "1 h",
+        "imagem": {
+          "id": "img_srv_clareamento",
+          "src": "https://images.unsplash.com/photo-1571772996211-2f02c9727629?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sorriso claro após clareamento supervisionado",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_urgencia",
+        "nome": "Urgência simples",
+        "descricao": "Dor, restauração caída ou dente quebrado. Encaixe no mesmo dia quando a agenda permitir.",
+        "preco": 200,
+        "preco_label": "R$ 200",
+        "duracao_minutos": 40,
+        "duracao_label": "40 min",
+        "imagem": {
+          "id": "img_srv_urgencia",
+          "src": "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=800&q=80",
+          "alt": "Sala pronta para urgência odontológica",
+          "categoria": "servico"
+        }
+      },
+      {
+        "id": "srv_retorno",
+        "nome": "Retorno de acompanhamento",
+        "descricao": "Revisão rápida após limpeza ou restauração. Só com horário marcado.",
+        "preco": 80,
+        "preco_label": "R$ 80",
+        "duracao_minutos": 20,
+        "duracao_label": "20 min",
+        "imagem": {
+          "id": "img_srv_retorno",
+          "src": "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retorno de acompanhamento com a equipe",
+          "categoria": "servico"
+        }
+      }
+    ]
+  },
+  "profissionais": {
+    "titulo": "Dentistas",
+    "subtitulo": "Escolha com quem prefere ser atendido ou siga sem preferência.",
+    "itens": [
+      {
+        "id": "pro_marina",
+        "nome": "Marina Costa",
+        "cargo": "Dentista",
+        "descricao": "Avaliação, limpeza e clareamento. Explica o plano antes de começar qualquer sessão.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_marina",
+          "src": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Marina Costa",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_pedro",
+        "nome": "Pedro Clara",
+        "cargo": "Dentista",
+        "descricao": "Restauração e urgência simples. Combina o tom da resina na própria consulta.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_pedro",
+          "src": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Pedro Clara",
+          "categoria": "profissional"
+        }
+      },
+      {
+        "id": "pro_helena",
+        "nome": "Helena Ramos",
+        "cargo": "Dentista",
+        "descricao": "Limpeza e retorno de acompanhamento. Prefere agenda da manhã.",
+        "whatsapp": "",
+        "foto": {
+          "id": "img_pro_helena",
+          "src": "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=800&q=80",
+          "alt": "Retrato de Helena Ramos",
+          "categoria": "profissional"
+        }
+      }
+    ]
+  },
+  "diferenciais": {
+    "titulo": "Como o atendimento funciona",
+    "itens": [
+      {
+        "id": "dif_horario",
+        "titulo": "Hora marcada",
+        "descricao": "A sala fica reservada no horário. Não há fila de espera no consultório.",
+        "icone": "clock"
+      },
+      {
+        "id": "dif_plano",
+        "titulo": "Plano antes de começar",
+        "descricao": "Na avaliação, a dentista diz o que precisa ser feito e o que fica para outro dia.",
+        "icone": "clipboard"
+      },
+      {
+        "id": "dif_urgencia",
+        "titulo": "Urgência simples",
+        "descricao": "Dor ou restauração caída: encaixe no mesmo dia quando a agenda permitir.",
+        "icone": "shield"
+      },
+      {
+        "id": "dif_whatsapp",
+        "titulo": "WhatsApp do consultório",
+        "descricao": "A confirmação sai do mesmo número da Costa Clara.",
+        "icone": "message-circle"
+      }
+    ]
+  },
+  "promocoes": {
+    "titulo": "Condições",
+    "itens": [
+      {
+        "id": "prm_limpeza",
+        "titulo": "Limpeza de novembro",
+        "descricao": "A limpeza fica por R$ 150 até 30/11/2026. Avaliação e restauração mantêm o preço do card.",
+        "validade": "2026-11-30",
+        "validade_label": "Até 30/11/2026",
+        "imagem": {
+          "id": "img_prm_limpeza",
+          "src": "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Equipe preparada para limpeza de novembro",
+          "categoria": "promocao"
+        }
+      }
+    ]
+  },
+  "eventos": {
+    "titulo": "Encontros",
+    "itens": [
+      {
+        "id": "evt_higiene",
+        "titulo": "Manhã da higiene bucal",
+        "descricao": "Orientação rápida sobre escova, fio e frequência de limpeza. Vagas limitadas. Caso individual continua na consulta marcada.",
+        "data": "2026-11-28",
+        "data_label": "28 de novembro",
+        "horario": "09:00",
+        "imagem": {
+          "id": "img_evt_higiene",
+          "src": "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Profissional em manhã de higiene bucal",
+          "categoria": "evento"
+        }
+      },
+      {
+        "id": "evt_criancas",
+        "titulo": "Primeira visita infantil",
+        "descricao": "Conversa curta para pais sobre a primeira ida da criança ao dentista. Sem atendimento clínico nesse horário.",
+        "data": "2026-12-12",
+        "data_label": "12 de dezembro",
+        "horario": "10:00",
+        "imagem": {
+          "id": "img_evt_criancas",
+          "src": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80",
+          "alt": "Recepção preparada para visita infantil",
+          "categoria": "evento"
+        }
+      }
+    ]
+  },
+  "galeria": {
+    "titulo": "O consultório",
+    "itens": [
+      {
+        "id": "gal_01",
+        "legenda": "Atendimento",
+        "imagem": {
+          "id": "img_gal_01",
+          "src": "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=900&q=80",
+          "alt": "Corredor claro do consultório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_02",
+        "legenda": "Radiografia",
+        "imagem": {
+          "id": "img_gal_02",
+          "src": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=900&q=80",
+          "alt": "Detalhe do atendimento clínico",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_03",
+        "legenda": "Consultório",
+        "imagem": {
+          "id": "img_gal_03",
+          "src": "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80",
+          "alt": "Instrumentos e mesa de trabalho",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_04",
+        "legenda": "Sorriso",
+        "imagem": {
+          "id": "img_gal_04",
+          "src": "https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&w=900&q=80",
+          "alt": "Conversa de orientação no consultório",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_05",
+        "legenda": "Orientação",
+        "imagem": {
+          "id": "img_gal_05",
+          "src": "https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&w=900&q=80",
+          "alt": "Atendimento por videochamada",
+          "categoria": "galeria"
+        }
+      },
+      {
+        "id": "gal_06",
+        "legenda": "Pediatria",
+        "imagem": {
+          "id": "img_gal_06",
+          "src": "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?auto=format&fit=crop&w=900&q=80",
+          "alt": "Atendimento cuidadoso com criança",
+          "categoria": "galeria"
+        }
+      }
+    ]
+  },
+  "faq": {
+    "titulo": "Dúvidas",
+    "itens": [
+      {
+        "id": "faq_dor",
+        "pergunta": "Estou com dor. Consigo encaixe no mesmo dia?",
+        "resposta": "Na maioria dos dias, sim, se ainda houver horário livre. Chame no WhatsApp e peça urgência simples."
+      },
+      {
+        "id": "faq_preco",
+        "pergunta": "O preço do card inclui radiografia ou moldagem?",
+        "resposta": "Não. O preço é só do atendimento marcado. Exame ou material à parte, se precisar, é combinado na consulta."
+      },
+      {
+        "id": "faq_plano",
+        "pergunta": "Vocês aceitam plano odontológico?",
+        "resposta": "Esta página de demonstração não lista convênios. No consultório real, a recepção informa quais planos são aceitos."
+      },
+      {
+        "id": "faq_crianca",
+        "pergunta": "Atendem crianças?",
+        "resposta": "Sim, em avaliação e limpeza. Traga o responsável. Casos que pedem especialista infantil são orientados na própria consulta."
+      },
+      {
+        "id": "faq_chegar",
+        "pergunta": "Preciso chegar com antecedência?",
+        "resposta": "Dez minutos bastam para a ficha. O horário da sala já está reservado para você."
+      },
+      {
+        "id": "faq_cancelar",
+        "pergunta": "Como cancelo um horário?",
+        "resposta": "Chame no WhatsApp com pelo menos 24 horas de antecedência e peça para liberar a agenda."
+      }
+    ]
+  },
+  "contato": {
+    "titulo": "Venha a Treze de Julho",
+    "subtitulo": "Agende pelo site ou chame no WhatsApp. O endereço e o horário estão aqui.",
+    "formulario": {
+      "titulo": "Mandar uma mensagem",
+      "label_nome": "Seu nome",
+      "label_telefone": "WhatsApp",
+      "label_email": "E-mail",
+      "label_mensagem": "Mensagem",
+      "botao": "Enviar pelo WhatsApp"
+    }
+  },
+  "agendamento": {
+    "titulo": "Agendar horário",
+    "subtitulo": "Escolha o serviço, a dentista e um horário. A confirmação é feita no WhatsApp.",
+    "passo_servico": "Serviço",
+    "passo_profissional": "Dentista",
+    "passo_data": "Dia",
+    "passo_horario": "Horário",
+    "passo_dados": "Seus dados",
+    "sem_preferencia": "Sem preferência",
+    "label_nome": "Seu nome",
+    "label_telefone": "WhatsApp",
+    "label_observacao": "Observação",
+    "placeholder_observacao": "Ex.: sensibilidade no dente de cima, à direita",
+    "botao_confirmar": "Confirmar pelo WhatsApp",
+    "fechado": "Fechado neste dia. O consultório atende de segunda a sexta.",
+    "erro_campos": "Preencha serviço, dentista, dia, horário, nome e WhatsApp."
+  },
+  "obrigado": {
+    "agendamento": {
+      "titulo": "Falta só confirmar",
+      "texto": "Seu horário está separado nesta tela. Chame no WhatsApp para o consultório confirmar."
+    },
+    "contato": {
+      "titulo": "Mensagem pronta",
+      "texto": "Sua mensagem já está escrita. Abra o WhatsApp para enviar ao consultório."
+    },
+    "botao_whatsapp": "Abrir WhatsApp",
+    "botao_inicio": "Voltar ao início"
+  },
+  "privacidade": {
+    "titulo": "Privacidade",
+    "paragrafos": [
+      "O Consultório Costa Clara usa os dados que você informa no site para responder seu contato e confirmar o horário.",
+      "Os dados pedidos são nome, telefone, e-mail se você quiser informar, serviço, profissional, dia, horário e a mensagem que você escrever.",
+      "Esses dados não são vendidos. Servem para o consultório falar com você pelo WhatsApp ou pelo telefone informado.",
+      "Para pedir a exclusão do que foi enviado, chame no WhatsApp do consultório e peça a remoção do contato."
+    ]
+  },
+  "rodape": {
+    "texto": "Consultório Costa Clara · Treze de Julho, Aracaju - SE",
+    "links": [
+      {
+        "id": "agendar",
+        "label": "Agendar horário",
+        "href": "/agendar"
+      },
+      {
+        "id": "privacidade",
+        "label": "Privacidade",
+        "href": "/privacidade"
+      }
+    ]
+  }
+}

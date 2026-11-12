@@ -35,6 +35,9 @@ export function PrecosOla() {
   const waPersonalizado = linkWhatsapp(
     "Olá, quero orçar a Presença Personalizada do GuiX.net para o meu negócio.",
   );
+  const waBlackFriday = linkWhatsapp(
+    "Olá! Quero solicitar o cupom Black Friday para um modelo pronto da Presença Completa. O preço regular é R$ 499,90. Quais modelos participam?",
+  );
 
   return (
     <>
@@ -59,6 +62,29 @@ export function PrecosOla() {
               {!plano.aPartirDe ? <p className="pb-2 text-sm text-slate-500">pagamento único</p> : null}
             </div>
             {plano.aPartirDe ? <p className="mt-1 text-sm text-slate-500">Valor final conforme a personalização</p> : null}
+            {plano.id === "simples" ? (
+              <div className="mt-5 rounded-2xl border border-orange-300/60 bg-[#07162d] p-4 text-white shadow-[0_16px_40px_-28px_rgba(15,23,42,0.8)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-orange-300">Black Friday</p>
+                  <p className="text-[11px] font-medium text-slate-300">Por tempo limitado</p>
+                </div>
+                <p className="mt-2 text-xl font-black">
+                  R$ 349,99 <span className="text-sm font-semibold text-orange-200">com cupom*</span>
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-200">
+                  Só para modelos prontos da Presença Completa. Preço regular: R$ 499,90. Peça o cupom pelo WhatsApp
+                  e aplique no checkout.
+                </p>
+                <a
+                  href={waBlackFriday}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full bg-orange-500 px-4 py-2 text-center text-sm font-bold text-slate-950 transition hover:bg-orange-400"
+                >
+                  Solicitar cupom no WhatsApp
+                </a>
+              </div>
+            ) : null}
             <p className="mt-5 text-[15px] leading-7 text-slate-600">{plano.resumo}</p>
             <ul className="mt-8 space-y-3.5 text-[15px] text-ink">
               {plano.itens.map((item) => {
@@ -81,7 +107,7 @@ export function PrecosOla() {
                     ? clientesPorFaixa("personalizado")[0]
                     : null;
               if (!exemplo) return null;
-              const hrefExterno = exemplo.appUrl || exemplo.siteUrl || `/clientes#${exemplo.slug}`;
+              const hrefExterno = exemplo.siteUrl || exemplo.appUrl || `/clientes#${exemplo.slug}`;
               return (
                 <div className="mt-8 rounded-2xl border border-line bg-[#F8FAFC] px-4 py-3.5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">Exemplo nesta faixa</p>

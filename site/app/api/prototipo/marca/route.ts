@@ -30,12 +30,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const nome = String(body.nome || "").trim();
     const nicho = String(body.nicho || "barbearia") as Nicho;
+    const pedido = String(body.pedido || "").trim().slice(0, 500);
     const evitar = Array.isArray(body.evitar) ? (body.evitar as SpecLogo[]) : [];
     const jaIa = evitar.filter((e) => e?.origem === "ia").length;
     if (jaIa >= LIMITE_IA_LOGO) {
       return NextResponse.json({ erro: "Limite de 10 marcas geradas. Escolha na lista ou envie o arquivo." }, { status: 400 });
     }
-    const propostas = await gerarLoteLogos({ nome: nome || nicho, nicho, evitar });
+    const propostas = await gerarLoteLogos({ nome: nome || nicho, nicho, pedido, evitar });
     return NextResponse.json({ ok: true, propostas });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";

@@ -61,7 +61,39 @@ export function linkWhatsappNegocio(ag: Agendamento, tipo: TipoAvisoAgenda | "no
   return `https://wa.me/${digitos}?text=${encodeURIComponent(mensagemAgendamento(ag, mapa))}`;
 }
 
-async function enviarResend(opts: { para: string; assunto: string; texto: string }) {
+function escapar(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function htmlAgendamento(ag: Agendamento, tipo: TipoAvisoAgenda) {
+  const titulo = tituloAviso(tipo);
+  const dia = ag.data.split("-").reverse().join("/");
+  const link =
+    tipo === "solicitacao"
+      ? urlGestao(ag)
+      : urlCancelamento(ag);
+  const labelLink = tipo === "solicitacao" ? "Responder solicitação" : "Acompanhar agendamento";
+  return `
+    <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.55;color:#0f172a;max-width:520px;margin:0 auto">
+      <h1 style="margin:0 0 12px;font-size:20px">${escapar(titulo)}</h1>
+      <p style="margin:0 0 8px"><strong>Status:</strong> ${escapar(rotuloStatus(ag.status))}</p>
+      <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin:12px 0 16px;background:#f8fafc">
+        <p style="margin:0 0 6px"><strong>Cliente:</strong> ${escapar(ag.nomeCompleto)}</p>
+        <p style="margin:0 0 6px"><strong>Serviço:</strong> ${escapar(ag.servico)}</p>
+        <p style="margin:0 0 6px"><strong>Profissional:</strong> ${escapar(ag.profissional)}</p>
+        <p style="margin:0"><strong>Quando:</strong> ${escapar(dia)} às ${escapar(ag.hora)}</p>
+      </div>
+      ${ag.observacao ? `<p style="margin:0 0 12px;color:#475569">Obs.: ${escapar(ag.observacao)}</p>` : ""}
+      ${ag.respostaNota ? `<p style="margin:0 0 12px;color:#475569">Nota: ${escapar(ag.respostaNota)}</p>` : ""}
+      <p style="margin:0 0 8px">
+        <a href="${escapar(link)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px">${escapar(labelLink)}</a>
+      </p>
+      <p style="margin:14px 0 0;font-size:12px;color:#94a3b8">${escapar(ag.negocioNome)}</p>
+    </div>
+  `.trim();
+}
+
+async function enviarResend(opts: { para: string; assunto: string; texto: string; html?: string }) {
   const key = process.env.RESEND_API_KEY || "";
   if (!key) return { ok: false as const, motivo: "RESEND_API_KEY não configurada." };
   const de = process.env.RESEND_FROM || "GuiX.net <noreply@guix.net.br>";
@@ -77,6 +109,7 @@ async function enviarResend(opts: { para: string; assunto: string; texto: string
         to: [opts.para],
         subject: opts.assunto,
         text: opts.texto,
+        ...(opts.html ? { html: opts.html } : {}),
       }),
     });
     if (!res.ok) {
@@ -102,7 +135,12 @@ export async function enviarEmailNegocio(ag: Agendamento, tipo: TipoAvisoAgenda 
       : mapa === "cancelado"
         ? `Cancelamento — ${ag.negocioNome}`
         : `${tituloAviso(mapa)} — ${ag.negocioNome}`;
-  return enviarResend({ para, assunto, texto: mensagemAgendamento(ag, mapa) });
+  return enviarResend({
+    para,
+    assunto,
+    texto: mensagemAgendamento(ag, mapa),
+    html: htmlAgendamento(ag, mapa),
+  });
 }
 
 export async function enviarEmailCliente(ag: Agendamento, tipo: TipoAvisoAgenda) {
@@ -114,7 +152,12 @@ export async function enviarEmailCliente(ag: Agendamento, tipo: TipoAvisoAgenda)
       : tipo === "recusado"
         ? `Horário indisponível — ${ag.negocioNome}`
         : `Atualização do agendamento — ${ag.negocioNome}`;
-  return enviarResend({ para, assunto, texto: mensagemAgendamento(ag, tipo) });
+  return enviarResend({
+    para,
+    assunto,
+    texto: mensagemAgendamento(ag, tipo),
+    html: htmlAgendamento(ag, tipo),
+  });
 }
 
 async function enviarWhatsappTexto(telefoneDigitos: string, mensagem: string) {

@@ -79,6 +79,7 @@ function sanitizarLote(raw: unknown, nicho: string, evitar: SpecLogo[]): SpecLog
 export async function gerarLoteLogos(opts: {
   nome: string;
   nicho: Nicho;
+  pedido?: string;
   evitar?: SpecLogo[];
 }): Promise<SpecLogo[]> {
   const evitar = opts.evitar || [];
@@ -105,7 +106,7 @@ export async function gerarLoteLogos(opts: {
         {
           role: "system",
           content:
-            'Você é diretor de arte. Monte 5 logomarcas distintas para o ofício. Responda só JSON {"propostas":[{"emblema":"tesoura-disco","layout":"lado","fonteId":"georgia","corIcone":"#C6A15B","corAcento":"#1A1614"}]}. Use SOMENTE os ids de emblema da lista. Nunca Lucide, caduceu ou símbolo de outro ramo. Varie emblema, fonte, layout e cor.',
+            'Você é diretor de arte. Monte 5 logomarcas distintas para o ofício e siga a direção criativa específica do cliente. Ordene por aderência: a primeira deve ser a recomendada e mais fiel ao pedido. Responda só JSON {"propostas":[{"emblema":"tesoura-disco","layout":"lado","fonteId":"georgia","corIcone":"#C6A15B","corAcento":"#1A1614"}]}. Use SOMENTE os ids de emblema da lista. Nunca Lucide, caduceu ou símbolo de outro ramo. Varie emblema, fonte, layout e cor sem contrariar o pedido.',
         },
         {
           role: "user",
@@ -113,6 +114,7 @@ export async function gerarLoteLogos(opts: {
 Emblemas: ${marcas}.
 Layouts: ${layouts}.
 Fontes: ${fontes}.
+Direção criativa do cliente: ${String(opts.pedido || "Crie opções profissionais adequadas ao ofício.").slice(0, 500)}.
 Já usados: ${evitar.map((e) => `${e.emblema || e.icone}/${e.layout}/${e.fonteId}`).join(", ") || "nenhum"}.
 Entregue 5 propostas novas.`,
         },
