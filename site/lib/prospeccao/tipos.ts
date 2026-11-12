@@ -59,7 +59,6 @@ export type NichoProspecção = {
   nome: string;
   modelo_url: string;
   termos_busca: string[];
-  categorias_foursquare?: string[];
 };
 
 export type TemplateMensagem = {
@@ -81,6 +80,8 @@ export type ConfigProspecção = {
   templates: TemplateMensagem[];
   template_ativo: string;
   periodo_recontato_dias: number;
+  /** Nome exibido como remetente nas mensagens (ex: "Equipe GuiX"). */
+  remetente?: string;
 };
 
 /** Contadores diários por conta: { contaId: { "YYYY-MM-DD": n } } */

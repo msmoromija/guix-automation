@@ -36,7 +36,6 @@ type NichoCfg = {
   nome: string;
   modelo_url: string;
   termos_busca: string[];
-  categorias_foursquare?: string[];
 };
 
 type Template = { id: string; nome: string; texto: string };
@@ -62,6 +61,7 @@ type Config = {
   templates: Template[];
   template_ativo: string;
   periodo_recontato_dias: number;
+  remetente?: string;
 };
 
 const STORAGE_KEY = "guix.prospeccao.senha";
@@ -241,7 +241,7 @@ function PainelProspeccao() {
           endereco: r.endereco,
           categoria: r.categoria,
           external_id: r.external_id,
-          fonte: "foursquare",
+          fonte: "google",
         }),
       });
       const j = await res.json();
@@ -452,7 +452,7 @@ function PainelProspeccao() {
             Pedidos / ZIP
           </a>
           <span className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold">
-            Carlos Mendes · Administrador
+            {config?.remetente || "Equipe GuiX"}
           </span>
           <button
             type="button"
@@ -564,6 +564,7 @@ function PainelProspeccao() {
                   <h2 className="flex items-center gap-2 text-sm font-bold">
                     <span>📡</span> Cota da API (mês)
                   </h2>
+                  <p className="mt-1 text-[11px] text-muted">Google Places · Text Search (Enterprise)</p>
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span
                       className={`font-mono text-xs ${
@@ -588,7 +589,7 @@ function PainelProspeccao() {
                     </p>
                   ) : alerta ? (
                     <p className="mt-2 text-xs text-amber-800">
-                      Cota quase esgotada. Evite buscas desnecessárias ou atualize o plano da Foursquare.
+                      Cota quase esgotada. Evite buscas desnecessárias ou aumente o limite no Google Cloud.
                     </p>
                   ) : null}
                 </div>
@@ -940,6 +941,7 @@ function ConfigPanel({
   const [endpointDetalhes, setEndpointDetalhes] = useState("");
   const [periodo, setPeriodo] = useState(45);
   const [templateAtivo, setTemplateAtivo] = useState("");
+  const [remetente, setRemetente] = useState("Equipe GuiX");
 
   const [contas, setContas] = useState<Conta[]>([]);
   const [nichos, setNichos] = useState<NichoCfg[]>([]);
@@ -955,6 +957,7 @@ function ConfigPanel({
       setEndpointDetalhes(config.api.endpoint_detalhes);
       setPeriodo(config.periodo_recontato_dias);
       setTemplateAtivo(config.template_ativo);
+      setRemetente(config.remetente || "Equipe GuiX");
       setContas(config.contas.map((c) => ({ ...c })));
       setNichos(
         config.nichos.map((n) => ({
@@ -962,7 +965,6 @@ function ConfigPanel({
           nome: n.nome,
           modelo_url: n.modelo_url,
           termos_busca: [...(n.termos_busca || [])],
-          categorias_foursquare: [...(n.categorias_foursquare || [])],
         })),
       );
       setTemplates(config.templates.map((t) => ({ ...t })));
@@ -1023,13 +1025,14 @@ function ConfigPanel({
         headers: { "Content-Type": "application/json", "x-painel-token": senha },
         body: JSON.stringify({
           api: {
-            provedor: "foursquare",
+            provedor: "google",
             chave,
             endpoint_busca: endpointBusca,
             endpoint_detalhes: endpointDetalhes,
           },
           periodo_recontato_dias: periodo,
           template_ativo: templateAtivo,
+          remetente,
           contas: contasCfg,
           nichos,
           templates,
@@ -1068,10 +1071,10 @@ function ConfigPanel({
         <div className="mt-4 space-y-5">
           {erro ? <p className="text-sm text-rose-700">{erro}</p> : null}
 
-          {/* API Foursquare */}
+          {/* API Google Places */}
           <div className="space-y-2">
             <p className="flex items-center justify-between text-xs font-semibold">
-              API Foursquare
+              API Google Places
               {config?.api.chave ? (
                 <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
                   Conectada
@@ -1089,7 +1092,7 @@ function ConfigPanel({
                 className={campo}
                 value={chave}
                 onChange={(e) => setChave(e.target.value)}
-                placeholder="fsq3..."
+                placeholder="AIza..."
               />
             </div>
             <div>
@@ -1209,19 +1212,6 @@ function ConfigPanel({
                     }
                     placeholder="Termos de busca (separados por vírgula)"
                   />
-                  <input
-                    className={campo}
-                    value={(n.categorias_foursquare || []).join(", ")}
-                    onChange={(e) =>
-                      atualizarNicho(i, {
-                        categorias_foursquare: e.target.value
-                          .split(",")
-                          .map((t) => t.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    placeholder="Categorias Foursquare (ids, separados por vírgula)"
-                  />
                 </div>
               ))}
               {nichos.length === 0 ? (
@@ -1293,10 +1283,10 @@ function ConfigPanel({
                     className={`${campo} min-h-[7rem] resize-y font-mono text-xs`}
                     value={t.texto}
                     onChange={(e) => atualizarTemplate(i, { texto: e.target.value })}
-                    placeholder="Texto da mensagem. Use {{nome}}, {{cidade}}, {{nicho}}, {{modelo_url}}"
+                    placeholder="Texto da mensagem. Use {{nome}}, {{cidade}}, {{nicho}}, {{modelo_url}}, {{remetente}}"
                   />
                   <p className="text-[10px] text-muted">
-                    Variáveis: {"{{nome}}"}, {"{{cidade}}"}, {"{{nicho}}"}, {"{{modelo_url}}"}
+                    Variáveis: {"{{nome}}"}, {"{{cidade}}"}, {"{{nicho}}"}, {"{{modelo_url}}"}, {"{{remetente}}"}
                   </p>
                 </div>
               ))}
@@ -1304,6 +1294,21 @@ function ConfigPanel({
                 <p className="text-xs text-muted">Nenhum template cadastrado.</p>
               ) : null}
             </div>
+          </div>
+
+          {/* Remetente */}
+          <div>
+            <label className="text-xs font-semibold">Remetente das mensagens</label>
+            <p className="text-[11px] text-muted">
+              Nome exibido nas mensagens (variável {"{{remetente}}"}). Use o nome da equipe ou do responsável.
+            </p>
+            <input
+              className={campo}
+              value={remetente}
+              onChange={(e) => setRemetente(e.target.value)}
+              placeholder="Equipe GuiX"
+              maxLength={80}
+            />
           </div>
 
           {/* Período de recontato */}

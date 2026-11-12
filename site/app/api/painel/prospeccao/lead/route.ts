@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const nichoCfg = config.nichos.find((n) => n.slug === lead.nicho);
     const modeloUrl = nichoCfg?.modelo_url || lead.modelo_usado || "";
     const template = config.templates.find((t) => t.id === config.template_ativo) || config.templates[0];
-    const mensagem = renderizarTemplate(template, varsDoLead(lead, modeloUrl));
+    const mensagem = renderizarTemplate(template, varsDoLead(lead, modeloUrl, config.remetente));
 
     lead.mensagem_gerada = mensagem;
     // Não regride o status de leads já contatados (enviado/respondeu/descartado)
@@ -110,14 +110,14 @@ export async function POST(req: NextRequest) {
       mensagem_gerada: null,
       observacoes: "",
       external_id: body.external_id ? String(body.external_id) : null,
-      fonte: body.fonte ? String(body.fonte) : "foursquare",
+      fonte: body.fonte ? String(body.fonte) : "google",
       created_at: agora,
       updated_at: agora,
     };
   }
 
   const template = config.templates.find((t) => t.id === config.template_ativo) || config.templates[0];
-  const mensagem = renderizarTemplate(template, varsDoLead(lead, nichoCfg.modelo_url));
+  const mensagem = renderizarTemplate(template, varsDoLead(lead, nichoCfg.modelo_url, config.remetente));
 
   lead.nome = nome;
   lead.cidade = cidade;

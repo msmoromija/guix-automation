@@ -87,6 +87,10 @@ export async function PATCH(req: NextRequest) {
       typeof body.periodo_recontato_dias === "number"
         ? Math.max(1, Math.min(365, body.periodo_recontato_dias))
         : atual.periodo_recontato_dias,
+    remetente:
+      typeof body.remetente === "string" && body.remetente.trim()
+        ? body.remetente.trim().slice(0, 80)
+        : atual.remetente,
   };
 
   // Valida campos básicos

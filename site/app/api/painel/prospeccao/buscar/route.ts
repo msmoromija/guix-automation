@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
-import { buscarFoursquare, type LugarEncontrado } from "@/lib/prospeccao/buscar";
+import { buscarGoogle, ehCelularBr, type LugarEncontrado } from "@/lib/prospeccao/buscar";
 import {
   chaveApiEfetiva,
   lerConfig,
@@ -43,14 +43,18 @@ export async function POST(req: NextRequest) {
 
   let lugares: LugarEncontrado[] = [];
   let erroBusca: string | null = null;
+  let paginasUsadas = 0;
   try {
-    lugares = await buscarFoursquare({
+    const r = await buscarGoogle({
       chave: chaveApiEfetiva(config),
       endpoint: config.api.endpoint_busca,
       nicho,
       cidade,
-      limite: 50,
+      paginas: 3,
+      pageSize: 20,
     });
+    lugares = r.lugares;
+    paginasUsadas = r.paginas;
   } catch (e) {
     erroBusca = e instanceof Error ? e.message : "Falha na busca.";
   }
@@ -62,12 +66,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Consumo da cota mensal (a chamada de busca foi concluída com sucesso)
-  const uso = await registrarBusca(1).catch(() => null);
+  // Consumo da cota mensal (conta as requisições efetivamente feitas à Google)
+  const uso = await registrarBusca(Math.max(1, paginasUsadas)).catch(() => null);
 
-  // Filtro: só com telefone
+  // Filtro: apenas celulares brasileiros (após o DDD, o primeiro dígito é 9)
   if (soComTelefone) {
-    lugares = lugares.filter((l) => normalizarTelefone(l.telefone).length >= 10);
+    lugares = lugares.filter((l) => ehCelularBr(l.telefone));
   }
 
   // Carrega leads existentes por telefone

@@ -12,8 +12,8 @@ const CHAVE_CONTADORES = `${PASTA}/_contadores.json`;
 const CHAVE_USO = `${PASTA}/_uso.json`;
 const CHAVE_INDICE = `${PASTA}/leads/_indice.json`;
 
-/** Cota gratuita (Places API Pro) — 500 chamadas/mês. */
-export const LIMITE_BUSCAS_MES = 500;
+/** Cota mensal da Google Places API (Text Search Enterprise). */
+export const LIMITE_BUSCAS_MES = 1000;
 
 type IndiceLeads = { atualizadoEm: string; ids: string[] };
 
@@ -130,10 +130,10 @@ export async function listarLeadsPorTelefones(
 const CONFIG_PADRAO: ConfigProspecção = {
   atualizadoEm: new Date().toISOString(),
   api: {
-    provedor: "foursquare",
+    provedor: "google",
     chave: "",
-    endpoint_busca: "https://places-api.foursquare.com/places/search",
-    endpoint_detalhes: "https://places-api.foursquare.com/places/{fsq_place_id}",
+    endpoint_busca: "https://places.googleapis.com/v1/places:searchText",
+    endpoint_detalhes: "https://places.googleapis.com/v1/places/{place_id}",
   },
   contas: [
     { id: "conta1", nome: "Conta 1", limite_diario: 30 },
@@ -145,7 +145,6 @@ const CONFIG_PADRAO: ConfigProspecção = {
       nome: "Dentista",
       modelo_url: "https://guix.net.br/exemplos/dentista",
       termos_busca: ["dentista", "consultório odontológico", "clínica odontológica"],
-      categorias_foursquare: ["17119"],
     },
   ],
   templates: [
@@ -154,24 +153,42 @@ const CONFIG_PADRAO: ConfigProspecção = {
       nome: "Introdução + Case Local",
       texto: `Olá, {{nome}}! Tudo bem por aí?
 
-Aqui é o Carlos da GuiX. Percebi que vocês são especializados em {{nicho}} em {{cidade}}.
+Aqui é a {{remetente}}. Percebi que vocês são especializados em {{nicho}} em {{cidade}}.
 
 Ajudamos negócios como o seu a ter um site profissional que gera mais leads qualificados e enche a agenda.
 
 Gostaria de te enviar nosso case de resultados recentes?
 Abraço,
-Carlos - GuiX`,
+{{remetente}}`,
     },
   ],
   template_ativo: "padrao",
   periodo_recontato_dias: 45,
+  remetente: "Equipe GuiX",
 };
 
 export async function lerConfig(): Promise<ConfigProspecção> {
   try {
     const buf = await baixarObjeto(CHAVE_CONFIG);
     const cfg = JSON.parse(buf.toString("utf8")) as Partial<ConfigProspecção>;
-    return { ...CONFIG_PADRAO, ...cfg, api: { ...CONFIG_PADRAO.api, ...(cfg.api || {}) } };
+
+    const api = { ...CONFIG_PADRAO.api, ...(cfg.api || {}) };
+    // Migração: configs antigas apontavam para a Foursquare (descontinuada).
+    if (api.provedor !== "google" || /foursquare/i.test(api.endpoint_busca)) {
+      api.provedor = "google";
+      api.endpoint_busca = CONFIG_PADRAO.api.endpoint_busca;
+      api.endpoint_detalhes = CONFIG_PADRAO.api.endpoint_detalhes;
+    }
+
+    // Migração: templates antigos traziam o nome fixo "Carlos".
+    const templates = (cfg.templates || CONFIG_PADRAO.templates).map((t) => ({
+      ...t,
+      texto: t.texto
+        .replace(/Aqui é o Carlos da GuiX/g, "Aqui é a {{remetente}}")
+        .replace(/Carlos - GuiX/g, "{{remetente}}"),
+    }));
+
+    return { ...CONFIG_PADRAO, ...cfg, api, templates };
   } catch {
     return { ...CONFIG_PADRAO };
   }
@@ -194,10 +211,10 @@ export async function gravarConfig(cfg: ConfigProspecção) {
 
 /**
  * Chave de API efetiva: prioriza a configurada no painel e cai para a
- * variável de ambiente FOURSQUARE_API_KEY quando o painel estiver vazio.
+ * variável de ambiente GOOGLE_PLACES_API_KEY quando o painel estiver vazia.
  */
 export function chaveApiEfetiva(cfg: ConfigProspecção): string {
-  return (cfg.api.chave || process.env.FOURSQUARE_API_KEY || "").trim();
+  return (cfg.api.chave || process.env.GOOGLE_PLACES_API_KEY || "").trim();
 }
 
 // —— Contadores diários ——
@@ -251,31 +268,34 @@ export async function incrementarContador(contaId: string, delta = 1) {
 
 // —— Uso da API (cota mensal) ——
 
-export type UsoApi = { mes: string; buscas: number; limite_mensal: number };
+export type UsoApi = {
+  mes: string;
+  buscas: number;
+  limite_mensal: number;
+  provedor: string;
+};
 
 function mesAtual(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-export async function lerUso(): Promise<UsoApi> {
+export async function lerUso(provedor = "google"): Promise<UsoApi> {
   const mes = mesAtual();
+  const base: UsoApi = { mes, buscas: 0, limite_mensal: LIMITE_BUSCAS_MES, provedor };
   try {
     const buf = await baixarObjeto(CHAVE_USO);
     const u = JSON.parse(buf.toString("utf8")) as Partial<UsoApi>;
-    if (u.mes !== mes) return { mes, buscas: 0, limite_mensal: LIMITE_BUSCAS_MES };
-    return {
-      mes,
-      buscas: u.buscas || 0,
-      limite_mensal: u.limite_mensal || LIMITE_BUSCAS_MES,
-    };
+    // Zera na virada do mês ou na troca de provedor (ex.: migração Foursquare → Google).
+    if (u.mes !== mes || u.provedor !== provedor) return base;
+    return { ...base, buscas: u.buscas || 0 };
   } catch {
-    return { mes, buscas: 0, limite_mensal: LIMITE_BUSCAS_MES };
+    return base;
   }
 }
 
-/** Registra uma chamada à API de busca (reseta automaticamente a cada mês). */
-export async function registrarBusca(delta = 1): Promise<UsoApi> {
-  const atual = await lerUso();
+/** Registra chamadas à API de busca (reseta automaticamente a cada mês/troca de provedor). */
+export async function registrarBusca(delta = 1, provedor = "google"): Promise<UsoApi> {
+  const atual = await lerUso(provedor);
   const proximo: UsoApi = { ...atual, buscas: atual.buscas + delta };
   await enviarBuffer({
     key: CHAVE_USO,

@@ -5,11 +5,12 @@ export type VarsMensagem = {
   cidade: string;
   nicho: string;
   modelo_url: string;
+  remetente: string;
 };
 
 /**
  * Renderiza um template substituindo placeholders:
- * {{nome}}, {{cidade}}, {{nicho}}, {{modelo_url}}
+ * {{nome}}, {{cidade}}, {{nicho}}, {{modelo_url}}, {{remetente}}
  */
 export function renderizarTemplate(
   template: TemplateMensagem | undefined,
@@ -20,18 +21,21 @@ export function renderizarTemplate(
   texto = texto.replace(/\{\{cidade\}\}/g, vars.cidade);
   texto = texto.replace(/\{\{nicho\}\}/g, vars.nicho);
   texto = texto.replace(/\{\{modelo_url\}\}/g, vars.modelo_url);
+  texto = texto.replace(/\{\{remetente\}\}/g, vars.remetente);
   return texto.trim();
 }
 
 export function varsDoLead(
   lead: Pick<Lead, "nome" | "cidade" | "nicho" | "modelo_usado">,
   modeloUrl: string,
+  remetente = "Equipe GuiX",
 ): VarsMensagem {
   return {
     nome: lead.nome,
     cidade: lead.cidade,
     nicho: lead.nicho,
     modelo_url: lead.modelo_usado || modeloUrl,
+    remetente,
   };
 }
 
