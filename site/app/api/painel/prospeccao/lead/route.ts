@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   buscarLeadPorTelefone,
+  contaPublica,
   contarEnviosHoje,
   gravarLead,
   hojeIso,
@@ -234,7 +235,7 @@ export async function PATCH(req: NextRequest) {
 
   const envios = await listarEnvios(200);
   const contasComContagem = config.contas.map((c) => ({
-    ...c,
+    ...contaPublica(c),
     enviados_hoje: contarEnviosHoje(envios, c.id, hojeIso()),
   }));
 
