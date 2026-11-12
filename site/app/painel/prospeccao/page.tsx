@@ -44,6 +44,10 @@ type EnvioRegistro = {
   conta_id: string;
   conta_nome: string;
   mensagem: string;
+  canal?: "link" | "cloud_api";
+  wamid?: string | null;
+  status?: string | null;
+  erro?: string | null;
 };
 
 type Conta = {
@@ -51,7 +55,31 @@ type Conta = {
   nome: string;
   limite_diario: number;
   enviados_hoje: number;
+  provedor?: "manual" | "cloud_api";
+  phone_number_id?: string | null;
+  display_phone_number?: string | null;
+  waba_id?: string | null;
+  status_conexao?: "desconectada" | "conectada" | "erro";
+  conectada?: boolean;
+  conectada_em?: string | null;
 };
+
+type Meta = {
+  configurado: boolean;
+  embedded_signup: boolean;
+  app_id: string;
+  config_id: string;
+};
+
+declare global {
+  interface Window {
+    FB?: {
+      init: (o: Record<string, unknown>) => void;
+      login: (cb: (r: { authResponse?: { code?: string } }) => void, o: Record<string, unknown>) => void;
+    };
+    fbAsyncInit?: () => void;
+  }
+}
 
 type NichoCfg = {
   slug: string;
@@ -150,8 +178,22 @@ function PainelProspeccao() {
 
   const [abaConfig, setAbaConfig] = useState(false);
 
+  // Conexão real da conta WhatsApp Business (Embedded Signup + fallback manual).
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [conectando, setConectando] = useState(false);
+  const [manualAberto, setManualAberto] = useState(false);
+  const [manualNumeroId, setManualNumeroId] = useState("");
+  const [manualToken, setManualToken] = useState("");
+  const [manualWaba, setManualWaba] = useState("");
+  const [manualNome, setManualNome] = useState("");
+
   // Restaura a última busca apenas uma vez, na primeira carga do painel.
   const restauradoRef = useRef(false);
+  // Preenchido pelo postMessage do Embedded Signup (waba_id/phone_number_id).
+  const signupRef = useRef<{ waba_id: string; phone_number_id: string }>({
+    waba_id: "",
+    phone_number_id: "",
+  });
 
   useEffect(() => {
     try {
@@ -169,6 +211,53 @@ function PainelProspeccao() {
     if (liberado && senha) void carregarTudo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liberado, senha]);
+
+  // Carrega o SDK do Facebook quando o Embedded Signup estiver disponível.
+  useEffect(() => {
+    if (!liberado || !meta?.embedded_signup || !meta.app_id) return;
+    if (typeof document === "undefined" || document.getElementById("facebook-jssdk")) return;
+    window.fbAsyncInit = function init() {
+      window.FB?.init({
+        appId: meta.app_id,
+        autoLogAppEvents: true,
+        xfbml: false,
+        version: "v21.0",
+      });
+    };
+    const script = document.createElement("script");
+    script.id = "facebook-jssdk";
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = "anonymous";
+    document.body.appendChild(script);
+  }, [liberado, meta]);
+
+  // Captura waba_id/phone_number_id que o popup do Embedded Signup envia por postMessage.
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      let host = "";
+      try {
+        host = new URL(event.origin).hostname;
+      } catch {
+        return;
+      }
+      if (!host.endsWith("facebook.com")) return;
+      try {
+        const dados = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        if (dados?.type === "WA_EMBEDDED_SIGNUP" && dados?.event === "FINISH" && dados?.data) {
+          signupRef.current = {
+            waba_id: String(dados.data.waba_id || ""),
+            phone_number_id: String(dados.data.phone_number_id || ""),
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const headers = () => ({
     "Content-Type": "application/json",
@@ -193,6 +282,7 @@ function PainelProspeccao() {
     setContas(j.contas || []);
     setLeads(j.leads || []);
     setEnvios(j.envios || []);
+    if (j.meta) setMeta(j.meta);
     if (j.uso) setUso(j.uso);
     if (j.config?.nichos?.[0]?.slug) setNicho(j.config.nichos[0].slug);
     if (j.contas?.[0]?.id) setContaEnvio(j.contas[0].id);
@@ -273,6 +363,144 @@ function PainelProspeccao() {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
+    }
+  }
+
+  // —— Conexão da conta WhatsApp Business ——
+
+  /** Abre o popup do Embedded Signup e conclui a conexão no servidor. */
+  async function conectarComFacebook() {
+    setErro("");
+    setOk("");
+    if (!meta?.embedded_signup || !meta.app_id || !meta.config_id) {
+      setErro("Embedded Signup não configurado. Use a conexão manual abaixo.");
+      return;
+    }
+    if (!window.FB) {
+      setErro("SDK do Facebook ainda não carregou. Aguarde um instante e tente novamente.");
+      return;
+    }
+    signupRef.current = { waba_id: "", phone_number_id: "" };
+    setConectando(true);
+    try {
+      const resposta = await new Promise<{ authResponse?: { code?: string } }>((resolve) => {
+        window.FB!.login((r) => resolve(r || {}), {
+          config_id: meta.config_id,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+        });
+      });
+      const code = resposta?.authResponse?.code;
+      if (!code) {
+        setErro("Conexão cancelada ou sem código de autorização.");
+        return;
+      }
+      await finalizarConexao(code, signupRef.current.waba_id, signupRef.current.phone_number_id);
+    } finally {
+      setConectando(false);
+    }
+  }
+
+  async function finalizarConexao(code: string, wabaId: string, phoneNumberId: string) {
+    const res = await fetch("/api/painel/prospeccao/whatsapp/conectar", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ code, waba_id: wabaId, phone_number_id: phoneNumberId }),
+    });
+    const j = await res.json();
+    if (!res.ok) {
+      setErro(j.erro || "Não foi possível concluir a conexão.");
+      return;
+    }
+    setOk(j.aviso ? `Conta conectada. ${j.aviso}` : "Conta WhatsApp Business conectada com sucesso.");
+    await carregarTudo();
+  }
+
+  /** Conexão manual: cola o phone_number_id + token de System User. */
+  async function conectarManual(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setOk("");
+    if (!manualNumeroId.trim() || !manualToken.trim()) {
+      setErro("Informe o phone_number_id e o token de acesso.");
+      return;
+    }
+    setConectando(true);
+    try {
+      const res = await fetch("/api/painel/prospeccao/whatsapp/manual", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          phone_number_id: manualNumeroId.trim(),
+          token: manualToken.trim(),
+          waba_id: manualWaba.trim(),
+          nome: manualNome.trim(),
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Não foi possível validar/conectar o número.");
+        return;
+      }
+      setOk(`Conta "${j.conta?.nome || "WhatsApp"}" conectada.`);
+      setManualNumeroId("");
+      setManualToken("");
+      setManualWaba("");
+      setManualNome("");
+      setManualAberto(false);
+      await carregarTudo();
+    } finally {
+      setConectando(false);
+    }
+  }
+
+  async function desconectarConta(id: string, nome: string) {
+    if (!window.confirm(`Desconectar "${nome}"? Os envios pela API oficial serão interrompidos.`)) return;
+    setErro("");
+    setOk("");
+    const res = await fetch("/api/painel/prospeccao/whatsapp/desconectar", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ id }),
+    });
+    const j = await res.json();
+    if (!res.ok) {
+      setErro(j.erro || "Não foi possível desconectar.");
+      return;
+    }
+    setOk(`Conta "${nome}" desconectada.`);
+    await carregarTudo();
+  }
+
+  /** Envia a mensagem do lead pela conta conectada (Cloud API oficial). */
+  async function enviarPelaApi() {
+    if (!leadSelecionado) return;
+    if (!contaEnvio) {
+      setErro("Escolha a conta WhatsApp conectada.");
+      return;
+    }
+    setErro("");
+    setOk("");
+    setGerandoMsg(true);
+    try {
+      const res = await fetch("/api/painel/prospeccao/whatsapp/enviar", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ lead_id: leadSelecionado.id, conta_id: contaEnvio, texto: mensagem }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Falha ao enviar pela API oficial.");
+        return;
+      }
+      if (j.lead) setLeadSelecionado(j.lead);
+      if (j.contas) setContas(j.contas);
+      if (j.envios) setEnvios(j.envios);
+      setOk(`Mensagem enviada pela API oficial (wamid ${j.wamid}).`);
+      void carregarTudo();
+    } finally {
+      setGerandoMsg(false);
     }
   }
 
@@ -863,6 +1091,129 @@ function PainelProspeccao() {
 
         {/* Coluna direita: prévia WhatsApp + configurações */}
         <aside className="space-y-4">
+          {/* Conexão real da conta WhatsApp Business (Cloud API oficial) */}
+          <div className="rounded-2xl border border-line bg-white p-5">
+            <h2 className="flex items-center gap-2 text-sm font-bold">
+              <span>📱</span> Contas WhatsApp Business
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              Conecte um número pela WhatsApp Business Platform (Cloud API) oficial para enviar direto pelo painel.
+            </p>
+
+            <div className="mt-3 space-y-2">
+              {contas.map((c) => {
+                const conectada = Boolean(c.conectada);
+                const status = c.status_conexao || (conectada ? "conectada" : "desconectada");
+                const cor = conectada
+                  ? "bg-emerald-100 text-emerald-800"
+                  : status === "erro"
+                    ? "bg-rose-100 text-rose-700"
+                    : "bg-slate-200 text-slate-600";
+                return (
+                  <div key={c.id} className="rounded-xl border border-line p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{c.nome}</p>
+                        <p className="truncate text-[11px] text-muted">
+                          {c.display_phone_number || "cadastro manual (sem número)"}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cor}`}>
+                        {conectada ? "Conectada" : status === "erro" ? "Erro" : "Não conectada"}
+                      </span>
+                    </div>
+                    {c.phone_number_id ? (
+                      <p className="mt-1 break-all text-[10px] text-muted">
+                        phone_number_id: <span className="font-mono">{c.phone_number_id}</span>
+                        {c.waba_id ? (
+                          <>
+                            {" · "}waba_id: <span className="font-mono">{c.waba_id}</span>
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    {conectada ? (
+                      <button
+                        type="button"
+                        onClick={() => void desconectarConta(c.id, c.nome)}
+                        className="mt-2 rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                      >
+                        Desconectar
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {contas.length === 0 ? (
+                <p className="text-xs text-muted">Nenhuma conta cadastrada.</p>
+              ) : null}
+            </div>
+
+            <div className="mt-3 space-y-2 border-t border-line pt-3">
+              <button
+                type="button"
+                onClick={() => void conectarComFacebook()}
+                disabled={conectando || !meta?.embedded_signup}
+                className="w-full rounded-full bg-[#1877F2] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {conectando ? "Conectando…" : "Conectar com Facebook"}
+              </button>
+              {!meta?.embedded_signup ? (
+                <p className="text-[10px] text-muted">
+                  Embedded Signup indisponível (faltam META_APP_ID/META_CONFIG_ID no servidor). Use a conexão manual.
+                </p>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setManualAberto((v) => !v)}
+                className="w-full rounded-full border border-line px-4 py-2 text-xs font-semibold hover:border-accent hover:text-accent"
+              >
+                {manualAberto ? "Fechar conexão manual" : "Conexão manual (phone_number_id + token)"}
+              </button>
+
+              {manualAberto ? (
+                <form onSubmit={conectarManual} className="space-y-2">
+                  <input
+                    className={campo}
+                    value={manualNumeroId}
+                    onChange={(e) => setManualNumeroId(e.target.value)}
+                    placeholder="phone_number_id (ex: 1234567890)"
+                  />
+                  <input
+                    type="password"
+                    className={campo}
+                    value={manualToken}
+                    onChange={(e) => setManualToken(e.target.value)}
+                    placeholder="Token de acesso (System User)"
+                  />
+                  <input
+                    className={campo}
+                    value={manualWaba}
+                    onChange={(e) => setManualWaba(e.target.value)}
+                    placeholder="waba_id (opcional)"
+                  />
+                  <input
+                    className={campo}
+                    value={manualNome}
+                    onChange={(e) => setManualNome(e.target.value)}
+                    placeholder="Nome da conta (opcional)"
+                  />
+                  <button
+                    type="submit"
+                    disabled={conectando}
+                    className="w-full rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark disabled:opacity-60"
+                  >
+                    {conectando ? "Validando…" : "Conectar conta"}
+                  </button>
+                  <p className="text-[10px] text-muted">
+                    O token é validado na Graph API e fica salvo só no servidor (nunca volta ao navegador).
+                  </p>
+                </form>
+              ) : null}
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-line bg-white p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold">
               <span>💬</span> Prévia da mensagem WhatsApp
@@ -894,8 +1245,19 @@ function PainelProspeccao() {
                     Abrir WhatsApp
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => void enviarPelaApi()}
+                  disabled={gerandoMsg || !contas.some((c) => c.id === contaEnvio && c.conectada)}
+                  className="w-full rounded-full bg-[#1877F2] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  title="Envia a mensagem pela conta WhatsApp Business conectada (Cloud API oficial)"
+                >
+                  {gerandoMsg ? "Enviando…" : "Enviar pela API oficial"}
+                </button>
                 <p className="text-[10px] text-muted">
-                  Ao abrir, o envio é registrado automaticamente na conta selecionada (texto exato + contador + histórico).
+                  &quot;Abrir WhatsApp&quot; apenas abre o app. &quot;Enviar pela API oficial&quot; dispara a mensagem pela conta
+                  conectada e passa a receber o status real (enviada/entregue/lida).
                 </p>
 
                 <div className="space-y-2 border-t border-line pt-4">
@@ -918,7 +1280,7 @@ function PainelProspeccao() {
                       <option value="">— escolha —</option>
                       {contas.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.nome} ({c.enviados_hoje}/{c.limite_diario} hoje)
+                          {c.nome} ({c.enviados_hoje}/{c.limite_diario} hoje){c.conectada ? " · API oficial" : ""}
                         </option>
                       ))}
                     </select>
@@ -1107,6 +1469,7 @@ function PainelProspeccao() {
                   <th className="px-3 py-2 font-semibold">Lead</th>
                   <th className="px-3 py-2 font-semibold">Telefone</th>
                   <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
+                  <th className="px-3 py-2 font-semibold">Canal / Status</th>
                   <th className="px-3 py-2 font-semibold">Mensagem enviada</th>
                 </tr>
               </thead>
@@ -1122,6 +1485,29 @@ function PainelProspeccao() {
                       <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
                         {e.conta_nome}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {e.canal === "cloud_api" ? (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            e.status === "read"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : e.status === "delivered"
+                                ? "bg-sky-100 text-sky-800"
+                                : e.status === "failed"
+                                  ? "bg-rose-100 text-rose-700"
+                                  : "bg-slate-200 text-slate-600"
+                          }`}
+                          title={e.wamid ? `wamid: ${e.wamid}` : ""}
+                        >
+                          {e.status || "sent"} · API
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          link
+                        </span>
+                      )}
+                      {e.erro ? <p className="mt-1 text-[10px] text-rose-600">{e.erro}</p> : null}
                     </td>
                     <td className="px-3 py-2 text-xs text-muted">
                       <span className="line-clamp-2">{e.mensagem || "—"}</span>
@@ -1189,7 +1575,10 @@ function ConfigPanel({
 
   function novaConta() {
     const id = `conta_${Date.now().toString(36)}`;
-    setContas((prev) => [...prev, { id, nome: `Conta ${prev.length + 1}`, limite_diario: 30, enviados_hoje: 0 }]);
+    setContas((prev) => [
+      ...prev,
+      { id, nome: `Conta ${prev.length + 1}`, limite_diario: 30, enviados_hoje: 0, provedor: "manual" },
+    ]);
   }
   function atualizarConta(i: number, patch: Partial<Conta>) {
     setContas((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
@@ -1337,6 +1726,10 @@ function ConfigPanel({
                 + Adicionar
               </button>
             </div>
+            <p className="text-[10px] text-muted">
+              A conexão com a conta real é feita no card “Contas WhatsApp Business”. Aqui só se define nome e limite
+              diário.
+            </p>
             <div className="space-y-2">
               {contas.map((c, i) => (
                 <div key={c.id} className="rounded-lg border border-line p-2.5">
@@ -1365,11 +1758,17 @@ function ConfigPanel({
                       ✕
                     </button>
                   </div>
-                  {c.enviados_hoje != null ? (
-                    <p className="mt-1 text-[10px] text-muted">
-                      Envios hoje: {c.enviados_hoje}
-                    </p>
-                  ) : null}
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted">
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-semibold ${
+                        c.conectada ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {c.conectada ? "API oficial conectada" : "não conectada"}
+                    </span>
+                    {c.display_phone_number ? <span>{c.display_phone_number}</span> : null}
+                    {c.enviados_hoje != null ? <span>Envios hoje: {c.enviados_hoje}</span> : null}
+                  </p>
                 </div>
               ))}
               {contas.length === 0 ? (

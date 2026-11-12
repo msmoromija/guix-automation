@@ -206,6 +206,7 @@ export async function PATCH(req: NextRequest) {
         conta_id: conta.id,
         conta_nome: conta.nome,
         mensagem: lead.mensagem_gerada || "",
+        canal: "link",
       });
       envioRegistrado = true;
     }

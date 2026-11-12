@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   chaveApiEfetiva,
+  contaPublica,
   contarEnviosHoje,
   gravarConfig,
   lerConfig,
@@ -10,7 +11,8 @@ import {
   listarEnvios,
   listarLeads,
 } from "@/lib/prospeccao/store";
-import type { ConfigProspecção } from "@/lib/prospeccao/tipos";
+import { embeddedSignupConfigurado, metaAppId, metaConfigId, metaConfigurado } from "@/lib/prospeccao/whatsapp";
+import type { ConfigProspecção, ContaWhatsApp } from "@/lib/prospeccao/tipos";
 
 export const runtime = "nodejs";
 
@@ -37,9 +39,10 @@ export async function GET(req: NextRequest) {
     lerUltimaBusca(),
   ]);
 
-  // Contadores diários derivados do log de envios (fonte única da verdade)
+  // Contadores diários derivados do log de envios (fonte única da verdade).
+  // Os tokens das contas nunca saem daqui (contaPublica remove).
   const contasComContagem = config.contas.map((c) => ({
-    ...c,
+    ...contaPublica(c),
     enviados_hoje: contarEnviosHoje(envios, c.id),
   }));
 
@@ -47,6 +50,7 @@ export async function GET(req: NextRequest) {
   const configPublica = {
     ...config,
     api: { ...config.api, chave: chaveApiEfetiva(config) ? "••••••••" : "" },
+    contas: config.contas.map(contaPublica),
   };
 
   return NextResponse.json({
@@ -57,6 +61,13 @@ export async function GET(req: NextRequest) {
     envios,
     ultima_busca: ultimaBusca,
     uso,
+    // Prontidão da integração Meta (app_id/config_id são públicos; o secret não).
+    meta: {
+      configurado: metaConfigurado(),
+      embedded_signup: embeddedSignupConfigurado(),
+      app_id: metaAppId(),
+      config_id: metaConfigId(),
+    },
     hoje: new Date().toISOString(),
   });
 }
@@ -80,10 +91,39 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // Mescla as contas preservando campos de conexão/token que o cliente não envia.
+  const contasEntrada: Partial<ContaWhatsApp>[] = Array.isArray(body.contas)
+    ? body.contas
+    : atual.contas;
+  const contas: ContaWhatsApp[] = contasEntrada.map((c) => {
+    const antiga = atual.contas.find((a) => a.id === c.id);
+    const token = antiga?.token ?? null;
+    const phone_number_id =
+      c.phone_number_id !== undefined ? c.phone_number_id : antiga?.phone_number_id ?? null;
+    return {
+      id: String(c.id || ""),
+      nome: String(c.nome || ""),
+      limite_diario: Number(c.limite_diario),
+      provedor: c.provedor ?? antiga?.provedor ?? "manual",
+      phone_number_id,
+      display_phone_number:
+        c.display_phone_number !== undefined
+          ? c.display_phone_number
+          : antiga?.display_phone_number ?? null,
+      waba_id: c.waba_id !== undefined ? c.waba_id : antiga?.waba_id ?? null,
+      status_conexao:
+        c.status_conexao ??
+        antiga?.status_conexao ??
+        (token && phone_number_id ? "conectada" : "desconectada"),
+      conectada_em: c.conectada_em ?? antiga?.conectada_em ?? null,
+      token,
+    };
+  });
+
   const cfg: ConfigProspecção = {
     ...atual,
     api,
-    contas: Array.isArray(body.contas) ? body.contas : atual.contas,
+    contas,
     nichos: Array.isArray(body.nichos) ? body.nichos : atual.nichos,
     templates: Array.isArray(body.templates) ? body.templates : atual.templates,
     template_ativo: typeof body.template_ativo === "string" ? body.template_ativo : atual.template_ativo,
@@ -116,5 +156,12 @@ export async function PATCH(req: NextRequest) {
   }
 
   const salva = await gravarConfig(cfg);
-  return NextResponse.json({ ok: true, config: salva });
+  return NextResponse.json({
+    ok: true,
+    config: {
+      ...salva,
+      api: { ...salva.api, chave: chaveApiEfetiva(salva) ? "••••••••" : "" },
+      contas: salva.contas.map(contaPublica),
+    },
+  });
 }

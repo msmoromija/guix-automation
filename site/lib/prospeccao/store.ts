@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { apagarObjeto, baixarObjeto, enviarBuffer } from "@/lib/media/r2";
 import type {
   ConfigProspecção,
+  ContaWhatsApp,
   EnvioRegistro,
   EventoLead,
   Lead,
@@ -235,6 +236,52 @@ export function chaveApiEfetiva(cfg: ConfigProspecção): string {
   return (cfg.api.chave || process.env.GOOGLE_PLACES_API_KEY || "").trim();
 }
 
+// —— Contas WhatsApp (conexão com a Cloud API) ——
+
+/** Versão da conta sem o token — é o que pode ir para o cliente. */
+export function contaPublica(c: ContaWhatsApp) {
+  const { token, ...resto } = c;
+  const status_conexao =
+    c.status_conexao ||
+    (c.provedor === "cloud_api" && c.phone_number_id
+      ? token
+        ? "conectada"
+        : "erro"
+      : "desconectada");
+  return { ...resto, status_conexao, conectada: Boolean(token && c.phone_number_id) };
+}
+
+/**
+ * Cria ou atualiza uma conta preservando o token existente quando o patch não
+ * o informa (o cliente nunca envia o token de volta).
+ */
+export async function atualizarConta(
+  id: string,
+  patch: Partial<ContaWhatsApp>,
+): Promise<ContaWhatsApp> {
+  const cfg = await lerConfig();
+  const i = cfg.contas.findIndex((c) => c.id === id);
+  const base: ContaWhatsApp =
+    i >= 0
+      ? cfg.contas[i]
+      : { id, nome: "Conta WhatsApp", limite_diario: 30, provedor: "manual" };
+  const conta: ContaWhatsApp = { ...base, ...patch, id };
+  if (i >= 0) cfg.contas[i] = conta;
+  else cfg.contas.push(conta);
+  await gravarConfig(cfg);
+  return conta;
+}
+
+/** Remove uma conta da configuração. */
+export async function removerConta(id: string): Promise<boolean> {
+  const cfg = await lerConfig();
+  const antes = cfg.contas.length;
+  cfg.contas = cfg.contas.filter((c) => c.id !== id);
+  if (cfg.contas.length === antes) return false;
+  await gravarConfig(cfg);
+  return true;
+}
+
 // —— Log de envios (fonte da verdade dos contadores) ——
 
 export function hojeIso(): string {
@@ -252,6 +299,20 @@ export async function listarEnvios(limite = LIMITE_ENVIOS_LOG): Promise<EnvioReg
   }
 }
 
+/** Grava o log de envios no R2. */
+async function gravarEnvios(envios: EnvioRegistro[]): Promise<void> {
+  await enviarBuffer({
+    key: CHAVE_ENVIOS,
+    body: Buffer.from(JSON.stringify(envios.slice(0, LIMITE_ENVIOS_LOG), null, 2)),
+    contentType: "application/json",
+    origem: "biblioteca",
+    alt: "envios prospeccao",
+    tags: ["prospeccao", "envios"],
+    status: "aprovada",
+    clienteId: "ops",
+  });
+}
+
 /** Grava um envio no log append-only do R2. */
 export async function registrarEnvio(
   dados: Omit<EnvioRegistro, "id" | "em">,
@@ -262,18 +323,30 @@ export async function registrarEnvio(
     ...dados,
   };
   const atuais = await listarEnvios();
-  const proximos = [envio, ...atuais].slice(0, LIMITE_ENVIOS_LOG);
-  await enviarBuffer({
-    key: CHAVE_ENVIOS,
-    body: Buffer.from(JSON.stringify(proximos, null, 2)),
-    contentType: "application/json",
-    origem: "biblioteca",
-    alt: "envios prospeccao",
-    tags: ["prospeccao", "envios"],
-    status: "aprovada",
-    clienteId: "ops",
-  });
+  await gravarEnvios([envio, ...atuais]);
   return envio;
+}
+
+/**
+ * Atualiza o status de vários envios de uma vez (webhook da Meta), com uma
+ * única leitura/escrita para evitar corrida entre os eventos de um mesmo lote.
+ * Retorna quantos wamids foram encontrados.
+ */
+export async function atualizarStatusEnvios(
+  itens: { wamid: string; status: string; erro?: string }[],
+): Promise<number> {
+  if (!itens.length) return 0;
+  const envios = await listarEnvios();
+  const porWamid = new Map(itens.map((i) => [i.wamid, i]));
+  let achados = 0;
+  const proximos = envios.map((e) => {
+    const item = e.wamid ? porWamid.get(e.wamid) : undefined;
+    if (!item) return e;
+    achados += 1;
+    return { ...e, status: item.status, erro: item.erro || e.erro || null };
+  });
+  if (achados > 0) await gravarEnvios(proximos);
+  return achados;
 }
 
 /** Quantos envios uma conta fez no dia informado (derivado do log). */

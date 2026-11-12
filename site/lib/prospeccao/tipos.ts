@@ -73,6 +73,14 @@ export type EnvioRegistro = {
   conta_nome: string;
   /** Texto exato enviado. */
   mensagem: string;
+  /** Canal usado: "link" = abriu o wa.me; "cloud_api" = enviado pela API oficial. */
+  canal?: "link" | "cloud_api";
+  /** id da mensagem na Meta (wamid) — o webhook usa para atualizar o status. */
+  wamid?: string | null;
+  /** sent | delivered | read | failed (atualizado pelo webhook de status). */
+  status?: string | null;
+  /** Detalhe do erro quando status = "failed". */
+  erro?: string | null;
 };
 
 /** Última busca executada, guardada para não consumir cota ao reabrir o painel. */
@@ -85,10 +93,28 @@ export type UltimaBusca = {
   resultados: unknown[];
 };
 
+/** Estado da conexão de uma conta com a WhatsApp Business Platform (Cloud API). */
+export type StatusConexao = "desconectada" | "conectada" | "erro";
+
 export type ContaWhatsApp = {
   id: string;
   nome: string;
   limite_diario: number;
+  /**
+   * "manual"   = cadastro simples (o painel só monta o link wa.me);
+   * "cloud_api"= conectada de verdade na WhatsApp Business Platform e envia via API.
+   */
+  provedor?: "manual" | "cloud_api";
+  /** ID do número na Meta (usado no endpoint /messages). */
+  phone_number_id?: string | null;
+  /** Número exibido, em E.164 (ex.: +55 79 99999-9999). */
+  display_phone_number?: string | null;
+  /** ID da WhatsApp Business Account (WABA). */
+  waba_id?: string | null;
+  status_conexao?: StatusConexao;
+  conectada_em?: string | null;
+  /** Token de acesso da Cloud API. NUNCA é devolvido ao cliente (mascarado no GET). */
+  token?: string | null;
 };
 
 export type NichoProspecção = {
