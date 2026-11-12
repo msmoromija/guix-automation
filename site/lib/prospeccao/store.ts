@@ -2,15 +2,23 @@ import { randomBytes } from "crypto";
 import { apagarObjeto, baixarObjeto, enviarBuffer } from "@/lib/media/r2";
 import type {
   ConfigProspecção,
-  ContadoresDiários,
+  EnvioRegistro,
+  EventoLead,
   Lead,
+  UltimaBusca,
 } from "./tipos";
 
 const PASTA = "prospeccao";
 const CHAVE_CONFIG = `${PASTA}/config.json`;
-const CHAVE_CONTADORES = `${PASTA}/_contadores.json`;
+const CHAVE_ENVIOS = `${PASTA}/_envios.json`;
 const CHAVE_USO = `${PASTA}/_uso.json`;
+const CHAVE_ULTIMA_BUSCA = `${PASTA}/_ultima_busca.json`;
 const CHAVE_INDICE = `${PASTA}/leads/_indice.json`;
+
+/** Quantos envios mantemos no log (mais recentes primeiro). */
+const LIMITE_ENVIOS_LOG = 2000;
+/** Quantos eventos mantemos na linha do tempo de cada lead. */
+const LIMITE_HISTORICO_LEAD = 50;
 
 /** Cota mensal da Google Places API (Text Search Enterprise). */
 export const LIMITE_BUSCAS_MES = 1000;
@@ -102,14 +110,24 @@ export function normalizarTelefone(raw: string): string {
   return String(raw || "").replace(/\D/g, "");
 }
 
+/**
+ * Lista os leads mais recentes. A linha do tempo (historico) é omitida por
+ * padrão para manter a listagem leve — use `lerLead` para obter o lead completo.
+ */
 export async function listarLeads(limite = 500): Promise<Lead[]> {
   const indice = await lerIndice();
   const out: Lead[] = [];
   for (const id of indice.ids.slice(0, limite)) {
     const l = await lerLead(id);
-    if (l) out.push(l);
+    if (l) out.push({ ...l, historico: undefined });
   }
   return out;
+}
+
+/** Acrescenta um evento à linha do tempo do lead (mantém os N mais recentes). */
+export function registrarEvento(lead: Lead, evento: Omit<EventoLead, "em">): void {
+  const eventos = [...(lead.historico || []), { em: new Date().toISOString(), ...evento }];
+  lead.historico = eventos.slice(-LIMITE_HISTORICO_LEAD);
 }
 
 export async function listarLeadsPorTelefones(
@@ -217,53 +235,87 @@ export function chaveApiEfetiva(cfg: ConfigProspecção): string {
   return (cfg.api.chave || process.env.GOOGLE_PLACES_API_KEY || "").trim();
 }
 
-// —— Contadores diários ——
-
-export async function lerContadores(): Promise<ContadoresDiários> {
-  try {
-    const buf = await baixarObjeto(CHAVE_CONTADORES);
-    return JSON.parse(buf.toString("utf8")) as ContadoresDiários;
-  } catch {
-    return {};
-  }
-}
-
-export async function gravarContadores(c: ContadoresDiários) {
-  await enviarBuffer({
-    key: CHAVE_CONTADORES,
-    body: Buffer.from(JSON.stringify(c, null, 2)),
-    contentType: "application/json",
-    origem: "biblioteca",
-    alt: "contadores prospeccao",
-    tags: ["prospeccao", "contadores"],
-    status: "aprovada",
-    clienteId: "ops",
-  });
-}
+// —— Log de envios (fonte da verdade dos contadores) ——
 
 export function hojeIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Retorna contagem de envios hoje de uma conta. */
-export function enviosHoje(contadores: ContadoresDiários, contaId: string): number {
-  return contadores[contaId]?.[hojeIso()] || 0;
+/** Lista os envios registrados (mais recentes primeiro). */
+export async function listarEnvios(limite = LIMITE_ENVIOS_LOG): Promise<EnvioRegistro[]> {
+  try {
+    const buf = await baixarObjeto(CHAVE_ENVIOS);
+    const arr = JSON.parse(buf.toString("utf8")) as EnvioRegistro[];
+    return Array.isArray(arr) ? arr.slice(0, limite) : [];
+  } catch {
+    return [];
+  }
 }
 
-export async function incrementarContador(contaId: string, delta = 1) {
-  const c = await lerContadores();
-  const hoje = hojeIso();
-  if (!c[contaId]) c[contaId] = {};
-  c[contaId][hoje] = (c[contaId][hoje] || 0) + delta;
-  // limpa entradas com mais de 9 dias para não crescer indefinidamente
-  const corte = new Date(Date.now() - 9 * 86400_000).toISOString().slice(0, 10);
-  for (const conta of Object.keys(c)) {
-    for (const dia of Object.keys(c[conta])) {
-      if (dia < corte) delete c[conta][dia];
-    }
+/** Grava um envio no log append-only do R2. */
+export async function registrarEnvio(
+  dados: Omit<EnvioRegistro, "id" | "em">,
+): Promise<EnvioRegistro> {
+  const envio: EnvioRegistro = {
+    id: `en_${Date.now().toString(36)}_${randomBytes(3).toString("hex")}`,
+    em: new Date().toISOString(),
+    ...dados,
+  };
+  const atuais = await listarEnvios();
+  const proximos = [envio, ...atuais].slice(0, LIMITE_ENVIOS_LOG);
+  await enviarBuffer({
+    key: CHAVE_ENVIOS,
+    body: Buffer.from(JSON.stringify(proximos, null, 2)),
+    contentType: "application/json",
+    origem: "biblioteca",
+    alt: "envios prospeccao",
+    tags: ["prospeccao", "envios"],
+    status: "aprovada",
+    clienteId: "ops",
+  });
+  return envio;
+}
+
+/** Quantos envios uma conta fez no dia informado (derivado do log). */
+export function contarEnviosHoje(
+  envios: EnvioRegistro[],
+  contaId: string,
+  dia = hojeIso(),
+): number {
+  return envios.filter((e) => e.conta_id === contaId && e.em.slice(0, 10) === dia).length;
+}
+
+/** Se o lead já tem envio registrado hoje (evita contar duas vezes o mesmo contato). */
+export function leadEnviadoHoje(
+  envios: EnvioRegistro[],
+  leadId: string,
+  dia = hojeIso(),
+): boolean {
+  return envios.some((e) => e.lead_id === leadId && e.em.slice(0, 10) === dia);
+}
+
+// —— Última busca (evita gastar cota ao reabrir o painel) ——
+
+export async function lerUltimaBusca(): Promise<UltimaBusca | null> {
+  try {
+    const buf = await baixarObjeto(CHAVE_ULTIMA_BUSCA);
+    return JSON.parse(buf.toString("utf8")) as UltimaBusca;
+  } catch {
+    return null;
   }
-  await gravarContadores(c);
-  return c;
+}
+
+export async function gravarUltimaBusca(busca: UltimaBusca): Promise<void> {
+  await enviarBuffer({
+    key: CHAVE_ULTIMA_BUSCA,
+    body: Buffer.from(JSON.stringify(busca, null, 2)),
+    contentType: "application/json",
+    origem: "biblioteca",
+    alt: "ultima busca prospeccao",
+    tags: ["prospeccao", "busca"],
+    status: "aprovada",
+    clienteId: "ops",
+  });
 }
 
 // —— Uso da API (cota mensal) ——

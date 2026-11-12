@@ -28,6 +28,17 @@ export function rotuloStatus(s: StatusLead): string {
   }
 }
 
+/** Um evento da linha do tempo do lead (geração, envio, resposta, descarte, observação). */
+export type EventoLead = {
+  em: string;
+  tipo: StatusLead | "observacao";
+  conta_whatsapp?: string | null;
+  conta_nome?: string | null;
+  /** Texto exato da mensagem no momento do evento. */
+  mensagem?: string | null;
+  observacao?: string | null;
+};
+
 export type Lead = {
   id: string;
   nome: string;
@@ -46,6 +57,32 @@ export type Lead = {
   fonte: string;
   created_at: string;
   updated_at: string;
+  /** Linha do tempo persistida — cada geração/envio/status fica registrada aqui. */
+  historico?: EventoLead[];
+};
+
+/** Registro imutável de uma mensagem efetivamente enviada (log append-only no R2). */
+export type EnvioRegistro = {
+  id: string;
+  em: string;
+  lead_id: string;
+  nome: string;
+  telefone: string;
+  nicho: string;
+  conta_id: string;
+  conta_nome: string;
+  /** Texto exato enviado. */
+  mensagem: string;
+};
+
+/** Última busca executada, guardada para não consumir cota ao reabrir o painel. */
+export type UltimaBusca = {
+  em: string;
+  nicho: string;
+  cidade: string;
+  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
+  totalBruto: number;
+  resultados: unknown[];
 };
 
 export type ContaWhatsApp = {
@@ -84,5 +121,3 @@ export type ConfigProspecção = {
   remetente?: string;
 };
 
-/** Contadores diários por conta: { contaId: { "YYYY-MM-DD": n } } */
-export type ContadoresDiários = Record<string, Record<string, number>>;

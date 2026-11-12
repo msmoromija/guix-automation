@@ -1,8 +1,17 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 type StatusLead = "novo" | "mensagem_gerada" | "enviado" | "respondeu" | "descartado";
+
+type EventoLead = {
+  em: string;
+  tipo: StatusLead | "observacao";
+  conta_whatsapp?: string | null;
+  conta_nome?: string | null;
+  mensagem?: string | null;
+  observacao?: string | null;
+};
 
 type Lead = {
   id: string;
@@ -22,6 +31,19 @@ type Lead = {
   fonte: string;
   created_at: string;
   updated_at: string;
+  historico?: EventoLead[];
+};
+
+type EnvioRegistro = {
+  id: string;
+  em: string;
+  lead_id: string;
+  nome: string;
+  telefone: string;
+  nicho: string;
+  conta_id: string;
+  conta_nome: string;
+  mensagem: string;
 };
 
 type Conta = {
@@ -64,7 +86,17 @@ type Config = {
   remetente?: string;
 };
 
+type UltimaBusca = {
+  em: string;
+  nicho: string;
+  cidade: string;
+  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
+  totalBruto: number;
+  resultados: ResultadoBusca[];
+};
+
 const STORAGE_KEY = "guix.prospeccao.senha";
+const STORAGE_BUSCA = "guix.prospeccao.ultimaBusca";
 
 const STATUS_META: Record<StatusLead, { label: string; cor: string }> = {
   novo: { label: "Novo", cor: "bg-sky-100 text-sky-800" },
@@ -72,6 +104,11 @@ const STATUS_META: Record<StatusLead, { label: string; cor: string }> = {
   enviado: { label: "Enviado", cor: "bg-amber-100 text-amber-800" },
   respondeu: { label: "Respondeu", cor: "bg-emerald-100 text-emerald-800" },
   descartado: { label: "Descartado", cor: "bg-slate-200 text-slate-600" },
+};
+
+const EVENTO_META: Record<StatusLead | "observacao", { label: string; cor: string }> = {
+  ...STATUS_META,
+  observacao: { label: "Observação", cor: "bg-slate-100 text-slate-700" },
 };
 
 function inicial(chave: string) {
@@ -86,6 +123,7 @@ function PainelProspeccao() {
   const [config, setConfig] = useState<Config | null>(null);
   const [contas, setContas] = useState<Conta[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [envios, setEnvios] = useState<EnvioRegistro[]>([]);
 
   const [nicho, setNicho] = useState("dentista");
   const [cidade, setCidade] = useState("");
@@ -111,6 +149,9 @@ function PainelProspeccao() {
   const [uso, setUso] = useState<{ mes: string; buscas: number; limite_mensal: number } | null>(null);
 
   const [abaConfig, setAbaConfig] = useState(false);
+
+  // Restaura a última busca apenas uma vez, na primeira carga do painel.
+  const restauradoRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -151,9 +192,57 @@ function PainelProspeccao() {
     setConfig(j.config);
     setContas(j.contas || []);
     setLeads(j.leads || []);
+    setEnvios(j.envios || []);
     if (j.uso) setUso(j.uso);
     if (j.config?.nichos?.[0]?.slug) setNicho(j.config.nichos[0].slug);
     if (j.contas?.[0]?.id) setContaEnvio(j.contas[0].id);
+
+    // Restaura a última busca (localStorage + backup no R2) só na primeira carga,
+    // para não clobber resultados atuais em recargas disparadas por outras ações.
+    if (!restauradoRef.current) {
+      restauradoRef.current = true;
+      const local = lerBuscaLocal();
+      const remota = (j.ultima_busca as UltimaBusca | null) || null;
+      const escolhida = maisRecente(local, remota);
+      if (escolhida && (escolhida.resultados?.length || 0) > 0) aplicarBusca(escolhida);
+    }
+  }
+
+  function lerBuscaLocal(): UltimaBusca | null {
+    try {
+      const raw = localStorage.getItem(STORAGE_BUSCA);
+      return raw ? (JSON.parse(raw) as UltimaBusca) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function gravarBuscaLocal(b: UltimaBusca) {
+    try {
+      localStorage.setItem(STORAGE_BUSCA, JSON.stringify(b));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function maisRecente(a: UltimaBusca | null, b: UltimaBusca | null): UltimaBusca | null {
+    if (!a) return b;
+    if (!b) return a;
+    return new Date(a.em).getTime() >= new Date(b.em).getTime() ? a : b;
+  }
+
+  function aplicarBusca(b: UltimaBusca) {
+    const ress = (b.resultados || []) as ResultadoBusca[];
+    setResultados(ress);
+    setTotalBruto(b.totalBruto || ress.length);
+    if (b.nicho) setNicho(b.nicho);
+    if (b.cidade) setCidade(b.cidade);
+    if (b.filtros) {
+      setSoComTelefone(b.filtros.soComTelefone);
+      setSoNovos(b.filtros.soNovos);
+      setNaoContatados(b.filtros.naoContatados);
+    }
+    setOk(`Última busca restaurada (${ress.length} resultado(s)) — sem gastar cota.`);
   }
 
   function entrar(e: React.FormEvent) {
@@ -217,6 +306,15 @@ function PainelProspeccao() {
       setTotalBruto(j.total_bruto || j.resultados?.length || 0);
       if (j.uso) setUso(j.uso);
       setOk(`${j.total} resultado(s)${j.total_bruto && j.total_bruto !== j.total ? ` de ${j.total_bruto}` : ""}.`);
+      // Persiste a busca no navegador para restaurar sem gastar cota
+      gravarBuscaLocal({
+        em: new Date().toISOString(),
+        nicho,
+        cidade,
+        filtros: { soComTelefone, soNovos, naoContatados },
+        totalBruto: j.total_bruto || j.resultados?.length || 0,
+        resultados: (j.resultados || []) as ResultadoBusca[],
+      });
     } finally {
       setBuscando(false);
     }
@@ -353,8 +451,48 @@ function PainelProspeccao() {
     }
     setLeadSelecionado(j.lead);
     setContas(j.contas || contas);
-    setOk("Marcado como enviado. Contador atualizado.");
+    if (j.envios) setEnvios(j.envios);
+    setOk(j.enviado_registrado ? "Envio registrado. Contador atualizado." : "Envio já registrado hoje (não duplicado).");
     await carregarTudo();
+  }
+
+  /**
+   * Abre o WhatsApp e registra o envio automaticamente na conta escolhida:
+   * grava o texto exato no log de envios (R2) e soma no contador da conta.
+   * O envio é idempotente por dia — abrir duas vezes não duplica o contador.
+   */
+  async function abrirWhatsApp() {
+    if (!leadSelecionado) return;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    if (!contaEnvio) {
+      setErro("Envio aberto, mas escolha a conta WhatsApp para registrar no painel.");
+      return;
+    }
+    setErro("");
+    try {
+      const res = await fetch("/api/painel/prospeccao/lead", {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({
+          id: leadSelecionado.id,
+          marcar_enviado: true,
+          conta_whatsapp: contaEnvio,
+          observacoes,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Enviado, mas não foi possível registrar no painel.");
+        return;
+      }
+      setLeadSelecionado(j.lead);
+      setContas(j.contas || contas);
+      if (j.envios) setEnvios(j.envios);
+      setOk(j.enviado_registrado ? "Envio registrado automaticamente na conta escolhida." : "Envio já constava hoje (não duplicado).");
+      void carregarTudo();
+    } catch {
+      setErro("Enviado, mas falhou o registro no painel.");
+    }
   }
 
   async function salvarObservacoes() {
@@ -747,15 +885,18 @@ function PainelProspeccao() {
                   >
                     Copiar
                   </button>
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => void abrirWhatsApp()}
                     className="flex-1 rounded-full bg-[#25D366] px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-90"
+                    title="Abre o WhatsApp e registra o envio automaticamente na conta escolhida"
                   >
                     Abrir WhatsApp
-                  </a>
+                  </button>
                 </div>
+                <p className="text-[10px] text-muted">
+                  Ao abrir, o envio é registrado automaticamente na conta selecionada (texto exato + contador + histórico).
+                </p>
 
                 <div className="space-y-2 border-t border-line pt-4">
                   <div className="flex items-center justify-between text-sm">
@@ -829,6 +970,37 @@ function PainelProspeccao() {
                       {salvandoObs ? "Salvando…" : "Salvar obs."}
                     </button>
                   </div>
+                </div>
+
+                {/* Linha do tempo do lead (histórico fiel de geração/envio/status) */}
+                <div className="border-t border-line pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Histórico do lead</p>
+                  {(leadSelecionado.historico || []).length === 0 ? (
+                    <p className="mt-2 text-xs text-muted">Sem eventos registrados ainda.</p>
+                  ) : (
+                    <ol className="mt-2 space-y-2">
+                      {[...(leadSelecionado.historico || [])].reverse().map((ev, i) => (
+                        <li key={`${ev.em}-${i}`} className="flex gap-2">
+                          <span
+                            className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${EVENTO_META[ev.tipo].cor}`}
+                          >
+                            {EVENTO_META[ev.tipo].label}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] text-muted">
+                              {new Date(ev.em).toLocaleString("pt-BR")}
+                              {ev.conta_nome ? ` · ${ev.conta_nome}` : ""}
+                            </p>
+                            {ev.observacao ? (
+                              <p className="whitespace-pre-wrap break-words text-xs text-ink">{ev.observacao}</p>
+                            ) : ev.mensagem ? (
+                              <p className="line-clamp-2 text-xs text-muted">{ev.mensagem}</p>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
                 </div>
               </div>
             ) : (
@@ -909,6 +1081,50 @@ function PainelProspeccao() {
                           ✕
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Histórico de envios (log fiel por conta WhatsApp) */}
+      <section className="mt-6 rounded-2xl border border-line bg-white p-5">
+        <h2 className="text-sm font-bold">Histórico de envios ({envios.length})</h2>
+        <p className="mt-1 text-xs text-muted">
+          Registro imutável de cada mensagem enviada: texto exato, lead e conta WhatsApp usada.
+        </p>
+        {envios.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">Nenhuma mensagem enviada ainda.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Quando</th>
+                  <th className="px-3 py-2 font-semibold">Lead</th>
+                  <th className="px-3 py-2 font-semibold">Telefone</th>
+                  <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
+                  <th className="px-3 py-2 font-semibold">Mensagem enviada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {envios.slice(0, 50).map((e) => (
+                  <tr key={e.id} className="hover:bg-canvas/50">
+                    <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
+                      {new Date(e.em).toLocaleString("pt-BR")}
+                    </td>
+                    <td className="px-3 py-2 font-semibold">{e.nome}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{e.telefone}</td>
+                    <td className="px-3 py-2 text-xs">
+                      <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                        {e.conta_nome}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted">
+                      <span className="line-clamp-2">{e.mensagem || "—"}</span>
                     </td>
                   </tr>
                 ))}

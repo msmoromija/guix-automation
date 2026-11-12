@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   buscarLeadPorTelefone,
+  contarEnviosHoje,
   gravarLead,
-  incrementarContador,
+  hojeIso,
+  leadEnviadoHoje,
   lerConfig,
-  lerContadores,
   lerLead,
+  listarEnvios,
   normalizarTelefone,
   novoIdLead,
+  registrarEnvio,
+  registrarEvento,
   removerLead,
 } from "@/lib/prospeccao/store";
 import { linkWhatsApp, renderizarTemplate, varsDoLead } from "@/lib/prospeccao/mensagem";
@@ -58,6 +62,7 @@ export async function POST(req: NextRequest) {
     // Não regride o status de leads já contatados (enviado/respondeu/descartado)
     if (lead.status === "novo") lead.status = "mensagem_gerada";
     lead.updated_at = agora;
+    registrarEvento(lead, { tipo: "mensagem_gerada", mensagem });
     await gravarLead(lead);
 
     return NextResponse.json({
@@ -128,6 +133,7 @@ export async function POST(req: NextRequest) {
   // Não regride o status de leads já contatados (enviado/respondeu/descartado)
   if (lead.status === "novo") lead.status = "mensagem_gerada";
   lead.updated_at = agora;
+  registrarEvento(lead, { tipo: "mensagem_gerada", mensagem });
 
   await gravarLead(lead);
 
@@ -143,6 +149,11 @@ export async function POST(req: NextRequest) {
 /**
  * PATCH /api/painel/prospeccao/lead — atualiza status, observações, conta.
  * body: { id, status?, observacoes?, conta_whatsapp?, marcar_enviado?: boolean }
+ *
+ * `marcar_enviado` grava um registro imutável no log de envios (R2), que é a
+ * fonte da verdade dos contadores por conta e do histórico por lead. Chamadas
+ * repetidas no mesmo dia para o mesmo lead não duplicam o envio (idempotente),
+ * mas garantem que o status do lead fique como "enviado".
  */
 export async function PATCH(req: NextRequest) {
   if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
@@ -154,55 +165,85 @@ export async function PATCH(req: NextRequest) {
   if (!lead) return NextResponse.json({ erro: "Lead não encontrado." }, { status: 404 });
 
   const agora = new Date().toISOString();
-
-  if (body.status && STATUS_VALIDOS.includes(body.status as StatusLead)) {
-    lead.status = body.status as StatusLead;
-  }
-
-  if (typeof body.observacoes === "string") {
-    lead.observacoes = body.observacoes.slice(0, 1000);
-  }
+  const statusAnterior = lead.status;
+  const config = await lerConfig();
 
   if (typeof body.conta_whatsapp === "string" && body.conta_whatsapp) {
     lead.conta_whatsapp = body.conta_whatsapp;
   }
 
-  // Marcar como enviado: atualiza data, conta e incrementa contador
+  if (typeof body.observacoes === "string") {
+    const novo = body.observacoes.slice(0, 1000);
+    if (novo !== lead.observacoes) {
+      lead.observacoes = novo;
+      registrarEvento(lead, { tipo: "observacao", observacao: novo });
+    }
+  }
+
+  // Marca/envia: grava no log de envios e atualiza lead + contador (derivado)
+  let envioRegistrado = false;
   if (body.marcar_enviado === true) {
     const contaId = String(body.conta_whatsapp || lead.conta_whatsapp || "");
-    const config = await lerConfig();
     const conta = config.contas.find((c) => c.id === contaId);
     if (!conta) {
       return NextResponse.json({ erro: "Conta WhatsApp inválida." }, { status: 400 });
     }
 
-    const contadores = await lerContadores();
-    const chaveHoje = new Date().toISOString().slice(0, 10);
-    const jaEnviadoHoje = contadores[contaId]?.[chaveHoje] || 0;
-    if (jaEnviadoHoje >= conta.limite_diario) {
-      return NextResponse.json(
-        { erro: `Limite diário de ${conta.limite_diario} mensagens na ${conta.nome} atingido.` },
-        { status: 429 },
-      );
+    const envios = await listarEnvios();
+    // Idempotência: não conta duas vezes o mesmo lead no mesmo dia.
+    if (!leadEnviadoHoje(envios, lead.id)) {
+      if (contarEnviosHoje(envios, contaId) >= conta.limite_diario) {
+        return NextResponse.json(
+          { erro: `Limite diário de ${conta.limite_diario} mensagens na ${conta.nome} atingido.` },
+          { status: 429 },
+        );
+      }
+      await registrarEnvio({
+        lead_id: lead.id,
+        nome: lead.nome,
+        telefone: lead.telefone,
+        nicho: lead.nicho,
+        conta_id: conta.id,
+        conta_nome: conta.nome,
+        mensagem: lead.mensagem_gerada || "",
+      });
+      envioRegistrado = true;
     }
 
     lead.conta_whatsapp = contaId;
     lead.status = "enviado";
     lead.data_ultimo_contato = agora;
-    await incrementarContador(contaId, 1);
+    registrarEvento(lead, {
+      tipo: "enviado",
+      conta_whatsapp: conta.id,
+      conta_nome: conta.nome,
+      mensagem: lead.mensagem_gerada,
+    });
+  } else if (body.status && STATUS_VALIDOS.includes(body.status as StatusLead)) {
+    const novoStatus = body.status as StatusLead;
+    if (novoStatus !== statusAnterior) {
+      lead.status = novoStatus;
+      if (novoStatus === "enviado") lead.data_ultimo_contato = agora;
+      registrarEvento(lead, { tipo: novoStatus, mensagem: lead.mensagem_gerada });
+    }
   }
 
   lead.updated_at = agora;
   await gravarLead(lead);
 
-  const contadores = await lerContadores();
-  const config = await lerConfig();
+  const envios = await listarEnvios(200);
   const contasComContagem = config.contas.map((c) => ({
     ...c,
-    enviados_hoje: contadores[c.id]?.[new Date().toISOString().slice(0, 10)] || 0,
+    enviados_hoje: contarEnviosHoje(envios, c.id, hojeIso()),
   }));
 
-  return NextResponse.json({ ok: true, lead, contas: contasComContagem });
+  return NextResponse.json({
+    ok: true,
+    lead,
+    envios,
+    contas: contasComContagem,
+    enviado_registrado: envioRegistrado,
+  });
 }
 
 /**

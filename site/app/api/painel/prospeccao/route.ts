@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   chaveApiEfetiva,
-  enviosHoje,
+  contarEnviosHoje,
   gravarConfig,
   lerConfig,
-  lerContadores,
+  lerUltimaBusca,
   lerUso,
+  listarEnvios,
   listarLeads,
 } from "@/lib/prospeccao/store";
 import type { ConfigProspecção } from "@/lib/prospeccao/tipos";
@@ -23,21 +24,23 @@ function autorizado(req: NextRequest) {
 
 /**
  * GET /api/painel/prospeccao?token=...
- * Retorna configuração, leads e contadores diários.
+ * Retorna configuração, leads, contadores diários, log de envios e a última busca.
  */
 export async function GET(req: NextRequest) {
   if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
 
-  const [config, leads, contadores, uso] = await Promise.all([
+  const [config, leads, envios, uso, ultimaBusca] = await Promise.all([
     lerConfig(),
     listarLeads(500),
-    lerContadores(),
+    listarEnvios(200),
     lerUso(),
+    lerUltimaBusca(),
   ]);
 
+  // Contadores diários derivados do log de envios (fonte única da verdade)
   const contasComContagem = config.contas.map((c) => ({
     ...c,
-    enviados_hoje: enviosHoje(contadores, c.id),
+    enviados_hoje: contarEnviosHoje(envios, c.id),
   }));
 
   // Não devolve a chave da API em texto puro para o cliente
@@ -51,7 +54,8 @@ export async function GET(req: NextRequest) {
     leads,
     config: configPublica,
     contas: contasComContagem,
-    contadores,
+    envios,
+    ultima_busca: ultimaBusca,
     uso,
     hoje: new Date().toISOString(),
   });

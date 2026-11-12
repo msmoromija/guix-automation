@@ -3,12 +3,13 @@ import { senhaComercialConfere } from "@/lib/cupons/auth";
 import { buscarGoogle, ehCelularBr, type LugarEncontrado } from "@/lib/prospeccao/buscar";
 import {
   chaveApiEfetiva,
+  gravarUltimaBusca,
+  hojeIso,
   lerConfig,
   listarLeadsPorTelefones,
   normalizarTelefone,
   registrarBusca,
 } from "@/lib/prospeccao/store";
-import { hojeIso } from "@/lib/prospeccao/store";
 
 export const runtime = "nodejs";
 
@@ -115,6 +116,18 @@ export async function POST(req: NextRequest) {
   if (excluirRecontato) {
     filtrados = filtrados.filter((r) => !r.contatado_recentemente);
   }
+
+  // Guarda a busca para o painel restaurar sem gastar cota (localStorage + R2)
+  await gravarUltimaBusca({
+    em: new Date().toISOString(),
+    nicho: nichoSlug,
+    cidade,
+    filtros: { soComTelefone, soNovos: excluirContatados, naoContatados: excluirRecontato },
+    totalBruto: resultados.length,
+    resultados: filtrados,
+  }).catch(() => {
+    /* a busca não falha se o backup não puder ser gravado */
+  });
 
   return NextResponse.json({
     ok: true,
