@@ -74,6 +74,16 @@ export async function POST(req: NextRequest) {
     lugares = lugares.filter((l) => ehCelularBr(l.telefone));
   }
 
+  // Remove números repetidos (mesmo telefone pode vir de filiais/endereços diferentes)
+  const vistos = new Set<string>();
+  lugares = lugares.filter((l) => {
+    const tel = normalizarTelefone(l.telefone);
+    if (!tel) return true;
+    if (vistos.has(tel)) return false;
+    vistos.add(tel);
+    return true;
+  });
+
   // Carrega leads existentes por telefone
   const telefones = lugares.map((l) => normalizarTelefone(l.telefone)).filter(Boolean);
   const existentes = await listarLeadsPorTelefones(telefones);
