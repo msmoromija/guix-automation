@@ -7,6 +7,8 @@ export type LugarEncontrado = {
   cidade: string;
   categoria: string;
   external_id: string;
+  /** Site institucional informado pelo Google Places. */
+  site?: string;
   latitude?: number;
   longitude?: number;
 };
@@ -17,6 +19,7 @@ type GooglePlace = {
   formattedAddress?: string;
   nationalPhoneNumber?: string;
   internationalPhoneNumber?: string;
+  websiteUri?: string;
   primaryTypeDisplayName?: { text?: string };
   location?: { latitude?: number; longitude?: number };
   addressComponents?: Array<{ longText?: string; shortText?: string; types?: string[] }>;
@@ -37,6 +40,7 @@ const FIELD_MASK = [
   "places.formattedAddress",
   "places.nationalPhoneNumber",
   "places.internationalPhoneNumber",
+  "places.websiteUri",
   "places.primaryTypeDisplayName",
   "places.location",
   "places.addressComponents",
@@ -99,6 +103,8 @@ export async function buscarGoogle(opts: {
   endpoint?: string;
   nicho: NichoProspecção;
   cidade: string;
+  /** Termo de busca específico (permite variar o termo a cada nova busca). */
+  termo?: string;
   paginas?: number;
   pageSize?: number;
 }): Promise<{ lugares: LugarEncontrado[]; paginas: number }> {
@@ -106,7 +112,7 @@ export async function buscarGoogle(opts: {
   const endpoint = opts.endpoint?.trim() || GOOGLE_TEXT_SEARCH;
   if (!chave) throw new Error("API Key da Google Places não configurada.");
 
-  const termo = nicho.termos_busca[0] || nicho.nome;
+  const termo = opts.termo?.trim() || nicho.termos_busca[0] || nicho.nome;
   const textQuery = `${termo} em ${cidade}`;
 
   const encontrados = new Map<string, LugarEncontrado>();
@@ -151,6 +157,7 @@ export async function buscarGoogle(opts: {
         cidade: extrairCidade(p, cidade),
         categoria: p.primaryTypeDisplayName?.text || nicho.nome,
         external_id: p.id,
+        site: p.websiteUri || undefined,
         latitude: p.location?.latitude,
         longitude: p.location?.longitude,
       });
@@ -161,4 +168,59 @@ export async function buscarGoogle(opts: {
   }
 
   return { lugares: [...encontrados.values()], paginas: paginasUsadas };
+}
+
+const RE_EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
+/** E-mails genéricos de fornecedores de template — não são do negócio. */
+const EMAIL_IGNORAR = /@(example\.(com|org)|sentry\.io|wixpress\.com|godaddy\.com|shopify\.com|wordpress\.(com|org)|localhost)$/i;
+
+/**
+ * Tenta extrair o e-mail de contato do site institucional (best-effort).
+ * Não inventa dados: se não encontrar, retorna null. Dá preferência ao
+ * endereço declarado em link `mailto:` e ignora e-mails de placeholder.
+ */
+export async function extrairEmailDoSite(
+  site: string,
+  timeoutMs = 2500,
+): Promise<string | null> {
+  if (!site) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(site, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GuiX-Prospeccao/1.0)" },
+    });
+    if (!res.ok) return null;
+    const html = (await res.text()).slice(0, 300_000);
+
+    const candidatos: string[] = [];
+    const mailto = html.match(/mailto:([^"'?>\s]+)/gi) || [];
+    for (const m of mailto) candidatos.push(m.replace(/^mailto:/i, ""));
+    const comArroba = html.match(new RegExp(RE_EMAIL.source, "gi")) || [];
+    candidatos.push(...comArroba);
+
+    for (const bruto of candidatos) {
+      let limpo = bruto.trim().toLowerCase();
+      try {
+        limpo = decodeURIComponent(limpo);
+      } catch {
+        /* mantém como está */
+      }
+      const achado = limpo.match(RE_EMAIL);
+      if (!achado) continue;
+      const email = achado[0];
+      if (EMAIL_IGNORAR.test(email)) continue;
+      if (/\.(png|jpe?g|gif|webp|svg|css|js)$/i.test(email)) continue;
+      return email;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }

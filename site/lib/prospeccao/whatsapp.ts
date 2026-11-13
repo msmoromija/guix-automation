@@ -1,8 +1,11 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { telefoneParaWa } from "./mensagem";
 
 /**
  * Cliente da WhatsApp Business Platform (Cloud API) oficial da Meta.
+ *
+ * Modo de uso atual: SUPORTE — receber mensagens e status (gratuito). O envio
+ * pela API fica desativado (outreach inicial é cobrado por mensagem); o painel
+ * continua abrindo o WhatsApp por link (wa.me) e registrando os envios.
  *
  * Fluxos suportados:
  *  - Embedded Signup (frontend envia o `code` → aqui trocamos por token);
@@ -114,31 +117,6 @@ export async function detalhesNumero(phoneNumberId: string, token: string): Prom
   });
   if (!r?.id) throw new Error("Número não encontrado para este token.");
   return r;
-}
-
-/** Envia texto por uma conta conectada. Retorna o wamid (id da mensagem na Meta). */
-export async function enviarTexto(
-  phoneNumberId: string,
-  token: string,
-  telefone: string,
-  texto: string,
-): Promise<{ wamid: string; para: string }> {
-  const para = telefoneParaWa(telefone);
-  if (!para) throw new Error("Telefone do lead inválido.");
-  const r = await graph<{ messages?: { id: string }[] }>(`/${phoneNumberId}/messages`, {
-    metodo: "POST",
-    token,
-    corpo: {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: para,
-      type: "text",
-      text: { preview_url: false, body: texto },
-    },
-  });
-  const wamid = r.messages?.[0]?.id;
-  if (!wamid) throw new Error("A Meta não retornou o id da mensagem.");
-  return { wamid, para };
 }
 
 /** Valida a assinatura X-Hub-Signature-256 do webhook (HMAC SHA256 com o App Secret). */

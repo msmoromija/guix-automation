@@ -6,10 +6,11 @@ import {
   contarEnviosHoje,
   gravarConfig,
   lerConfig,
-  lerUltimaBusca,
   lerUso,
   listarEnvios,
   listarLeads,
+  listarMensagens,
+  listarSessoesBusca,
 } from "@/lib/prospeccao/store";
 import { embeddedSignupConfigurado, metaAppId, metaConfigId, metaConfigurado } from "@/lib/prospeccao/whatsapp";
 import type { ConfigProspecção, ContaWhatsApp } from "@/lib/prospeccao/tipos";
@@ -31,12 +32,13 @@ function autorizado(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
 
-  const [config, leads, envios, uso, ultimaBusca] = await Promise.all([
+  const [config, leads, envios, uso, sessoesBusca, mensagens] = await Promise.all([
     lerConfig(),
     listarLeads(500),
     listarEnvios(200),
     lerUso(),
-    lerUltimaBusca(),
+    listarSessoesBusca(),
+    listarMensagens(200),
   ]);
 
   // Contadores diários derivados do log de envios (fonte única da verdade).
@@ -59,7 +61,8 @@ export async function GET(req: NextRequest) {
     config: configPublica,
     contas: contasComContagem,
     envios,
-    ultima_busca: ultimaBusca,
+    mensagens,
+    sessoes_busca: sessoesBusca,
     uso,
     // Prontidão da integração Meta (app_id/config_id são públicos; o secret não).
     meta: {

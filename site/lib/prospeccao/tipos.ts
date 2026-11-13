@@ -47,18 +47,80 @@ export type Lead = {
   nicho: string;
   endereco: string;
   categoria?: string;
+  /** Site institucional (link) quando o Google Places informa. */
+  site?: string | null;
+  /** E-mail de contato encontrado no site institucional (best-effort). */
+  email?: string | null;
   status: StatusLead;
   data_ultimo_contato: string | null;
   conta_whatsapp: string | null;
   modelo_usado: string | null;
   mensagem_gerada: string | null;
   observacoes: string;
+  /**
+   * Congelado/oculto: o lead vai para o fim da fila e sai da lista principal
+   * (aparece só quando o usuário pede para ver os congelados).
+   */
+  congelado?: boolean;
+  /**
+   * Removido do histórico de forma reversível (soft delete): sai da fila
+   * principal e só reaparece com "Mostrar congelados e removidos" ligado.
+   */
+  arquivado?: boolean;
   external_id: string | null;
   fonte: string;
   created_at: string;
   updated_at: string;
   /** Linha do tempo persistida — cada geração/envio/status fica registrada aqui. */
   historico?: EventoLead[];
+};
+
+/** Resultado de uma busca, já cruzado com o lead salvo (quando existir). */
+export type ResultadoBusca = {
+  nome: string;
+  telefone: string;
+  telefone_normalizado: string;
+  endereco: string;
+  cidade: string;
+  categoria: string;
+  site: string | null;
+  email: string | null;
+  external_id: string;
+  lead_id: string | null;
+  status: StatusLead;
+  ja_contatado: boolean;
+  contatado_recentemente: boolean;
+  /** O lead correspondente está congelado/oculto. */
+  congelado: boolean;
+  /** O lead correspondente foi removido (soft delete) e está fora da fila. */
+  arquivado: boolean;
+};
+
+/** Uma execução de busca dentro de um par nicho+cidade (Busca 1, Busca 2…). */
+export type BuscaExecucao = {
+  id: string;
+  em: string;
+  /** Número sequencial dentro da cidade+nicho (1 = "Busca 1"). */
+  numero: number;
+  /** Termo de busca usado nesta execução (varia a cada nova busca). */
+  termo: string;
+  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
+  totalBruto: number;
+  totalExibido: number;
+  /** external_ids já exibidos — usados para não repetir nas próximas buscas. */
+  ids: string[];
+  /** Resultados exibidos nesta execução (permite reabrir a "Busca N" depois). */
+  resultados?: ResultadoBusca[];
+};
+
+/** Histórico de buscas de um par nicho+cidade. */
+export type SessaoBusca = {
+  nicho: string;
+  cidade: string;
+  atualizadoEm: string;
+  /** Resultados da última busca desta cidade+nicho (para restaurar o painel). */
+  resultados: ResultadoBusca[];
+  buscas: BuscaExecucao[];
 };
 
 /** Registro imutável de uma mensagem efetivamente enviada (log append-only no R2). */
@@ -83,14 +145,28 @@ export type EnvioRegistro = {
   erro?: string | null;
 };
 
-/** Última busca executada, guardada para não consumir cota ao reabrir o painel. */
-export type UltimaBusca = {
+/**
+ * Mensagem recebida de um contato (webhook da Cloud API) — base do uso em
+ * suporte. O recebimento é gratuito; este módulo não envia pela API.
+ */
+export type MensagemRecebida = {
+  id: string;
+  /** id da mensagem na Meta (wamid) — usado para deduplicar reentregas do webhook. */
+  wamid: string;
+  /** Timestamp do evento (ISO). */
   em: string;
-  nicho: string;
-  cidade: string;
-  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
-  totalBruto: number;
-  resultados: unknown[];
+  /** Telefone do contato, como a Meta envia (ex.: 5579999999999). */
+  de: string;
+  nome_contato?: string | null;
+  texto: string;
+  /** text | image | audio | document | button | interactive | ... */
+  tipo: string;
+  /** Número que recebeu a mensagem (identifica a conta conectada). */
+  phone_number_id?: string | null;
+  conta_id?: string | null;
+  conta_nome?: string | null;
+  /** Lead correspondente, quando o telefone casa com um lead salvo. */
+  lead_id?: string | null;
 };
 
 /** Estado da conexão de uma conta com a WhatsApp Business Platform (Cloud API). */
@@ -102,7 +178,8 @@ export type ContaWhatsApp = {
   limite_diario: number;
   /**
    * "manual"   = cadastro simples (o painel só monta o link wa.me);
-   * "cloud_api"= conectada de verdade na WhatsApp Business Platform e envia via API.
+   * "cloud_api"= conectada de verdade na WhatsApp Business Platform (recebe
+   *              mensagens e status; o envio pela API fica desativado).
    */
   provedor?: "manual" | "cloud_api";
   /** ID do número na Meta (usado no endpoint /messages). */

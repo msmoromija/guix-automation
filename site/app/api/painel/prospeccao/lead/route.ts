@@ -109,12 +109,16 @@ export async function POST(req: NextRequest) {
       nicho,
       endereco: String(body.endereco || ""),
       categoria: body.categoria ? String(body.categoria) : undefined,
+      site: body.site ? String(body.site) : null,
+      email: body.email ? String(body.email) : null,
       status: "novo",
       data_ultimo_contato: null,
       conta_whatsapp: null,
       modelo_usado: nichoCfg.modelo_url,
       mensagem_gerada: null,
       observacoes: "",
+      congelado: false,
+      arquivado: false,
       external_id: body.external_id ? String(body.external_id) : null,
       fonte: body.fonte ? String(body.fonte) : "google",
       created_at: agora,
@@ -129,6 +133,8 @@ export async function POST(req: NextRequest) {
   lead.cidade = cidade;
   lead.nicho = nicho;
   lead.endereco = String(body.endereco || lead.endereco || "");
+  if (!lead.site && body.site) lead.site = String(body.site);
+  if (!lead.email && body.email) lead.email = String(body.email);
   lead.mensagem_gerada = mensagem;
   lead.modelo_usado = nichoCfg.modelo_url;
   // Não regride o status de leads já contatados (enviado/respondeu/descartado)
@@ -179,6 +185,26 @@ export async function PATCH(req: NextRequest) {
       lead.observacoes = novo;
       registrarEvento(lead, { tipo: "observacao", observacao: novo });
     }
+  }
+
+  // Congelar/Ocultar: tira o lead da fila principal (ele vai para o fim da
+  // lista e só aparece quando o painel pede para ver os congelados).
+  if (typeof body.congelado === "boolean") {
+    lead.congelado = body.congelado;
+  }
+
+  // Remover/Restaurar (soft delete): sai da fila principal sem perder o
+  // histórico; volta com "Mostrar congelados e removidos" ligado.
+  if (typeof body.arquivado === "boolean") {
+    lead.arquivado = body.arquivado;
+  }
+
+  // Preenche site/e-mail quando o painel os envia e o lead ainda não tinha.
+  if (typeof body.site === "string" && body.site.trim() && !lead.site) {
+    lead.site = body.site.trim();
+  }
+  if (typeof body.email === "string" && body.email.trim() && !lead.email) {
+    lead.email = body.email.trim();
   }
 
   // Marca/envia: grava no log de envios e atualiza lead + contador (derivado)

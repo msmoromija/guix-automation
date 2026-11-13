@@ -1,23 +1,30 @@
 import { randomBytes } from "crypto";
 import { apagarObjeto, baixarObjeto, enviarBuffer } from "@/lib/media/r2";
 import type {
+  BuscaExecucao,
   ConfigProspecção,
   ContaWhatsApp,
   EnvioRegistro,
   EventoLead,
   Lead,
-  UltimaBusca,
+  MensagemRecebida,
+  NichoProspecção,
+  ResultadoBusca,
+  SessaoBusca,
 } from "./tipos";
 
 const PASTA = "prospeccao";
 const CHAVE_CONFIG = `${PASTA}/config.json`;
 const CHAVE_ENVIOS = `${PASTA}/_envios.json`;
+const CHAVE_MENSAGENS = `${PASTA}/_mensagens.json`;
 const CHAVE_USO = `${PASTA}/_uso.json`;
-const CHAVE_ULTIMA_BUSCA = `${PASTA}/_ultima_busca.json`;
+const CHAVE_BUSCAS = `${PASTA}/_buscas.json`;
 const CHAVE_INDICE = `${PASTA}/leads/_indice.json`;
 
 /** Quantos envios mantemos no log (mais recentes primeiro). */
 const LIMITE_ENVIOS_LOG = 2000;
+/** Quantas mensagens recebidas mantemos no log (mais recentes primeiro). */
+const LIMITE_MENSAGENS_LOG = 1000;
 /** Quantos eventos mantemos na linha do tempo de cada lead. */
 const LIMITE_HISTORICO_LEAD = 50;
 
@@ -57,7 +64,7 @@ async function gravarIndice(indice: IndiceLeads) {
   });
 }
 
-export async function gravarLead(lead: Lead) {
+async function gravarLeadArquivo(lead: Lead) {
   await enviarBuffer({
     key: chaveLead(lead.id),
     body: Buffer.from(JSON.stringify(lead, null, 2)),
@@ -68,12 +75,35 @@ export async function gravarLead(lead: Lead) {
     status: "aprovada",
     clienteId: "ops",
   });
+}
+
+export async function gravarLead(lead: Lead) {
+  await gravarLeadArquivo(lead);
   const indice = await lerIndice();
   if (!indice.ids.includes(lead.id)) {
     indice.ids = [lead.id, ...indice.ids].slice(0, 5000);
     await gravarIndice(indice);
   }
   return lead;
+}
+
+/**
+ * Salva vários leads de uma vez (ex.: resultados de uma busca). Grava os
+ * arquivos em paralelo e atualiza o índice uma única vez.
+ */
+export async function salvarLeads(lote: Lead[]): Promise<number> {
+  if (!lote.length) return 0;
+  const CONCORRENCIA = 20;
+  for (let i = 0; i < lote.length; i += CONCORRENCIA) {
+    await Promise.all(lote.slice(i, i + CONCORRENCIA).map(gravarLeadArquivo));
+  }
+  const indice = await lerIndice();
+  const novos = lote.map((l) => l.id).filter((id) => !indice.ids.includes(id));
+  if (novos.length) {
+    indice.ids = [...novos, ...indice.ids].slice(0, 5000);
+    await gravarIndice(indice);
+  }
+  return lote.length;
 }
 
 export async function lerLead(id: string): Promise<Lead | null> {
@@ -100,9 +130,11 @@ export async function buscarLeadPorTelefone(
   telefoneNormalizado: string,
 ): Promise<Lead | null> {
   const indice = await lerIndice();
-  for (const id of indice.ids) {
-    const l = await lerLead(id);
-    if (l && normalizarTelefone(l.telefone) === telefoneNormalizado) return l;
+  const CONCORRENCIA = 20;
+  for (let i = 0; i < indice.ids.length; i += CONCORRENCIA) {
+    const lote = await Promise.all(indice.ids.slice(i, i + CONCORRENCIA).map((id) => lerLead(id)));
+    const achado = lote.find((l) => l && normalizarTelefone(l.telefone) === telefoneNormalizado);
+    if (achado) return achado;
   }
   return null;
 }
@@ -117,10 +149,12 @@ export function normalizarTelefone(raw: string): string {
  */
 export async function listarLeads(limite = 500): Promise<Lead[]> {
   const indice = await lerIndice();
+  const ids = indice.ids.slice(0, limite);
   const out: Lead[] = [];
-  for (const id of indice.ids.slice(0, limite)) {
-    const l = await lerLead(id);
-    if (l) out.push({ ...l, historico: undefined });
+  const CONCORRENCIA = 20;
+  for (let i = 0; i < ids.length; i += CONCORRENCIA) {
+    const lote = await Promise.all(ids.slice(i, i + CONCORRENCIA).map((id) => lerLead(id)));
+    for (const l of lote) if (l) out.push({ ...l, historico: undefined });
   }
   return out;
 }
@@ -146,6 +180,79 @@ export async function listarLeadsPorTelefones(
 
 // —— Configuração ——
 
+/**
+ * Nichos canônicos disponíveis no painel (mesma lista de `lib/nichos.ts`).
+ * Fica no código para que o dropdown nunca dependa de configuração manual.
+ */
+const NICHOS_PADRAO: NichoProspecção[] = [
+  {
+    slug: "barbearia",
+    nome: "Barbearia",
+    modelo_url: "https://guix.net.br/exemplos/barbearia",
+    termos_busca: ["barbearia", "barbeiro", "corte masculino"],
+  },
+  {
+    slug: "salao",
+    nome: "Salão",
+    modelo_url: "https://guix.net.br/exemplos/salao",
+    termos_busca: ["salão de beleza", "cabeleireiro", "salão"],
+  },
+  {
+    slug: "estetica",
+    nome: "Estética",
+    modelo_url: "https://guix.net.br/exemplos/estetica",
+    termos_busca: ["estética", "clínica de estética", "sobrancelha"],
+  },
+  {
+    slug: "petshop",
+    nome: "Pet shop",
+    modelo_url: "https://guix.net.br/exemplos/petshop",
+    termos_busca: ["pet shop", "banho e tosa", "petshop"],
+  },
+  {
+    slug: "academia",
+    nome: "Academia",
+    modelo_url: "https://guix.net.br/exemplos/academia",
+    termos_busca: ["academia", "estúdio de treinamento", "crossfit"],
+  },
+  {
+    slug: "contabilidade",
+    nome: "Contabilidade",
+    modelo_url: "https://guix.net.br/exemplos/contabilidade",
+    termos_busca: ["contabilidade", "escritório contábil", "contador"],
+  },
+  {
+    slug: "advocacia",
+    nome: "Advocacia",
+    modelo_url: "https://guix.net.br/exemplos/advocacia",
+    termos_busca: ["advocacia", "advogado", "escritório de advocacia"],
+  },
+  {
+    slug: "dentista",
+    nome: "Dentista",
+    modelo_url: "https://guix.net.br/exemplos/dentista",
+    termos_busca: ["dentista", "consultório odontológico", "clínica odontológica"],
+  },
+  {
+    slug: "clinica",
+    nome: "Clínica médica",
+    modelo_url: "https://guix.net.br/exemplos/clinica",
+    termos_busca: ["clínica médica", "clínica", "consultório médico"],
+  },
+  {
+    slug: "psicologia",
+    nome: "Psicologia",
+    modelo_url: "https://guix.net.br/exemplos/psicologia",
+    termos_busca: ["psicólogo", "psicologia", "consultório de psicologia"],
+  },
+  {
+    slug: "nutricionista",
+    nome: "Nutricionista",
+    modelo_url: "https://guix.net.br/exemplos/nutricionista",
+    termos_busca: ["nutricionista", "clínica de nutrição", "consulta nutricional"],
+  },
+];
+
 const CONFIG_PADRAO: ConfigProspecção = {
   atualizadoEm: new Date().toISOString(),
   api: {
@@ -158,14 +265,7 @@ const CONFIG_PADRAO: ConfigProspecção = {
     { id: "conta1", nome: "Conta 1", limite_diario: 30 },
     { id: "conta2", nome: "Conta 2", limite_diario: 30 },
   ],
-  nichos: [
-    {
-      slug: "dentista",
-      nome: "Dentista",
-      modelo_url: "https://guix.net.br/exemplos/dentista",
-      termos_busca: ["dentista", "consultório odontológico", "clínica odontológica"],
-    },
-  ],
+  nichos: NICHOS_PADRAO,
   templates: [
     {
       id: "padrao",
@@ -207,7 +307,18 @@ export async function lerConfig(): Promise<ConfigProspecção> {
         .replace(/Carlos - GuiX/g, "{{remetente}}"),
     }));
 
-    return { ...CONFIG_PADRAO, ...cfg, api, templates };
+    // Migração: garante que todos os nichos canônicos existam (o painel usa esta
+    // lista no dropdown). Nichos extras cadastrados manualmente são preservados.
+    const salvosPorSlug = new Map((cfg.nichos || []).map((n) => [n.slug, n]));
+    const nichos: NichoProspecção[] = NICHOS_PADRAO.map((n) => ({
+      ...n,
+      ...(salvosPorSlug.get(n.slug) || {}),
+    }));
+    for (const n of cfg.nichos || []) {
+      if (!nichos.some((x) => x.slug === n.slug)) nichos.push(n);
+    }
+
+    return { ...CONFIG_PADRAO, ...cfg, api, templates, nichos };
   } catch {
     return { ...CONFIG_PADRAO };
   }
@@ -367,29 +478,153 @@ export function leadEnviadoHoje(
   return envios.some((e) => e.lead_id === leadId && e.em.slice(0, 10) === dia);
 }
 
-// —— Última busca (evita gastar cota ao reabrir o painel) ——
+// —— Mensagens recebidas (webhook) — base do uso em suporte ——
 
-export async function lerUltimaBusca(): Promise<UltimaBusca | null> {
+/** Lista as mensagens recebidas (mais recentes primeiro). */
+export async function listarMensagens(limite = 200): Promise<MensagemRecebida[]> {
   try {
-    const buf = await baixarObjeto(CHAVE_ULTIMA_BUSCA);
-    return JSON.parse(buf.toString("utf8")) as UltimaBusca;
+    const buf = await baixarObjeto(CHAVE_MENSAGENS);
+    const arr = JSON.parse(buf.toString("utf8")) as MensagemRecebida[];
+    return Array.isArray(arr) ? arr.slice(0, limite) : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-export async function gravarUltimaBusca(busca: UltimaBusca): Promise<void> {
+async function gravarMensagens(lista: MensagemRecebida[]): Promise<void> {
   await enviarBuffer({
-    key: CHAVE_ULTIMA_BUSCA,
-    body: Buffer.from(JSON.stringify(busca, null, 2)),
+    key: CHAVE_MENSAGENS,
+    body: Buffer.from(JSON.stringify(lista.slice(0, LIMITE_MENSAGENS_LOG), null, 2)),
     contentType: "application/json",
     origem: "biblioteca",
-    alt: "ultima busca prospeccao",
-    tags: ["prospeccao", "busca"],
+    alt: "mensagens recebidas prospeccao",
+    tags: ["prospeccao", "mensagens"],
     status: "aprovada",
     clienteId: "ops",
   });
 }
+
+/**
+ * Registra uma mensagem recebida. O webhook da Meta pode reentregar o mesmo
+ * evento, então deduplicamos pelo wamid.
+ */
+export async function registrarMensagem(
+  dados: Omit<MensagemRecebida, "id">,
+): Promise<{ mensagem: MensagemRecebida; novo: boolean }> {
+  const atuais = await listarMensagens(LIMITE_MENSAGENS_LOG);
+  const existente = atuais.find((m) => m.wamid && m.wamid === dados.wamid);
+  if (existente) return { mensagem: existente, novo: false };
+  const mensagem: MensagemRecebida = {
+    id: `ms_${Date.now().toString(36)}_${randomBytes(3).toString("hex")}`,
+    ...dados,
+  };
+  await gravarMensagens([mensagem, ...atuais]);
+  return { mensagem, novo: true };
+}
+
+// —— Histórico de buscas (por par nicho+cidade) ——
+
+type ArquivoBuscas = { atualizadoEm: string; sessoes: SessaoBusca[] };
+
+/** Quantas execuções (Busca 1, Busca 2…) mantemos por cidade+nicho. */
+const LIMITE_BUSCAS_POR_SESSAO = 8;
+/** Quantas cidades+nichos mantemos no histórico de buscas. */
+const LIMITE_SESSOES_BUSCA = 60;
+
+export function novoIdBusca() {
+  return `bs_${Date.now().toString(36)}_${randomBytes(3).toString("hex")}`;
+}
+
+/** Compara cidades ignorando caixa e acentos simples (espaços nas pontas). */
+export function mesmaCidade(a: string, b: string): boolean {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+/** Lista as sessões de busca (mais recentes primeiro). */
+export async function listarSessoesBusca(): Promise<SessaoBusca[]> {
+  try {
+    const buf = await baixarObjeto(CHAVE_BUSCAS);
+    const arq = JSON.parse(buf.toString("utf8")) as ArquivoBuscas;
+    return Array.isArray(arq.sessoes) ? arq.sessoes : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Busca a sessão de um par nicho+cidade. */
+export async function buscarSessaoBusca(
+  nicho: string,
+  cidade: string,
+): Promise<SessaoBusca | null> {
+  const sessoes = await listarSessoesBusca();
+  return sessoes.find((s) => s.nicho === nicho && mesmaCidade(s.cidade, cidade)) || null;
+}
+
+/**
+ * Acumula os external_ids já exibidos em todas as buscas anteriores deste
+ * par nicho+cidade — é o que garante que a próxima busca traga resultados
+ * novos em vez de repetir os já mostrados.
+ */
+export function idsJaExibidos(sessao: SessaoBusca | null): Set<string> {
+  const set = new Set<string>();
+  for (const b of sessao?.buscas || []) for (const id of b.ids || []) set.add(id);
+  return set;
+}
+
+/** Grava/atualiza a sessão (nicho+cidade) no histórico de buscas do R2. */
+export async function gravarSessaoBusca(sessao: SessaoBusca): Promise<SessaoBusca> {
+  const sessoes = await listarSessoesBusca();
+  const i = sessoes.findIndex(
+    (s) => s.nicho === sessao.nicho && mesmaCidade(s.cidade, sessao.cidade),
+  );
+  sessao.atualizadoEm = new Date().toISOString();
+  sessao.buscas = sessao.buscas.slice(-LIMITE_BUSCAS_POR_SESSAO);
+  if (i >= 0) sessoes[i] = sessao;
+  else sessoes.unshift(sessao);
+
+  const arquivo: ArquivoBuscas = {
+    atualizadoEm: new Date().toISOString(),
+    sessoes: sessoes.slice(0, LIMITE_SESSOES_BUSCA),
+  };
+  await enviarBuffer({
+    key: CHAVE_BUSCAS,
+    body: Buffer.from(JSON.stringify(arquivo, null, 2)),
+    contentType: "application/json",
+    origem: "biblioteca",
+    alt: "historico de buscas prospeccao",
+    tags: ["prospeccao", "buscas"],
+    status: "aprovada",
+    clienteId: "ops",
+  });
+  return sessao;
+}
+
+/** Monta o registro de uma execução de busca a partir da sessão anterior. */
+export function proximaBuscaExecucao(
+  sessao: SessaoBusca | null,
+  termo: string,
+  filtros: BuscaExecucao["filtros"],
+  totalBruto: number,
+  ids: string[],
+  resultados: ResultadoBusca[] = [],
+): BuscaExecucao {
+  return {
+    id: novoIdBusca(),
+    em: new Date().toISOString(),
+    numero: (sessao?.buscas.length || 0) + 1,
+    termo,
+    filtros,
+    totalBruto,
+    totalExibido: ids.length,
+    ids,
+    resultados,
+  };
+}
+
+// —— Última busca ——
+//
+// O histórico oficial das buscas vive em `_buscas.json` (listarSessoesBusca);
+// o painel restaura a última sessão a partir dele, sem gastar cota.
 
 // —— Uso da API (cota mensal) ——
 

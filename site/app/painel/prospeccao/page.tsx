@@ -21,12 +21,16 @@ type Lead = {
   nicho: string;
   endereco: string;
   categoria?: string;
+  site?: string | null;
+  email?: string | null;
   status: StatusLead;
   data_ultimo_contato: string | null;
   conta_whatsapp: string | null;
   modelo_usado: string | null;
   mensagem_gerada: string | null;
   observacoes: string;
+  congelado?: boolean;
+  arquivado?: boolean;
   external_id: string | null;
   fonte: string;
   created_at: string;
@@ -48,6 +52,19 @@ type EnvioRegistro = {
   wamid?: string | null;
   status?: string | null;
   erro?: string | null;
+};
+
+type MensagemRecebida = {
+  id: string;
+  wamid: string;
+  em: string;
+  de: string;
+  nome_contato?: string | null;
+  texto: string;
+  tipo: string;
+  conta_id?: string | null;
+  conta_nome?: string | null;
+  lead_id?: string | null;
 };
 
 type Conta = {
@@ -97,11 +114,36 @@ type ResultadoBusca = {
   endereco: string;
   cidade: string;
   categoria: string;
+  site: string | null;
+  email: string | null;
   external_id: string;
   lead_id: string | null;
   status: StatusLead;
   ja_contatado: boolean;
   contatado_recentemente: boolean;
+  congelado: boolean;
+  arquivado: boolean;
+};
+
+type BuscaExecucao = {
+  id: string;
+  em: string;
+  numero: number;
+  termo: string;
+  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
+  totalBruto: number;
+  totalExibido: number;
+  ids: string[];
+  /** Resultados exibidos nesta execução (permite reabrir a "Busca N"). */
+  resultados?: ResultadoBusca[];
+};
+
+type SessaoBusca = {
+  nicho: string;
+  cidade: string;
+  atualizadoEm: string;
+  resultados: ResultadoBusca[];
+  buscas: BuscaExecucao[];
 };
 
 type Config = {
@@ -114,17 +156,7 @@ type Config = {
   remetente?: string;
 };
 
-type UltimaBusca = {
-  em: string;
-  nicho: string;
-  cidade: string;
-  filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
-  totalBruto: number;
-  resultados: ResultadoBusca[];
-};
-
 const STORAGE_KEY = "guix.prospeccao.senha";
-const STORAGE_BUSCA = "guix.prospeccao.ultimaBusca";
 
 const STATUS_META: Record<StatusLead, { label: string; cor: string }> = {
   novo: { label: "Novo", cor: "bg-sky-100 text-sky-800" },
@@ -152,6 +184,7 @@ function PainelProspeccao() {
   const [contas, setContas] = useState<Conta[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [envios, setEnvios] = useState<EnvioRegistro[]>([]);
+  const [mensagens, setMensagens] = useState<MensagemRecebida[]>([]);
 
   const [nicho, setNicho] = useState("dentista");
   const [cidade, setCidade] = useState("");
@@ -163,10 +196,26 @@ function PainelProspeccao() {
   const [totalBruto, setTotalBruto] = useState(0);
   const [buscando, setBuscando] = useState(false);
 
+  // Histórico de buscas por nicho+cidade (Busca 1, Busca 2…) e qual está aberta.
+  const [sessoes, setSessoes] = useState<SessaoBusca[]>([]);
+  const [buscaAtual, setBuscaAtual] = useState<{ numero: number; termo: string } | null>(null);
+  /** Mostra também os leads congelados e removidos (fora da fila principal). */
+  const [mostrarOcultos, setMostrarOcultos] = useState(false);
+
+  // Paginação dos leads encontrados: menos por tela no celular, mais no PC.
+  const [porPagina, setPorPagina] = useState<number>(() =>
+    typeof window !== "undefined" && window.innerWidth >= 1024 ? 15 : 5,
+  );
+  const [paginaAtual, setPaginaAtual] = useState(1);
+
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [gerandoMsg, setGerandoMsg] = useState(false);
+
+  // Zoom do texto da mensagem (passos de 2px).
+  const [zoomMsg, setZoomMsg] = useState(0);
+  const tamanhoMensagem = `calc(1rem + ${zoomMsg * 2}px)`;
 
   const [contaEnvio, setContaEnvio] = useState("");
   const [observacoes, setObservacoes] = useState("");
@@ -259,6 +308,35 @@ function PainelProspeccao() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  // No celular, a mensagem abre em tela cheia (overlay) — trava o scroll do fundo.
+  // No desktop (lg+) a mensagem fica na coluna da direita e o scroll segue normal.
+  useEffect(() => {
+    if (!leadSelecionado) return;
+    if (typeof window === "undefined" || window.innerWidth >= 1024) return;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = anterior;
+    };
+  }, [leadSelecionado]);
+
+  // Ajusta a quantidade de leads por página conforme a largura da tela.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const atualizar = () => {
+      const w = window.innerWidth;
+      setPorPagina(w >= 1024 ? 15 : w >= 768 ? 10 : 5);
+    };
+    atualizar();
+    window.addEventListener("resize", atualizar);
+    return () => window.removeEventListener("resize", atualizar);
+  }, []);
+
+  // Volta para a página 1 sempre que chega um novo conjunto de resultados.
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [resultados]);
+
   const headers = () => ({
     "Content-Type": "application/json",
     "x-painel-token": senha,
@@ -282,57 +360,88 @@ function PainelProspeccao() {
     setContas(j.contas || []);
     setLeads(j.leads || []);
     setEnvios(j.envios || []);
+    setMensagens(j.mensagens || []);
     if (j.meta) setMeta(j.meta);
     if (j.uso) setUso(j.uso);
-    if (j.config?.nichos?.[0]?.slug) setNicho(j.config.nichos[0].slug);
-    if (j.contas?.[0]?.id) setContaEnvio(j.contas[0].id);
 
-    // Restaura a última busca (localStorage + backup no R2) só na primeira carga,
-    // para não clobber resultados atuais em recargas disparadas por outras ações.
+    const listaSessoes = (j.sessoes_busca as SessaoBusca[]) || [];
+    setSessoes(listaSessoes);
+
+    // Nicho, conta de envio e a busca aberta só são inicializados uma vez.
+    // Assim recargas disparadas por outras ações não resetam o que o usuário
+    // selecionou (o dropdown agora tem vários nichos).
     if (!restauradoRef.current) {
       restauradoRef.current = true;
-      const local = lerBuscaLocal();
-      const remota = (j.ultima_busca as UltimaBusca | null) || null;
-      const escolhida = maisRecente(local, remota);
-      if (escolhida && (escolhida.resultados?.length || 0) > 0) aplicarBusca(escolhida);
+      if (j.contas?.[0]?.id) setContaEnvio(j.contas[0].id);
+      const maisRecente = [...listaSessoes].sort(
+        (a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime(),
+      )[0];
+      if (maisRecente && (maisRecente.resultados?.length || 0) > 0) {
+        abrirSessao(maisRecente, false);
+      } else if (j.config?.nichos?.[0]?.slug) {
+        setNicho(j.config.nichos[0].slug);
+      }
     }
   }
 
-  function lerBuscaLocal(): UltimaBusca | null {
-    try {
-      const raw = localStorage.getItem(STORAGE_BUSCA);
-      return raw ? (JSON.parse(raw) as UltimaBusca) : null;
-    } catch {
-      return null;
-    }
+  /** Recarrega só a lista de leads (usado após uma busca que salva leads). */
+  async function recarregarLeads() {
+    const res = await fetch("/api/painel/prospeccao", { headers: headers() });
+    const j = await res.json();
+    if (res.ok) setLeads(j.leads || []);
   }
 
-  function gravarBuscaLocal(b: UltimaBusca) {
-    try {
-      localStorage.setItem(STORAGE_BUSCA, JSON.stringify(b));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function maisRecente(a: UltimaBusca | null, b: UltimaBusca | null): UltimaBusca | null {
-    if (!a) return b;
-    if (!b) return a;
-    return new Date(a.em).getTime() >= new Date(b.em).getTime() ? a : b;
-  }
-
-  function aplicarBusca(b: UltimaBusca) {
-    const ress = (b.resultados || []) as ResultadoBusca[];
+  /**
+   * Abre uma sessão do histórico de buscas (cidade+nicho): mostra os
+   * resultados da última busca daquela cidade, sem gastar cota da API.
+   */
+  function abrirBusca(s: SessaoBusca, b: BuscaExecucao, avisar = true) {
+    const ultima = s.buscas[s.buscas.length - 1];
+    // Buscas antigas podem não ter os resultados arquivados: nesse caso só a
+    // última busca tem como ser restaurada (via `s.resultados`).
+    const ress = (b.resultados?.length ? b.resultados : b.id === ultima?.id ? s.resultados : []) as ResultadoBusca[];
     setResultados(ress);
     setTotalBruto(b.totalBruto || ress.length);
-    if (b.nicho) setNicho(b.nicho);
-    if (b.cidade) setCidade(b.cidade);
+    setNicho(s.nicho);
+    setCidade(s.cidade);
+    setBuscaAtual({ numero: b.numero, termo: b.termo });
     if (b.filtros) {
       setSoComTelefone(b.filtros.soComTelefone);
       setSoNovos(b.filtros.soNovos);
       setNaoContatados(b.filtros.naoContatados);
     }
-    setOk(`Última busca restaurada (${ress.length} resultado(s)) — sem gastar cota.`);
+    setPaginaAtual(1);
+    if (avisar) {
+      setOk(
+        ress.length
+          ? `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}): ${ress.length} resultado(s), sem gastar cota.`
+          : `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}) sem resultados arquivados (busca feita antes da atualização).`,
+      );
+    }
+  }
+
+  function abrirSessao(s: SessaoBusca, avisar = true) {
+    const ultima = s.buscas[s.buscas.length - 1];
+    if (ultima) {
+      abrirBusca(s, ultima, avisar);
+      return;
+    }
+    // Sessão antiga, sem execuções registradas.
+    const ress = (s.resultados || []) as ResultadoBusca[];
+    setResultados(ress);
+    setTotalBruto(ress.length);
+    setNicho(s.nicho);
+    setCidade(s.cidade);
+    setBuscaAtual(null);
+    setPaginaAtual(1);
+    if (avisar) {
+      setOk(`${s.cidade} · ${nomeDoNicho(s.nicho)} — ${ress.length} resultado(s) salvos (sem gastar cota).`);
+    }
+  }
+
+  /** Nome amigável do nicho a partir do slug. */
+  function nomeDoNicho(slug: string) {
+    return config?.nichos.find((n) => n.slug === slug)?.nome || slug;
   }
 
   function entrar(e: React.FormEvent) {
@@ -359,6 +468,9 @@ function PainelProspeccao() {
     setLeads([]);
     setContas([]);
     setResultados([]);
+    setMensagens([]);
+    setSessoes([]);
+    setBuscaAtual(null);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -456,7 +568,7 @@ function PainelProspeccao() {
   }
 
   async function desconectarConta(id: string, nome: string) {
-    if (!window.confirm(`Desconectar "${nome}"? Os envios pela API oficial serão interrompidos.`)) return;
+    if (!window.confirm(`Desconectar "${nome}"? O recebimento de mensagens e os status de entrega serão interrompidos.`)) return;
     setErro("");
     setOk("");
     const res = await fetch("/api/painel/prospeccao/whatsapp/desconectar", {
@@ -471,37 +583,6 @@ function PainelProspeccao() {
     }
     setOk(`Conta "${nome}" desconectada.`);
     await carregarTudo();
-  }
-
-  /** Envia a mensagem do lead pela conta conectada (Cloud API oficial). */
-  async function enviarPelaApi() {
-    if (!leadSelecionado) return;
-    if (!contaEnvio) {
-      setErro("Escolha a conta WhatsApp conectada.");
-      return;
-    }
-    setErro("");
-    setOk("");
-    setGerandoMsg(true);
-    try {
-      const res = await fetch("/api/painel/prospeccao/whatsapp/enviar", {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({ lead_id: leadSelecionado.id, conta_id: contaEnvio, texto: mensagem }),
-      });
-      const j = await res.json();
-      if (!res.ok) {
-        setErro(j.erro || "Falha ao enviar pela API oficial.");
-        return;
-      }
-      if (j.lead) setLeadSelecionado(j.lead);
-      if (j.contas) setContas(j.contas);
-      if (j.envios) setEnvios(j.envios);
-      setOk(`Mensagem enviada pela API oficial (wamid ${j.wamid}).`);
-      void carregarTudo();
-    } finally {
-      setGerandoMsg(false);
-    }
   }
 
   async function buscar(e?: React.FormEvent) {
@@ -531,18 +612,28 @@ function PainelProspeccao() {
         return;
       }
       setResultados(j.resultados || []);
+      setPaginaAtual(1);
       setTotalBruto(j.total_bruto || j.resultados?.length || 0);
       if (j.uso) setUso(j.uso);
-      setOk(`${j.total} resultado(s)${j.total_bruto && j.total_bruto !== j.total ? ` de ${j.total_bruto}` : ""}.`);
-      // Persiste a busca no navegador para restaurar sem gastar cota
-      gravarBuscaLocal({
-        em: new Date().toISOString(),
-        nicho,
-        cidade,
-        filtros: { soComTelefone, soNovos, naoContatados },
-        totalBruto: j.total_bruto || j.resultados?.length || 0,
-        resultados: (j.resultados || []) as ResultadoBusca[],
-      });
+      if (j.busca) setBuscaAtual({ numero: j.busca.numero, termo: j.busca.termo });
+      if (j.sessao) {
+        const sessaoNova = j.sessao as SessaoBusca;
+        setSessoes((atual) => {
+          const outras = atual.filter((s) => !(s.nicho === sessaoNova.nicho && s.cidade === sessaoNova.cidade));
+          return [sessaoNova, ...outras];
+        });
+      }
+      const salvos = Number(j.leads_salvos || 0);
+      const repetidos = Number(j.repetidos || 0);
+      setOk(
+        `Busca ${j.busca?.numero || 1} (${j.busca?.termo || nicho}): ${j.total} resultado(s) novo(s)` +
+          (repetidos ? `, ${repetidos} já exibido(s) anteriormente ignorado(s)` : "") +
+          "." +
+          (salvos ? ` ${salvos} salvo(s) no Histórico de leads.` : "") +
+          (j.aviso ? ` ${j.aviso}` : ""),
+      );
+      // Os resultados já ficaram salvos como leads no servidor — atualiza a lista.
+      if (salvos) await recarregarLeads();
     } finally {
       setBuscando(false);
     }
@@ -566,6 +657,8 @@ function PainelProspeccao() {
           nicho,
           endereco: r.endereco,
           categoria: r.categoria,
+          site: r.site,
+          email: r.email,
           external_id: r.external_id,
           fonte: "google",
         }),
@@ -617,8 +710,48 @@ function PainelProspeccao() {
     }
   }
 
-  async function removerLeadUI(lead: Lead) {
-    if (!window.confirm(`Remover "${lead.nome}" do histórico?`)) return;
+  /**
+   * Remover/Restaurar (soft delete): o lead sai da fila principal sem perder
+   * nada — segue salvo no R2 e volta com "Mostrar congelados e removidos" ligado.
+   */
+  async function alternarArquivado(alvo: { id: string; nome: string }, arquivar: boolean) {
+    setErro("");
+    setOk("");
+    try {
+      const res = await fetch("/api/painel/prospeccao/lead", {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ id: alvo.id, arquivado: arquivar }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Não foi possível atualizar o lead.");
+        return;
+      }
+      // Reflete na lista em tela sem precisar de nova busca.
+      setResultados((atual) =>
+        atual.map((r) => (r.lead_id === alvo.id ? { ...r, arquivado: arquivar } : r)),
+      );
+      setLeads((atual) => atual.map((l) => (l.id === alvo.id ? { ...l, arquivado: arquivar } : l)));
+      if (arquivar && leadSelecionado?.id === alvo.id) {
+        setLeadSelecionado(null);
+        setMensagem("");
+        setWhatsappUrl("");
+      }
+      setOk(
+        arquivar
+          ? `"${alvo.nome}" removido da fila — dá para restaurar em “Mostrar removidos”.`
+          : `"${alvo.nome}" restaurado para a fila.`,
+      );
+      await carregarTudo();
+    } catch {
+      setErro("Falha de rede ao atualizar o lead.");
+    }
+  }
+
+  /** Exclusão definitiva (não reversível) — só para leads já removidos. */
+  async function excluirDefinitivo(lead: Lead) {
+    if (!window.confirm(`Excluir "${lead.nome}" definitivamente? Esta ação não pode ser desfeita.`)) return;
     setErro("");
     setOk("");
     try {
@@ -629,7 +762,7 @@ function PainelProspeccao() {
       });
       const j = await res.json();
       if (!res.ok) {
-        setErro(j.erro || "Não foi possível remover o lead.");
+        setErro(j.erro || "Não foi possível excluir o lead.");
         return;
       }
       if (leadSelecionado?.id === lead.id) {
@@ -637,10 +770,10 @@ function PainelProspeccao() {
         setMensagem("");
         setWhatsappUrl("");
       }
-      setOk(`Lead "${lead.nome}" removido.`);
+      setOk(`Lead "${lead.nome}" excluído definitivamente.`);
       await carregarTudo();
     } catch {
-      setErro("Falha de rede ao remover o lead.");
+      setErro("Falha de rede ao excluir o lead.");
     }
   }
 
@@ -723,6 +856,36 @@ function PainelProspeccao() {
     }
   }
 
+  /**
+   * Congela/descongela o lead: sai da fila principal (vai para o fim da lista
+   * e só aparece com "Mostrar congelados" ligado).
+   */
+  async function alternarCongelado(alvo: { id: string; nome: string }, congelar: boolean) {
+    setErro("");
+    try {
+      const res = await fetch("/api/painel/prospeccao/lead", {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ id: alvo.id, congelado: congelar }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Não foi possível atualizar o lead.");
+        return;
+      }
+      if (leadSelecionado?.id === alvo.id) setLeadSelecionado(j.lead);
+      // Reflete na lista de resultados em tela sem precisar de nova busca.
+      setResultados((atual) =>
+        atual.map((r) => (r.lead_id === alvo.id ? { ...r, congelado: congelar } : r)),
+      );
+      setLeads((atual) => atual.map((l) => (l.id === alvo.id ? { ...l, congelado: congelar } : l)));
+      setOk(congelar ? `"${alvo.nome}" congelado (fora da fila principal).` : `"${alvo.nome}" descongelado.`);
+      await carregarTudo();
+    } catch {
+      setErro("Falha de rede ao atualizar o lead.");
+    }
+  }
+
   async function salvarObservacoes() {
     if (!leadSelecionado) return;
     setSalvandoObs(true);
@@ -763,6 +926,13 @@ function PainelProspeccao() {
     await carregarTudo();
   }
 
+  /** Fecha a tela da mensagem (usado no celular). */
+  function fecharMensagem() {
+    setLeadSelecionado(null);
+    setMensagem("");
+    setWhatsappUrl("");
+  }
+
   if (!liberado) {
     return (
       <main className="mx-auto max-w-md px-5 py-16">
@@ -796,15 +966,37 @@ function PainelProspeccao() {
   const campo =
     "mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent";
 
+  // Fora da fila: 0 = normal, 1 = congelado, 2 = removido. Vão para o fim e só
+  // aparecem com "Mostrar congelados e removidos" ligado.
+  const ordem = (o: { congelado?: boolean; arquivado?: boolean }) =>
+    o.arquivado ? 2 : o.congelado ? 1 : 0;
+
+  const resultadosOrdenados = [...resultados].sort((a, b) => ordem(a) - ordem(b));
+  const resultadosVisiveis = mostrarOcultos
+    ? resultadosOrdenados
+    : resultadosOrdenados.filter((r) => ordem(r) === 0);
+  const resultadosOcultosCount = resultados.filter((r) => ordem(r) > 0).length;
+
+  const leadsOrdenados = [...leads].sort((a, b) => ordem(a) - ordem(b));
+  const leadsVisiveis = mostrarOcultos ? leadsOrdenados : leadsOrdenados.filter((l) => ordem(l) === 0);
+  const leadsOcultosCount = leads.filter((l) => ordem(l) > 0).length;
+
+  // Sessões de busca agrupadas por nicho (acesso ao histórico por nicho).
+  const sessoesPorNicho = sessoes.reduce<Record<string, SessaoBusca[]>>((acc, s) => {
+    (acc[s.nicho] = acc[s.nicho] || []).push(s);
+    return acc;
+  }, {});
+
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8">
       {/* Cabeçalho */}
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] text-accent">GUIX ADMIN</p>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Prospecção de leads</h1>
           <p className="mt-1 text-sm text-muted">
-            Busque negócios locais, gere mensagens personalizadas e acompanhe o histórico de contatos.
+            Busque negócios locais, gere mensagens personalizadas, acompanhe o histórico de contatos e as
+            respostas recebidas no WhatsApp conectado.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -834,12 +1026,14 @@ function PainelProspeccao() {
       {ok ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{ok}</p> : null}
 
       {/* Layout principal */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-[18rem_1fr_22rem]">
-        {/* Coluna esquerda: filtros de busca */}
-        <aside className="space-y-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)_24rem] xl:grid-cols-[18rem_minmax(0,1fr)_26rem]">
+        {/* Coluna esquerda: filtros de busca.
+            No celular usa `contents` para que cada card vire item do grid e possa
+            ser reordenado (resultados logo abaixo dos filtros). */}
+        <aside className="contents lg:block lg:space-y-4">
           <form
             onSubmit={buscar}
-            className="rounded-2xl border border-line bg-white p-5"
+            className="order-1 rounded-2xl border border-line bg-white p-5 lg:order-none"
           >
             <h2 className="flex items-center gap-2 text-sm font-bold">
               <span>🔍</span> Filtros de busca
@@ -919,7 +1113,7 @@ function PainelProspeccao() {
               const critico = pct >= 100;
               return (
                 <div
-                  className={`rounded-2xl border p-5 ${
+                  className={`order-4 rounded-2xl border p-5 lg:order-none ${
                     critico
                       ? "border-rose-300 bg-rose-50"
                       : alerta
@@ -964,7 +1158,7 @@ function PainelProspeccao() {
           ) : null}
 
           {/* Contadores */}
-          <div className="rounded-2xl border border-line bg-white p-5">
+          <div className="order-5 rounded-2xl border border-line bg-white p-5 lg:order-none">
             <h2 className="text-sm font-bold">Limite diário</h2>
             <p className="mt-1 text-xs text-muted">
               Contadores claros evitam excesso de envios e garantem conformidade com as políticas do WhatsApp.
@@ -993,84 +1187,405 @@ function PainelProspeccao() {
               })}
             </div>
           </div>
+
+          {/* Histórico de nichos pesquisados e suas buscas (Busca 1, Busca 2…) */}
+          {sessoes.length > 0 ? (
+            <div className="order-3 rounded-2xl border border-line bg-white p-5 lg:order-none">
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <span>🗂️</span> Nichos pesquisados
+              </h2>
+              <p className="mt-1 text-[11px] text-muted">
+                Cada nicho mantém suas próprias buscas. Clique em uma cidade para reabrir o resultado sem gastar cota.
+              </p>
+              <div className="mt-3 space-y-3">
+                {Object.entries(sessoesPorNicho).map(([slug, lista]) => (
+                  <div key={slug}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-accent">{nomeDoNicho(slug)}</p>
+                    <div className="mt-1.5 space-y-1.5">
+                      {[...lista]
+                        .sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime())
+                        .map((s) => {
+                          const ativa =
+                            nicho === s.nicho && s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase();
+                          const distintos = new Set(s.buscas.flatMap((b) => b.ids || [])).size;
+                          return (
+                            <div
+                              key={`${s.nicho}-${s.cidade}`}
+                              className={`rounded-xl border p-2.5 ${ativa ? "border-accent bg-accent/5" : "border-line"}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  abrirSessao(s);
+                                  setPaginaAtual(1);
+                                }}
+                                className="flex w-full items-center justify-between gap-2 text-left"
+                              >
+                                <span className="truncate text-sm font-semibold">{s.cidade}</span>
+                                <span className="shrink-0 text-[10px] text-muted">
+                                  {s.buscas.length} busca(s) · {distintos} lead(s)
+                                </span>
+                              </button>
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                {s.buscas.map((b) => {
+                                  const ativa =
+                                    nicho === s.nicho &&
+                                    s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase() &&
+                                    buscaAtual?.numero === b.numero;
+                                  return (
+                                    <button
+                                      key={b.id}
+                                      type="button"
+                                      onClick={() => abrirBusca(s, b)}
+                                      title={`Termo: ${b.termo} · ${b.totalExibido} exibido(s) de ${b.totalBruto} bruto(s). Clique para reabrir sem gastar cota.`}
+                                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        ativa ? "bg-accent text-white" : "bg-canvas text-muted hover:bg-accent/10"
+                                      }`}
+                                    >
+                                      Busca {b.numero} · {b.totalExibido}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </aside>
 
         {/* Coluna central: tabela de leads */}
-        <section className="rounded-2xl border border-line bg-white">
-          <div className="flex items-center justify-between border-b border-line px-5 py-4">
-            <h2 className="text-sm font-bold">
-              Leads encontrados ({resultados.length})
-              {totalBruto > resultados.length ? (
-                <span className="ml-2 text-xs font-normal text-muted">
-                  {totalBruto - resultados.length} filtrados
-                </span>
+        <section className="order-2 rounded-2xl border border-line bg-white lg:order-none">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold">
+                Leads encontrados ({resultadosVisiveis.length})
+                {totalBruto > resultadosVisiveis.length ? (
+                  <span className="ml-2 text-xs font-normal text-muted">
+                    {totalBruto - resultadosVisiveis.length} filtrados
+                  </span>
+                ) : null}
+              </h2>
+              {buscaAtual && resultados.length > 0 ? (
+                <p className="mt-1 truncate text-xs text-muted">
+                  {nomeDoNicho(nicho)} · {cidade} — Busca {buscaAtual.numero} (termo: {buscaAtual.termo})
+                </p>
               ) : null}
-            </h2>
+            </div>
+            {resultadosOcultosCount > 0 ? (
+              <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent">
+                <input
+                  type="checkbox"
+                  checked={mostrarOcultos}
+                  onChange={(e) => {
+                    setMostrarOcultos(e.target.checked);
+                    setPaginaAtual(1);
+                  }}
+                />
+                Mostrar congelados e removidos ({resultadosOcultosCount})
+              </label>
+            ) : null}
           </div>
 
-          {resultados.length === 0 ? (
+          {resultadosVisiveis.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted">
-              {buscando ? "Buscando…" : "Selecione nicho e cidade para buscar leads."}
+              {buscando
+                ? "Buscando…"
+                : resultados.length > 0
+                  ? "Todos os resultados desta busca estão congelados ou removidos. Marque “Mostrar congelados e removidos” para vê-los."
+                  : "Selecione nicho e cidade para buscar leads."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold">Nome</th>
-                    <th className="px-3 py-3 font-semibold">Telefone</th>
-                    <th className="px-3 py-3 font-semibold">Endereço</th>
-                    <th className="px-3 py-3 font-semibold">Status</th>
-                    <th className="px-5 py-3 text-right font-semibold">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {resultados.map((r, i) => (
-                    <tr key={`${r.external_id}-${i}`} className="hover:bg-canvas/50">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+            (() => {
+              const totalPaginas = Math.max(1, Math.ceil(resultadosVisiveis.length / porPagina));
+              const pagina = Math.min(paginaAtual, totalPaginas);
+              const inicio = (pagina - 1) * porPagina;
+              const resultadosPagina = resultadosVisiveis.slice(inicio, inicio + porPagina);
+              return (
+                <>
+                  {/* Desktop: tabela com scroll interno */}
+                  <div className="hidden max-h-[60vh] overflow-auto md:block">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 z-10 bg-canvas text-xs uppercase tracking-wide text-muted">
+                        <tr>
+                          <th className="px-5 py-3 font-semibold">Nome</th>
+                          <th className="px-3 py-3 font-semibold">Telefone</th>
+                          <th className="px-3 py-3 font-semibold">Endereço</th>
+                          <th className="px-3 py-3 font-semibold">Contato</th>
+                          <th className="px-3 py-3 font-semibold">Status</th>
+                          <th className="px-5 py-3 text-right font-semibold">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {resultadosPagina.map((r, i) => (
+                          <tr key={`${r.external_id}-${inicio + i}`} className="hover:bg-canvas/50">
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+                                  {inicial(r.nome)}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="truncate font-semibold">{r.nome}</p>
+                                  {r.categoria ? (
+                                    <p className="truncate text-xs text-muted">{r.categoria}</p>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 font-mono text-xs">{r.telefone || "—"}</td>
+                            <td className="px-3 py-3 text-xs text-muted">
+                              <span className="line-clamp-2">{r.endereco || "—"}</span>
+                            </td>
+                            <td className="px-3 py-3 text-xs">
+                              {r.email || r.site ? (
+                                <div className="space-y-0.5">
+                                  {r.email ? (
+                                    <a
+                                      href={`mailto:${r.email}`}
+                                      className="block max-w-[12rem] truncate text-accent hover:underline"
+                                      title={r.email}
+                                    >
+                                      {r.email}
+                                    </a>
+                                  ) : null}
+                                  {r.site ? (
+                                    <a
+                                      href={r.site}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block max-w-[12rem] truncate text-accent hover:underline"
+                                      title={r.site}
+                                    >
+                                      Site ↗
+                                    </a>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[r.status].cor}`}
+                              >
+                                {STATUS_META[r.status].label}
+                              </span>
+                              {r.contatado_recentemente ? (
+                                <p className="mt-1 text-[10px] text-rose-600">contatado recentemente</p>
+                              ) : null}
+                              {r.congelado ? (
+                                <p className="mt-1 text-[10px] font-semibold text-amber-700">congelado</p>
+                              ) : null}
+                              {r.arquivado ? (
+                                <p className="mt-1 text-[10px] font-semibold text-rose-600">removido</p>
+                              ) : null}
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex flex-wrap justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => void gerarMensagem(r)}
+                                  disabled={gerandoMsg}
+                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                                >
+                                  Gerar mensagem
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    r.lead_id && void alternarCongelado({ id: r.lead_id, nome: r.nome }, !r.congelado)
+                                  }
+                                  disabled={!r.lead_id || r.arquivado}
+                                  title={
+                                    !r.lead_id
+                                      ? "Disponível após salvar o lead"
+                                      : r.arquivado
+                                        ? "Restaure o lead para poder congelar"
+                                        : undefined
+                                  }
+                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-400 hover:bg-canvas disabled:opacity-40"
+                                >
+                                  {r.congelado ? "Descongelar" : "Congelar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    r.lead_id &&
+                                    void alternarArquivado({ id: r.lead_id, nome: r.nome }, !r.arquivado)
+                                  }
+                                  disabled={!r.lead_id}
+                                  title={
+                                    r.lead_id
+                                      ? r.arquivado
+                                        ? "Restaurar para a fila"
+                                        : "Remover da fila (dá para restaurar depois)"
+                                      : "Disponível após salvar o lead"
+                                  }
+                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
+                                >
+                                  {r.arquivado ? "Restaurar" : "Remover"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile: cartões */}
+                  <ul className="divide-y divide-line md:hidden">
+                    {resultadosPagina.map((r, i) => (
+                      <li
+                        key={`${r.external_id}-${inicio + i}`}
+                        className={`space-y-2.5 p-4 ${
+                          r.arquivado ? "bg-rose-50/60" : r.congelado ? "bg-amber-50/60" : ""
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent/10 text-sm font-bold text-accent">
                             {inicial(r.nome)}
                           </span>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold">{r.nome}</p>
-                            {r.categoria ? (
-                              <p className="truncate text-xs text-muted">{r.categoria}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-base font-semibold">{r.nome}</p>
+                            {r.categoria ? <p className="truncate text-xs text-muted">{r.categoria}</p> : null}
+                            <p className="mt-1 font-mono text-sm">{r.telefone || "—"}</p>
+                            {r.endereco ? (
+                              <p className="mt-1 line-clamp-2 text-sm text-muted">{r.endereco}</p>
                             ) : null}
                           </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[r.status].cor}`}
+                          >
+                            {STATUS_META[r.status].label}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs">{r.telefone || "—"}</td>
-                      <td className="px-3 py-3 text-xs text-muted">
-                        <span className="line-clamp-2">{r.endereco || "—"}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[r.status].cor}`}
-                        >
-                          {STATUS_META[r.status].label}
-                        </span>
-                        {r.contatado_recentemente ? (
-                          <p className="mt-1 text-[10px] text-rose-600">contatado recentemente</p>
+                        {r.email || r.site ? (
+                          <div className="space-y-0.5">
+                            {r.email ? (
+                              <a href={`mailto:${r.email}`} className="block truncate text-sm text-accent hover:underline">
+                                {r.email}
+                              </a>
+                            ) : null}
+                            {r.site ? (
+                              <a
+                                href={r.site}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block truncate text-sm text-accent hover:underline"
+                              >
+                                Site institucional ↗
+                              </a>
+                            ) : null}
+                          </div>
                         ) : null}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex flex-wrap justify-end gap-1.5">
+                        {r.contatado_recentemente ? (
+                          <p className="text-[11px] text-rose-600">contatado recentemente</p>
+                        ) : null}
+                        {r.congelado ? (
+                          <p className="text-[11px] font-semibold text-amber-700">congelado — no fim da fila</p>
+                        ) : null}
+                        {r.arquivado ? (
+                          <p className="text-[11px] font-semibold text-rose-600">removido — fora da fila</p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-1.5">
                           <button
                             type="button"
                             onClick={() => void gerarMensagem(r)}
                             disabled={gerandoMsg}
-                            className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                            className="min-w-[8rem] flex-1 rounded-full border border-line px-3 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
                           >
                             Gerar mensagem
                           </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              r.lead_id && void alternarCongelado({ id: r.lead_id, nome: r.nome }, !r.congelado)
+                            }
+                            disabled={!r.lead_id || r.arquivado}
+                            className="rounded-full border border-line px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-slate-400 disabled:opacity-40"
+                          >
+                            {r.congelado ? "Descongelar" : "Congelar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              r.lead_id && void alternarArquivado({ id: r.lead_id, nome: r.nome }, !r.arquivado)
+                            }
+                            disabled={!r.lead_id}
+                            className="rounded-full border border-line px-3 py-2.5 text-sm font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
+                          >
+                            {r.arquivado ? "Restaurar" : "Remover"}
+                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </li>
+                    ))}
+                  </ul>
+
+              {/* Controles de paginação */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 sm:px-5">
+                <p className="text-xs text-muted">
+                  {inicio + 1}–{Math.min(inicio + porPagina, resultadosVisiveis.length)} de {resultadosVisiveis.length}
+                  {totalBruto > resultadosVisiveis.length ? ` (${totalBruto} brutos)` : ""}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                    disabled={pagina <= 1}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((p) => {
+                    // Mostra todas se forem poucas; senão, mostra primeira, última e vizinhas.
+                    const mostrar =
+                      totalPaginas <= 7 ||
+                      p === 1 ||
+                      p === totalPaginas ||
+                      Math.abs(p - pagina) <= 1;
+                    if (!mostrar) {
+                      if (p === pagina - 2 || p === pagina + 2) {
+                        return (
+                          <span key={`e-${p}`} className="px-1 text-xs text-muted">
+                            …
+                          </span>
+                        );
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPaginaAtual(p)}
+                        className={`h-8 min-w-[2rem] rounded-full px-2 text-xs font-semibold ${
+                          p === pagina
+                            ? "bg-accent text-white"
+                            : "border border-line hover:border-accent"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={pagina >= totalPaginas}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            </>
+              );
+            })()
           )}
 
           {/* Legenda de status */}
@@ -1090,14 +1605,15 @@ function PainelProspeccao() {
         </section>
 
         {/* Coluna direita: prévia WhatsApp + configurações */}
-        <aside className="space-y-4">
+        <aside className="order-6 space-y-4 lg:order-none">
           {/* Conexão real da conta WhatsApp Business (Cloud API oficial) */}
           <div className="rounded-2xl border border-line bg-white p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold">
               <span>📱</span> Contas WhatsApp Business
             </h2>
             <p className="mt-1 text-xs text-muted">
-              Conecte um número pela WhatsApp Business Platform (Cloud API) oficial para enviar direto pelo painel.
+              Conecte um número pela WhatsApp Business Platform (Cloud API) oficial para receber mensagens
+              e o status de entrega (enviada/entregue/lida). O recebimento é gratuito.
             </p>
 
             <div className="mt-3 space-y-2">
@@ -1214,50 +1730,109 @@ function PainelProspeccao() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-line bg-white p-5">
-            <h2 className="flex items-center gap-2 text-sm font-bold">
-              <span>💬</span> Prévia da mensagem WhatsApp
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              Mensagem personalizada baseada no template selecionado.
-            </p>
+          <div
+            className={
+              leadSelecionado
+                ? "fixed inset-0 z-50 overflow-y-auto bg-white p-4 pb-28 sm:p-6 lg:static lg:z-auto lg:overflow-visible lg:rounded-2xl lg:border lg:border-line lg:p-5 lg:pb-5"
+                : "rounded-2xl border border-line bg-white p-5"
+            }
+          >
+            {leadSelecionado ? (
+              <div className="mb-4 flex items-center justify-between gap-2 lg:hidden">
+                <button
+                  type="button"
+                  onClick={fecharMensagem}
+                  className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-sm font-semibold"
+                >
+                  ← Voltar
+                </button>
+                <span className="truncate text-sm font-bold text-accent">
+                  {leadSelecionado.nome}
+                </span>
+                <span className="w-16" aria-hidden />
+              </div>
+            ) : null}
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-2 text-base font-bold sm:text-sm">
+                  <span>💬</span> Prévia da mensagem WhatsApp
+                </h2>
+                <p className="mt-1 text-sm text-muted lg:text-xs">
+                  {leadSelecionado ? (
+                    <>
+                      <span className="font-semibold text-ink">{leadSelecionado.nome}</span> ·{" "}
+                    </>
+                  ) : null}
+                  Mensagem personalizada baseada no template selecionado.
+                </p>
+              </div>
+              {leadSelecionado ? (
+                <button
+                  type="button"
+                  onClick={fecharMensagem}
+                  className="hidden shrink-0 rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent lg:inline-flex"
+                >
+                  Fechar
+                </button>
+              ) : null}
+            </div>
 
             {leadSelecionado ? (
               <div className="mt-4 space-y-4">
-                <div className="rounded-xl bg-[#ECE5DD] p-3 text-sm text-ink">
-                  <p className="whitespace-pre-wrap break-words">{mensagem || "Nenhuma mensagem."}</p>
+                {/* Controles de zoom + ações rápidas */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 rounded-full border border-line bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setZoomMsg((z) => Math.max(-2, z - 1))}
+                      className="h-8 w-8 rounded-full text-base font-bold text-ink hover:bg-canvas"
+                      aria-label="Diminuir fonte"
+                    >
+                      A−
+                    </button>
+                    <span className="px-1 text-[11px] text-muted">{100 + zoomMsg * 12}%</span>
+                    <button
+                      type="button"
+                      onClick={() => setZoomMsg((z) => Math.min(4, z + 1))}
+                      className="h-8 w-8 rounded-full text-lg font-bold text-ink hover:bg-canvas"
+                      aria-label="Aumentar fonte"
+                    >
+                      A+
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={copiarMensagem}
+                      className="rounded-full border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent"
+                    >
+                      Copiar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void abrirWhatsApp()}
+                      className="hidden rounded-full bg-[#25D366] px-5 py-2.5 text-center text-sm font-bold text-white shadow-md hover:opacity-90 lg:inline-flex"
+                      title="Abre o WhatsApp e registra o envio automaticamente na conta escolhida"
+                    >
+                      💬 Abrir WhatsApp
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={copiarMensagem}
-                    className="flex-1 rounded-full border border-line px-3 py-2 text-xs font-semibold hover:border-accent"
+                <div className="max-h-[16rem] overflow-y-auto rounded-2xl bg-[#ECE5DD] p-4 text-ink sm:p-5">
+                  <p
+                    className="whitespace-pre-wrap break-words leading-relaxed"
+                    style={{ fontSize: tamanhoMensagem }}
                   >
-                    Copiar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void abrirWhatsApp()}
-                    className="flex-1 rounded-full bg-[#25D366] px-3 py-2 text-center text-xs font-semibold text-white hover:opacity-90"
-                    title="Abre o WhatsApp e registra o envio automaticamente na conta escolhida"
-                  >
-                    Abrir WhatsApp
-                  </button>
+                    {mensagem || "Nenhuma mensagem."}
+                  </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => void enviarPelaApi()}
-                  disabled={gerandoMsg || !contas.some((c) => c.id === contaEnvio && c.conectada)}
-                  className="w-full rounded-full bg-[#1877F2] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                  title="Envia a mensagem pela conta WhatsApp Business conectada (Cloud API oficial)"
-                >
-                  {gerandoMsg ? "Enviando…" : "Enviar pela API oficial"}
-                </button>
-                <p className="text-[10px] text-muted">
-                  &quot;Abrir WhatsApp&quot; apenas abre o app. &quot;Enviar pela API oficial&quot; dispara a mensagem pela conta
-                  conectada e passa a receber o status real (enviada/entregue/lida).
+                <p className="text-xs text-muted lg:text-[10px]">
+                  &quot;Abrir WhatsApp&quot; abre o app pelo link e registra o envio no painel. O envio pela API
+                  fica desativado (é cobrado por mensagem); a conta conectada serve para <strong>receber</strong>{" "}
+                  mensagens e o status de entrega — sem custo.
                 </p>
 
                 <div className="space-y-2 border-t border-line pt-4">
@@ -1280,7 +1855,7 @@ function PainelProspeccao() {
                       <option value="">— escolha —</option>
                       {contas.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.nome} ({c.enviados_hoje}/{c.limite_diario} hoje){c.conectada ? " · API oficial" : ""}
+                          {c.nome} ({c.enviados_hoje}/{c.limite_diario} hoje){c.conectada ? " · recebendo" : ""}
                         </option>
                       ))}
                     </select>
@@ -1289,7 +1864,7 @@ function PainelProspeccao() {
                   <button
                     type="button"
                     onClick={marcarEnviado}
-                    className="w-full rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white hover:bg-accent-dark"
+                    className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-dark"
                   >
                     Marcar como enviado
                   </button>
@@ -1366,10 +1941,29 @@ function PainelProspeccao() {
                 </div>
               </div>
             ) : (
-              <p className="mt-6 rounded-xl bg-canvas px-4 py-6 text-center text-sm text-muted">
-                Clique em <strong>“Gerar mensagem”</strong> em um lead para ver a prévia aqui.
-              </p>
+              <div className="mt-6 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-line px-4 py-10 text-center">
+                <span className="text-4xl">💬</span>
+                <p className="mt-3 text-sm font-semibold text-ink">Nenhum lead selecionado</p>
+                <p className="mt-1 text-xs text-muted">
+                  Clique em <strong>&ldquo;Gerar mensagem&rdquo;</strong> em um lead da lista ao lado para
+                  visualizar e editar a mensagem aqui.
+                </p>
+              </div>
             )}
+
+            {/* Barra fixa de ação no mobile — "Abrir WhatsApp" sempre à mão */}
+            {leadSelecionado ? (
+              <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-white/95 p-3 backdrop-blur lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => void abrirWhatsApp()}
+                  className="w-full rounded-full bg-[#25D366] px-4 py-3.5 text-center text-base font-bold text-white shadow-lg hover:opacity-90"
+                  title="Abre o WhatsApp e registra o envio automaticamente na conta escolhida"
+                >
+                  💬 Abrir WhatsApp
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* Configurações */}
@@ -1389,66 +1983,228 @@ function PainelProspeccao() {
 
       {/* Histórico de leads salvos */}
       <section className="mt-6 rounded-2xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold">Histórico de leads ({leads.length})</h2>
-        <p className="mt-1 text-xs text-muted">
-          Todos os leads gerados ficam salvos para consulta futura e para a IA da Meta.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold">Histórico de leads ({leadsVisiveis.length})</h2>
+            <p className="mt-1 text-xs text-muted">
+              Todos os leads gerados ficam salvos para consulta futura e para a IA da Meta.
+            </p>
+          </div>
+          {leadsOcultosCount > 0 ? (
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent">
+              <input
+                type="checkbox"
+                checked={mostrarOcultos}
+                onChange={(e) => setMostrarOcultos(e.target.checked)}
+              />
+              Mostrar congelados e removidos ({leadsOcultosCount})
+            </label>
+          ) : null}
+        </div>
         {leads.length === 0 ? (
           <p className="mt-4 text-sm text-muted">Nenhum lead salvo ainda.</p>
+        ) : leadsVisiveis.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">
+            Todos os leads estão congelados ou removidos. Marque “Mostrar congelados e removidos” para vê-los.
+          </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">Nome</th>
-                  <th className="px-3 py-2 font-semibold">Telefone</th>
-                  <th className="px-3 py-2 font-semibold">Nicho</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2 font-semibold">Último contato</th>
-                  <th className="px-3 py-2 text-right font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {leads.slice(0, 50).map((l) => (
-                  <tr key={l.id} className="hover:bg-canvas/50">
-                    <td className="px-3 py-2 font-semibold">{l.nome}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{l.telefone}</td>
-                    <td className="px-3 py-2 text-xs">{l.nicho}</td>
-                    <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[l.status].cor}`}>
-                        {STATUS_META[l.status].label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted">
-                      {l.data_ultimo_contato
-                        ? new Date(l.data_ultimo_contato).toLocaleString("pt-BR")
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => void gerarMensagemDeLead(l)}
-                          disabled={gerandoMsg}
-                          className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
-                        >
-                          Gerar mensagem
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void removerLeadUI(l)}
-                          className="rounded-full border border-line px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
-                          title="Remover do histórico"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="mt-4 hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Nome</th>
+                    <th className="px-3 py-2 font-semibold">Telefone</th>
+                    <th className="px-3 py-2 font-semibold">Nicho</th>
+                    <th className="px-3 py-2 font-semibold">Contato</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
+                    <th className="px-3 py-2 font-semibold">Último contato</th>
+                    <th className="px-3 py-2 text-right font-semibold">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {leadsVisiveis.slice(0, 50).map((l) => (
+                    <tr key={l.id} className="hover:bg-canvas/50">
+                      <td className="px-3 py-2 font-semibold">{l.nome}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{l.telefone}</td>
+                      <td className="px-3 py-2 text-xs">{l.nicho}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {l.email || l.site ? (
+                          <div className="space-y-0.5">
+                            {l.email ? (
+                              <a
+                                href={`mailto:${l.email}`}
+                                className="block max-w-[12rem] truncate text-accent hover:underline"
+                                title={l.email}
+                              >
+                                {l.email}
+                              </a>
+                            ) : null}
+                            {l.site ? (
+                              <a
+                                href={l.site}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block max-w-[12rem] truncate text-accent hover:underline"
+                                title={l.site}
+                              >
+                                Site ↗
+                              </a>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[l.status].cor}`}>
+                          {STATUS_META[l.status].label}
+                        </span>
+                        {l.congelado ? (
+                          <p className="mt-1 text-[10px] font-semibold text-amber-700">congelado</p>
+                        ) : null}
+                        {l.arquivado ? (
+                          <p className="mt-1 text-[10px] font-semibold text-rose-600">removido</p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted">
+                        {l.data_ultimo_contato
+                          ? new Date(l.data_ultimo_contato).toLocaleString("pt-BR")
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void gerarMensagemDeLead(l)}
+                            disabled={gerandoMsg}
+                            className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                          >
+                            Gerar mensagem
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void alternarCongelado({ id: l.id, nome: l.nome }, !l.congelado)}
+                            disabled={Boolean(l.arquivado)}
+                            className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-400 hover:bg-canvas disabled:opacity-40"
+                            title={
+                              l.arquivado
+                                ? "Restaure o lead para poder congelar"
+                                : l.congelado
+                                  ? "Descongelar (volta à fila)"
+                                  : "Congelar (vai para o fim da fila)"
+                            }
+                          >
+                            {l.congelado ? "Descongelar" : "Congelar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void alternarArquivado({ id: l.id, nome: l.nome }, !l.arquivado)}
+                            className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                            title={l.arquivado ? "Restaurar para a fila" : "Remover da fila (reversível)"}
+                          >
+                            {l.arquivado ? "Restaurar" : "Remover"}
+                          </button>
+                          {l.arquivado ? (
+                            <button
+                              type="button"
+                              onClick={() => void excluirDefinitivo(l)}
+                              className="rounded-full border border-line px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:border-rose-500 hover:bg-rose-100"
+                              title="Excluir definitivamente (não reversível)"
+                            >
+                              ✕
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: cartões */}
+            <ul className="mt-4 divide-y divide-line md:hidden">
+              {leadsVisiveis.slice(0, 50).map((l) => (
+                <li
+                  key={l.id}
+                  className={`space-y-2 rounded-xl px-2 py-3 ${
+                    l.arquivado ? "bg-rose-50/60" : l.congelado ? "bg-amber-50/60" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{l.nome}</p>
+                      <p className="font-mono text-xs text-muted">{l.telefone}</p>
+                      <p className="text-xs text-muted">
+                        {l.nicho} ·{" "}
+                        {l.data_ultimo_contato
+                          ? new Date(l.data_ultimo_contato).toLocaleString("pt-BR")
+                          : "sem contato"}
+                      </p>
+                      {l.email ? (
+                        <a href={`mailto:${l.email}`} className="block truncate text-xs text-accent hover:underline">
+                          {l.email}
+                        </a>
+                      ) : null}
+                      {l.site ? (
+                        <a
+                          href={l.site}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block truncate text-xs text-accent hover:underline"
+                        >
+                          Site institucional ↗
+                        </a>
+                      ) : null}
+                      {l.congelado ? <p className="text-[11px] font-semibold text-amber-700">congelado</p> : null}
+                      {l.arquivado ? <p className="text-[11px] font-semibold text-rose-600">removido</p> : null}
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[l.status].cor}`}
+                    >
+                      {STATUS_META[l.status].label}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void gerarMensagemDeLead(l)}
+                      disabled={gerandoMsg}
+                      className="min-w-[8rem] flex-1 rounded-full border border-line px-3 py-2 text-[11px] font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                    >
+                      Gerar mensagem
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void alternarCongelado({ id: l.id, nome: l.nome }, !l.congelado)}
+                      disabled={Boolean(l.arquivado)}
+                      className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-slate-600 hover:border-slate-400 disabled:opacity-40"
+                    >
+                      {l.congelado ? "Descongelar" : "Congelar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void alternarArquivado({ id: l.id, nome: l.nome }, !l.arquivado)}
+                      className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                    >
+                      {l.arquivado ? "Restaurar" : "Remover"}
+                    </button>
+                    {l.arquivado ? (
+                      <button
+                        type="button"
+                        onClick={() => void excluirDefinitivo(l)}
+                        className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-rose-700 hover:border-rose-500 hover:bg-rose-100"
+                        title="Excluir definitivamente (não reversível)"
+                      >
+                        Excluir de vez
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
@@ -1461,62 +2217,216 @@ function PainelProspeccao() {
         {envios.length === 0 ? (
           <p className="mt-4 text-sm text-muted">Nenhuma mensagem enviada ainda.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">Quando</th>
-                  <th className="px-3 py-2 font-semibold">Lead</th>
-                  <th className="px-3 py-2 font-semibold">Telefone</th>
-                  <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
-                  <th className="px-3 py-2 font-semibold">Canal / Status</th>
-                  <th className="px-3 py-2 font-semibold">Mensagem enviada</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {envios.slice(0, 50).map((e) => (
-                  <tr key={e.id} className="hover:bg-canvas/50">
-                    <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
-                      {new Date(e.em).toLocaleString("pt-BR")}
-                    </td>
-                    <td className="px-3 py-2 font-semibold">{e.nome}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{e.telefone}</td>
-                    <td className="px-3 py-2 text-xs">
-                      <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
-                        {e.conta_nome}
+          <>
+            <div className="mt-4 hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Quando</th>
+                    <th className="px-3 py-2 font-semibold">Lead</th>
+                    <th className="px-3 py-2 font-semibold">Telefone</th>
+                    <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
+                    <th className="px-3 py-2 font-semibold">Canal / Status</th>
+                    <th className="px-3 py-2 font-semibold">Mensagem enviada</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {envios.slice(0, 50).map((e) => (
+                    <tr key={e.id} className="hover:bg-canvas/50">
+                      <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
+                        {new Date(e.em).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-3 py-2 font-semibold">{e.nome}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{e.telefone}</td>
+                      <td className="px-3 py-2 text-xs">
+                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                          {e.conta_nome}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {e.canal === "cloud_api" ? (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              e.status === "read"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : e.status === "delivered"
+                                  ? "bg-sky-100 text-sky-800"
+                                  : e.status === "failed"
+                                    ? "bg-rose-100 text-rose-700"
+                                    : "bg-slate-200 text-slate-600"
+                            }`}
+                            title={e.wamid ? `wamid: ${e.wamid}` : ""}
+                          >
+                            {e.status || "sent"} · API
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                            link
+                          </span>
+                        )}
+                        {e.erro ? <p className="mt-1 text-[10px] text-rose-600">{e.erro}</p> : null}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted">
+                        <span className="line-clamp-2">{e.mensagem || "—"}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: cartões */}
+            <ul className="mt-4 divide-y divide-line md:hidden">
+              {envios.slice(0, 50).map((e) => (
+                <li key={e.id} className="space-y-1.5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{e.nome}</p>
+                      <p className="font-mono text-xs text-muted">{e.telefone}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                      {e.conta_nome}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {e.canal === "cloud_api" ? (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          e.status === "read"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : e.status === "delivered"
+                              ? "bg-sky-100 text-sky-800"
+                              : e.status === "failed"
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-slate-200 text-slate-600"
+                        }`}
+                        title={e.wamid ? `wamid: ${e.wamid}` : ""}
+                      >
+                        {e.status || "sent"} · API
                       </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {e.canal === "cloud_api" ? (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            e.status === "read"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : e.status === "delivered"
-                                ? "bg-sky-100 text-sky-800"
-                                : e.status === "failed"
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-slate-200 text-slate-600"
-                          }`}
-                          title={e.wamid ? `wamid: ${e.wamid}` : ""}
-                        >
-                          {e.status || "sent"} · API
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        link
+                      </span>
+                    )}
+                    <span className="text-muted">{new Date(e.em).toLocaleString("pt-BR")}</span>
+                  </div>
+                  {e.erro ? <p className="text-[10px] text-rose-600">{e.erro}</p> : null}
+                  <p className="line-clamp-2 text-xs text-muted">{e.mensagem || "—"}</p>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      {/* Mensagens recebidas (webhook da Cloud API) — base do uso em suporte */}
+      <section className="mt-6 rounded-2xl border border-line bg-white p-5">
+        <h2 className="text-sm font-bold">Mensagens recebidas ({mensagens.length})</h2>
+        <p className="mt-1 text-xs text-muted">
+          Mensagens enviadas pelos contatos no número conectado. O recebimento é gratuito — use para dar
+          suporte e acompanhar quem respondeu.
+        </p>
+        {mensagens.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">
+            Nenhuma mensagem recebida ainda. Elas aparecem aqui assim que um contato escrever para o número conectado.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-canvas text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">Quando</th>
+                    <th className="px-3 py-2 font-semibold">Contato</th>
+                    <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
+                    <th className="px-3 py-2 font-semibold">Mensagem</th>
+                    <th className="px-3 py-2 font-semibold">Lead</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {mensagens.slice(0, 50).map((m) => {
+                    const leadCasa = m.lead_id ? leads.find((l) => l.id === m.lead_id) : null;
+                    return (
+                      <tr key={m.id} className="hover:bg-canvas/50">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-muted">
+                          {new Date(m.em).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <p className="font-semibold">{m.nome_contato || "—"}</p>
+                          <p className="font-mono text-[11px] text-muted">{m.de}</p>
+                        </td>
+                        <td className="px-3 py-2 text-xs">
+                          {m.conta_nome ? (
+                            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                              {m.conta_nome}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-xs">
+                          {m.tipo !== "text" ? (
+                            <span className="mr-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              {m.tipo}
+                            </span>
+                          ) : null}
+                          <span className="line-clamp-2">{m.texto || "—"}</span>
+                        </td>
+                        <td className="px-3 py-2 text-xs">
+                          {leadCasa ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                              {leadCasa.nome}
+                            </span>
+                          ) : (
+                            <span className="text-muted">sem lead</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: cartões */}
+            <ul className="mt-4 divide-y divide-line md:hidden">
+              {mensagens.slice(0, 50).map((m) => {
+                const leadCasa = m.lead_id ? leads.find((l) => l.id === m.lead_id) : null;
+                return (
+                  <li key={m.id} className="space-y-1.5 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{m.nome_contato || "—"}</p>
+                        <p className="font-mono text-[11px] text-muted">{m.de}</p>
+                      </div>
+                      {m.conta_nome ? (
+                        <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                          {m.conta_nome}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {m.tipo !== "text" ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          {m.tipo}
+                        </span>
+                      ) : null}
+                      <span className="text-muted">{new Date(m.em).toLocaleString("pt-BR")}</span>
+                      {leadCasa ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                          {leadCasa.nome}
                         </span>
                       ) : (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          link
-                        </span>
+                        <span className="text-muted">sem lead</span>
                       )}
-                      {e.erro ? <p className="mt-1 text-[10px] text-rose-600">{e.erro}</p> : null}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted">
-                      <span className="line-clamp-2">{e.mensagem || "—"}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                    <p className="line-clamp-3 text-sm text-ink">{m.texto || "—"}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
     </main>
