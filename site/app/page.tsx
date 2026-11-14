@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BlackFridayPromo } from "@/components/BlackFridayPromo";
 import { Faq } from "@/components/Faq";
 import { DiferenciaisCards } from "@/components/DiferenciaisCards";
 import { FeatureCards } from "@/components/FeatureCards";
@@ -64,8 +63,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <BlackFridayPromo />
 
       <div className="overflow-hidden border-b border-line bg-white py-4">
         <div className="marquee-track flex w-max items-center text-sm font-medium text-ink">

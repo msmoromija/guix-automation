@@ -263,6 +263,8 @@ export type FiltrosLeads = {
   cidade?: string;
   status?: string;
   texto?: string;
+  /** Data mínima de entrada do lead (created_at), em ISO UTC. */
+  desde?: string;
   incluirOcultos?: boolean;
 };
 
@@ -287,6 +289,10 @@ function whereLeads(f: FiltrosLeads, modo: ModoOcultos = "todos") {
     cond.push("(nome LIKE ? OR telefone LIKE ? OR cidade LIKE ?)");
     const t = `%${f.texto}%`;
     args.push(t, t, t);
+  }
+  if (f.desde) {
+    cond.push("created_at >= ?");
+    args.push(f.desde);
   }
   if (modo === "visiveis") cond.push("congelado = 0 AND arquivado = 0");
   if (modo === "ocultos") cond.push("(congelado = 1 OR arquivado = 1)");
@@ -661,7 +667,7 @@ export async function leadEnviadoHoje(leadId: string, dia = hojeIso()): Promise<
 }
 
 /** Filtros do histórico de envios do painel. */
-export type FiltrosEnvios = { nicho?: string; cidade?: string };
+export type FiltrosEnvios = { nicho?: string; cidade?: string; texto?: string; desde?: string };
 
 function whereEnvios(f: FiltrosEnvios) {
   const cond: string[] = [];
@@ -673,6 +679,15 @@ function whereEnvios(f: FiltrosEnvios) {
   if (f.cidade) {
     cond.push("cidade LIKE ?");
     args.push(`%${f.cidade}%`);
+  }
+  if (f.texto) {
+    // Busca simples por nome ou telefone (substring).
+    cond.push("(nome LIKE ? OR telefone LIKE ?)");
+    args.push(`%${f.texto}%`, `%${f.texto}%`);
+  }
+  if (f.desde) {
+    cond.push("em >= ?");
+    args.push(f.desde);
   }
   return { sql: cond.length ? `WHERE ${cond.join(" AND ")}` : "", args };
 }

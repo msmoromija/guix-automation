@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 
 type StatusLead = "novo" | "mensagem_gerada" | "enviado" | "respondeu" | "descartado";
 
@@ -210,6 +210,43 @@ function tempoRelativo(iso: string | null | undefined): string {
   return anos === 1 ? "há 1 ano" : `há ${anos} anos`;
 }
 
+/** Data curta do histórico de envios: "13/11, 17:52". */
+function dataCurta(iso: string) {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}, ${hh}:${mi}`;
+}
+
+/** Etiqueta de canal/status do envio (link ou API). */
+function BadgeEnvio({ e }: { e: EnvioRegistro }) {
+  if (e.canal === "cloud_api") {
+    const cor =
+      e.status === "read"
+        ? "bg-emerald-100 text-emerald-800"
+        : e.status === "delivered"
+          ? "bg-sky-100 text-sky-800"
+          : e.status === "failed"
+            ? "bg-rose-100 text-rose-700"
+            : "bg-slate-200 text-slate-600";
+    return (
+      <span
+        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cor}`}
+        title={e.wamid ? `wamid: ${e.wamid}` : ""}
+      >
+        {e.status || "sent"} · API
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      link
+    </span>
+  );
+}
+
 function PainelProspeccao() {
   const [senha, setSenha] = useState("");
   const [senhaDigitada, setSenhaDigitada] = useState("");
@@ -265,12 +302,17 @@ function PainelProspeccao() {
   const [contasAberto, setContasAberto] = useState(false);
   /** Menu "⋮" de ações secundárias aberto (chave = id da linha). */
   const [acoesAbertas, setAcoesAbertas] = useState<string | null>(null);
-  /** Filtros do histórico de envios (nicho/cidade) e paginação. */
+  /** Filtros do histórico de envios (nicho/cidade/texto/período) e paginação. */
   const [filtroEnvioNicho, setFiltroEnvioNicho] = useState("");
   const [filtroEnvioCidade, setFiltroEnvioCidade] = useState("");
+  const [filtroEnvioTexto, setFiltroEnvioTexto] = useState("");
+  /** Período rápido do histórico: "" (todos), "7" ou "30" dias. */
+  const [filtroEnvioPeriodo, setFiltroEnvioPeriodo] = useState("");
   const [paginaEnvios, setPaginaEnvios] = useState(1);
   const [enviosTotal, setEnviosTotal] = useState(0);
   const [enviosCidades, setEnviosCidades] = useState<string[]>([]);
+  /** Linha do histórico com o detalhe (mensagem completa) aberto. */
+  const [envioAberto, setEnvioAberto] = useState<string | null>(null);
 
   // Histórico de leads — paginado e filtrado no servidor (aguenta milhares).
   const [leadsTotal, setLeadsTotal] = useState(0);
@@ -281,6 +323,8 @@ function PainelProspeccao() {
   const [filtroLeadCidade, setFiltroLeadCidade] = useState("");
   const [filtroLeadStatus, setFiltroLeadStatus] = useState("");
   const [filtroLeadTexto, setFiltroLeadTexto] = useState("");
+  /** Período rápido do histórico de leads (entrada): "" (todos), "7" ou "30" dias. */
+  const [filtroLeadPeriodo, setFiltroLeadPeriodo] = useState("");
   const LEADS_POR_PAGINA = 25;
   /** Filtro da lista "Nichos pesquisados" — acha uma busca entre milhares. */
   const [filtroSessao, setFiltroSessao] = useState("");
@@ -406,14 +450,19 @@ function PainelProspeccao() {
     if (!leadsCarregadosRef.current) return;
     void carregarLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paginaLeads, filtroLeadNicho, filtroLeadCidade, filtroLeadStatus, filtroLeadTexto, mostrarOcultos]);
+  }, [paginaLeads, filtroLeadNicho, filtroLeadCidade, filtroLeadStatus, filtroLeadTexto, filtroLeadPeriodo, mostrarOcultos]);
 
   // Refaz o histórico de envios no servidor quando os filtros/página mudam.
   useEffect(() => {
     if (!enviosCarregadosRef.current) return;
     void carregarEnvios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paginaEnvios, filtroEnvioNicho, filtroEnvioCidade]);
+  }, [paginaEnvios, filtroEnvioNicho, filtroEnvioCidade, filtroEnvioTexto, filtroEnvioPeriodo]);
+
+  // Ao trocar de página/filtro, fecha o detalhe aberto (a linha pode nem existir mais).
+  useEffect(() => {
+    setEnvioAberto(null);
+  }, [envios]);
 
   const headers = () => ({
     "Content-Type": "application/json",
@@ -430,9 +479,12 @@ function PainelProspeccao() {
     if (filtroLeadCidade) q.set("leads_cidade", filtroLeadCidade);
     if (filtroLeadStatus) q.set("leads_status", filtroLeadStatus);
     if (filtroLeadTexto) q.set("leads_texto", filtroLeadTexto);
+    if (filtroLeadPeriodo) q.set("leads_dias", filtroLeadPeriodo);
     q.set("envios_pagina", String(opts?.enviosPagina ?? paginaEnvios));
     if (filtroEnvioNicho) q.set("envios_nicho", filtroEnvioNicho);
     if (filtroEnvioCidade) q.set("envios_cidade", filtroEnvioCidade);
+    if (filtroEnvioTexto) q.set("envios_texto", filtroEnvioTexto);
+    if (filtroEnvioPeriodo) q.set("envios_dias", filtroEnvioPeriodo);
     return q;
   }
 
@@ -2408,6 +2460,30 @@ function PainelProspeccao() {
 
         {/* Filtros do histórico de leads — resolvidos no servidor (aguenta milhares). */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="inline-flex overflow-hidden rounded-full border border-line">
+            {[
+              { valor: "", rotulo: "Todos" },
+              { valor: "7", rotulo: "Últimos 7 dias" },
+              { valor: "30", rotulo: "Últimos 30 dias" },
+            ].map((op) => (
+              <button
+                key={op.valor || "todos"}
+                type="button"
+                onClick={() => {
+                  setFiltroLeadPeriodo(op.valor);
+                  setPaginaLeads(1);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold transition ${
+                  filtroLeadPeriodo === op.valor
+                    ? "bg-accent text-white"
+                    : "bg-white text-slate-600 hover:text-accent"
+                }`}
+                title="Data de entrada do lead"
+              >
+                {op.rotulo}
+              </button>
+            ))}
+          </div>
           <select
             value={filtroLeadNicho}
             onChange={(e) => {
@@ -2466,7 +2542,7 @@ function PainelProspeccao() {
             className="w-48 rounded-full border border-line bg-white px-3 py-1.5 text-xs"
             aria-label="Buscar lead por nome, telefone ou cidade"
           />
-          {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto ? (
+          {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto || filtroLeadPeriodo ? (
             <button
               type="button"
               onClick={() => {
@@ -2474,6 +2550,7 @@ function PainelProspeccao() {
                 setFiltroLeadCidade("");
                 setFiltroLeadStatus("");
                 setFiltroLeadTexto("");
+                setFiltroLeadPeriodo("");
                 setPaginaLeads(1);
               }}
               className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-accent hover:text-accent"
@@ -2485,7 +2562,7 @@ function PainelProspeccao() {
 
         {leads.length === 0 ? (
           <p className="mt-4 text-sm text-muted">
-            {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto
+            {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto || filtroLeadPeriodo
               ? "Nenhum lead encontrado com esses filtros."
               : leadsOcultosCount > 0 && !mostrarOcultos
                 ? "Todos os leads estão congelados ou removidos. Marque “Mostrar congelados e removidos” para vê-los."
@@ -2758,6 +2835,39 @@ function PainelProspeccao() {
             Histórico de envios ({enviosTotal})
           </h2>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex overflow-hidden rounded-full border border-line">
+              {[
+                { valor: "", rotulo: "Todos" },
+                { valor: "7", rotulo: "Últimos 7 dias" },
+                { valor: "30", rotulo: "Últimos 30 dias" },
+              ].map((op) => (
+                <button
+                  key={op.valor || "todos"}
+                  type="button"
+                  onClick={() => {
+                    setFiltroEnvioPeriodo(op.valor);
+                    setPaginaEnvios(1);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold transition ${
+                    filtroEnvioPeriodo === op.valor
+                      ? "bg-accent text-white"
+                      : "bg-white text-slate-600 hover:text-accent"
+                  }`}
+                >
+                  {op.rotulo}
+                </button>
+              ))}
+            </div>
+            <input
+              value={filtroEnvioTexto}
+              onChange={(e) => {
+                setFiltroEnvioTexto(e.target.value);
+                setPaginaEnvios(1);
+              }}
+              placeholder="Buscar nome ou telefone"
+              className="w-52 rounded-full border border-line bg-white px-3 py-1.5 text-xs"
+              aria-label="Buscar por nome ou telefone"
+            />
             <select
               value={filtroEnvioNicho}
               onChange={(e) => {
@@ -2790,12 +2900,14 @@ function PainelProspeccao() {
                 <option key={c} value={c} />
               ))}
             </datalist>
-            {filtroEnvioNicho || filtroEnvioCidade ? (
+            {filtroEnvioNicho || filtroEnvioCidade || filtroEnvioTexto || filtroEnvioPeriodo ? (
               <button
                 type="button"
                 onClick={() => {
                   setFiltroEnvioNicho("");
                   setFiltroEnvioCidade("");
+                  setFiltroEnvioTexto("");
+                  setFiltroEnvioPeriodo("");
                   setPaginaEnvios(1);
                 }}
                 className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-accent hover:text-accent"
@@ -2809,7 +2921,11 @@ function PainelProspeccao() {
           Registro imutável de cada mensagem enviada: texto exato, lead e conta WhatsApp usada.
         </p>
         {enviosTotal === 0 ? (
-          <p className="mt-4 text-sm text-muted">Nenhuma mensagem enviada ainda.</p>
+          <p className="mt-4 text-sm text-muted">
+            {filtroEnvioNicho || filtroEnvioCidade || filtroEnvioTexto || filtroEnvioPeriodo
+              ? "Nenhum envio encontrado com esse filtro."
+              : "Nenhuma mensagem enviada ainda."}
+          </p>
         ) : envios.length === 0 ? (
           <p className="mt-4 text-sm text-muted">Nenhum envio encontrado com esse filtro.</p>
         ) : (
@@ -2821,96 +2937,123 @@ function PainelProspeccao() {
                     <th className="px-3 py-2 font-semibold">Quando</th>
                     <th className="px-3 py-2 font-semibold">Lead</th>
                     <th className="px-3 py-2 font-semibold">Telefone</th>
-                    <th className="px-3 py-2 font-semibold">Conta WhatsApp</th>
-                    <th className="px-3 py-2 font-semibold">Canal / Status</th>
-                    <th className="px-3 py-2 font-semibold">Mensagem enviada</th>
+                    <th className="px-3 py-2 font-semibold">Conta</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
+                    <th className="px-3 py-2 text-right font-semibold">Mensagem</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {enviosPagina.map((e) => (
-                    <tr key={e.id} className="hover:bg-canvas/50">
-                      <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
-                        {new Date(e.em).toLocaleString("pt-BR")}
-                      </td>
-                      <td className="px-3 py-2 font-semibold">{e.nome}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{e.telefone}</td>
-                      <td className="px-3 py-2 text-xs">
-                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
-                          {e.conta_nome}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {e.canal === "cloud_api" ? (
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                              e.status === "read"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : e.status === "delivered"
-                                  ? "bg-sky-100 text-sky-800"
-                                  : e.status === "failed"
-                                    ? "bg-rose-100 text-rose-700"
-                                    : "bg-slate-200 text-slate-600"
-                            }`}
-                            title={e.wamid ? `wamid: ${e.wamid}` : ""}
-                          >
-                            {e.status || "sent"} · API
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                            link
-                          </span>
-                        )}
-                        {e.erro ? <p className="mt-1 text-[10px] text-rose-600">{e.erro}</p> : null}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-muted">
-                        <span className="line-clamp-2">{e.mensagem || "—"}</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {enviosPagina.map((e) => {
+                    const aberto = envioAberto === e.id;
+                    return (
+                      <Fragment key={e.id}>
+                        <tr
+                          onClick={() => setEnvioAberto(aberto ? null : e.id)}
+                          className="cursor-pointer hover:bg-canvas/50"
+                        >
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{dataCurta(e.em)}</td>
+                          <td className="px-3 py-2 font-semibold">{e.nome}</td>
+                          <td className="px-3 py-2 font-mono text-xs">{e.telefone}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                              {e.conta_nome}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-xs">
+                            <BadgeEnvio e={e} />
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold text-accent">
+                            {aberto ? "Fechar" : "Ver"}
+                          </td>
+                        </tr>
+                        {aberto ? (
+                          <tr className="bg-canvas/40">
+                            <td colSpan={6} className="px-3 pb-4 pt-1">
+                              <div className="rounded-xl border border-line bg-white p-3 text-xs">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                                  Mensagem enviada
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{e.mensagem || "—"}</p>
+                                <dl className="mt-3 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                                  <div className="flex gap-1.5">
+                                    <dt className="text-muted">Conta WhatsApp:</dt>
+                                    <dd className="font-semibold">{e.conta_nome || "—"}</dd>
+                                  </div>
+                                  <div className="flex gap-1.5">
+                                    <dt className="text-muted">Canal / Status:</dt>
+                                    <dd className="font-semibold">
+                                      {e.canal === "cloud_api" ? `${e.status || "sent"} · API` : "link"}
+                                    </dd>
+                                  </div>
+                                  <div className="flex gap-1.5">
+                                    <dt className="text-muted">Enviado em:</dt>
+                                    <dd className="font-semibold">{new Date(e.em).toLocaleString("pt-BR")}</dd>
+                                  </div>
+                                  {e.erro ? (
+                                    <div className="flex gap-1.5">
+                                      <dt className="text-muted">Erro:</dt>
+                                      <dd className="font-semibold text-rose-600">{e.erro}</dd>
+                                    </div>
+                                  ) : null}
+                                </dl>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Mobile: cartões */}
+            {/* Mobile: cartões compactos (mensagem sob demanda) */}
             <ul className="mt-4 divide-y divide-line md:hidden">
-              {enviosPagina.map((e) => (
-                <li key={e.id} className="space-y-1.5 py-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{e.nome}</p>
-                      <p className="font-mono text-xs text-muted">{e.telefone}</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
-                      {e.conta_nome}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    {e.canal === "cloud_api" ? (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                          e.status === "read"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : e.status === "delivered"
-                              ? "bg-sky-100 text-sky-800"
-                              : e.status === "failed"
-                                ? "bg-rose-100 text-rose-700"
-                                : "bg-slate-200 text-slate-600"
-                        }`}
-                        title={e.wamid ? `wamid: ${e.wamid}` : ""}
+              {enviosPagina.map((e) => {
+                const aberto = envioAberto === e.id;
+                return (
+                  <li key={e.id} className="py-3">
+                    <button
+                      type="button"
+                      onClick={() => setEnvioAberto(aberto ? null : e.id)}
+                      className="flex w-full items-start justify-between gap-2 text-left"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">{e.nome}</span>
+                        <span className="block font-mono text-xs text-muted">{e.telefone}</span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                          {e.conta_nome}
+                        </span>
+                        <span className="text-[11px] text-muted">{dataCurta(e.em)}</span>
+                      </span>
+                    </button>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                      <BadgeEnvio e={e} />
+                      <button
+                        type="button"
+                        onClick={() => setEnvioAberto(aberto ? null : e.id)}
+                        className="font-semibold text-accent"
                       >
-                        {e.status || "sent"} · API
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        link
-                      </span>
-                    )}
-                    <span className="text-muted">{new Date(e.em).toLocaleString("pt-BR")}</span>
-                  </div>
-                  {e.erro ? <p className="text-[10px] text-rose-600">{e.erro}</p> : null}
-                  <p className="line-clamp-2 text-xs text-muted">{e.mensagem || "—"}</p>
-                </li>
-              ))}
+                        {aberto ? "Ocultar mensagem" : "Ver mensagem"}
+                      </button>
+                    </div>
+                    {e.erro ? <p className="mt-1 text-[10px] text-rose-600">{e.erro}</p> : null}
+                    {aberto ? (
+                      <div className="mt-2 rounded-xl border border-line bg-canvas/40 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                          Mensagem enviada
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{e.mensagem || "—"}</p>
+                        <p className="mt-2 text-[11px] text-muted">
+                          Enviado em {new Date(e.em).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
 
             {/* Controles de paginação do histórico de envios */}

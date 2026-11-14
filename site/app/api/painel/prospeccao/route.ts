@@ -49,8 +49,9 @@ function numeroQuery(valor: string | null, padrao: number, min: number, max: num
  *
  * Query (todas opcionais):
  *   leads_pagina, leads_por_pagina, leads_nicho, leads_cidade, leads_status,
- *   leads_texto, incluir_ocultos
- *   envios_pagina, envios_por_pagina, envios_nicho, envios_cidade
+ *   leads_texto, leads_dias, incluir_ocultos
+ *   envios_pagina, envios_por_pagina, envios_nicho, envios_cidade,
+ *   envios_texto, envios_dias
  */
 export async function GET(req: NextRequest) {
   if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
@@ -59,19 +60,29 @@ export async function GET(req: NextRequest) {
   const t = (nome: string) => (p.get(nome) || "").trim();
   const incluirOcultos = p.get("incluir_ocultos") === "1" || p.get("incluir_ocultos") === "true";
 
+  // Período rápido do histórico: 0 = todos; >0 = últimos N dias.
+  const diasLeads = numeroQuery(p.get("leads_dias"), 0, 0, 3650);
+  const desdeLeads =
+    diasLeads > 0 ? new Date(Date.now() - diasLeads * 86_400_000).toISOString() : undefined;
   const filtrosLeads: FiltrosLeads = {
     nicho: t("leads_nicho") || undefined,
     cidade: t("leads_cidade") || undefined,
     status: t("leads_status") || undefined,
     texto: t("leads_texto") || undefined,
+    desde: desdeLeads,
     incluirOcultos,
   };
   const leadsPorPagina = numeroQuery(p.get("leads_por_pagina"), 25, 1, 200);
   const leadsPagina = numeroQuery(p.get("leads_pagina"), 1, 1, 1_000_000);
 
+  const diasEnvios = numeroQuery(p.get("envios_dias"), 0, 0, 3650);
+  const desdeEnvios =
+    diasEnvios > 0 ? new Date(Date.now() - diasEnvios * 86_400_000).toISOString() : undefined;
   const filtrosEnvios: FiltrosEnvios = {
     nicho: t("envios_nicho") || undefined,
     cidade: t("envios_cidade") || undefined,
+    texto: t("envios_texto") || undefined,
+    desde: desdeEnvios,
   };
   const enviosPorPagina = numeroQuery(p.get("envios_por_pagina"), 15, 1, 100);
   const enviosPagina = numeroQuery(p.get("envios_pagina"), 1, 1, 1_000_000);
