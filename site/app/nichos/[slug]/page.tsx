@@ -32,12 +32,12 @@ export default async function NichoPage({ params }: { params: Promise<{ slug: st
           <p className="mt-3 max-w-md text-sm leading-6 text-muted">{exemplo.detalhe}</p>
           <p className="mt-3 text-sm text-muted">{exemplo.lugar}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
+            <Link
               href={exemplo.demo}
               className="inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent-dark"
             >
               Ver demonstração
-            </a>
+            </Link>
             <Link
               href={`/prototipar?nicho=${exemplo.slug}`}
               className="inline-flex rounded-full border border-line bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50"

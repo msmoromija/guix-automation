@@ -302,6 +302,8 @@ function PainelProspeccao() {
   const [contasAberto, setContasAberto] = useState(false);
   /** Menu "⋮" de ações secundárias aberto (chave = id da linha). */
   const [acoesAbertas, setAcoesAbertas] = useState<string | null>(null);
+  /** Id do lead com Congelar/Remover em andamento (feedback + trava anti-duplo-clique). */
+  const [acaoProcessando, setAcaoProcessando] = useState<string | null>(null);
   /** Filtros do histórico de envios (nicho/cidade/texto/período) e paginação. */
   const [filtroEnvioNicho, setFiltroEnvioNicho] = useState("");
   const [filtroEnvioCidade, setFiltroEnvioCidade] = useState("");
@@ -1078,6 +1080,7 @@ function PainelProspeccao() {
   async function alternarArquivado(alvo: { id: string; nome: string }, arquivar: boolean) {
     setErro("");
     setOk("");
+    setAcaoProcessando(alvo.id);
     try {
       const res = await fetch("/api/painel/prospeccao/lead", {
         method: "PATCH",
@@ -1107,6 +1110,8 @@ function PainelProspeccao() {
       await carregarTudo();
     } catch {
       setErro("Falha de rede ao atualizar o lead.");
+    } finally {
+      setAcaoProcessando(null);
     }
   }
 
@@ -1195,6 +1200,12 @@ function PainelProspeccao() {
   async function abrirWhatsApp() {
     if (!leadSelecionado) return;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    // Feedback imediato na prévia: status e último contato mudam na hora,
+    // antes mesmo do PATCH responder (o PATCH confirma logo em seguida).
+    const contatoAgora = new Date().toISOString();
+    setLeadSelecionado((l) =>
+      l ? { ...l, status: "enviado", data_ultimo_contato: contatoAgora } : l,
+    );
     if (!contaEnvio) {
       setErro("Envio aberto, mas escolha a conta WhatsApp para registrar no painel.");
       return;
@@ -1241,6 +1252,7 @@ function PainelProspeccao() {
    */
   async function alternarCongelado(alvo: { id: string; nome: string }, congelar: boolean) {
     setErro("");
+    setAcaoProcessando(alvo.id);
     try {
       const res = await fetch("/api/painel/prospeccao/lead", {
         method: "PATCH",
@@ -1262,6 +1274,8 @@ function PainelProspeccao() {
       await carregarTudo();
     } catch {
       setErro("Falha de rede ao atualizar o lead.");
+    } finally {
+      setAcaoProcessando(null);
     }
   }
 
@@ -1510,7 +1524,8 @@ function PainelProspeccao() {
           {uso ? (
             (() => {
               const pct = Math.min(100, Math.round((uso.buscas / uso.limite_mensal) * 100));
-              const alerta = pct >= 80;
+              // Aviso a partir de 70% e alerta crítico ao esgotar.
+              const alerta = pct >= 70;
               const critico = pct >= 100;
               return (
                 <div
@@ -1532,7 +1547,7 @@ function PainelProspeccao() {
                         critico ? "text-rose-700" : alerta ? "text-amber-700" : "text-muted"
                       }`}
                     >
-                      {uso.buscas} / {uso.limite_mensal} buscas
+                      {uso.buscas} / {uso.limite_mensal} buscas ({pct}%)
                     </span>
                     <span className="text-[10px] text-muted">{uso.mes}</span>
                   </div>
@@ -2298,6 +2313,15 @@ function PainelProspeccao() {
                     </span>
                   </div>
 
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Último contato</span>
+                    <span className="text-xs font-semibold text-ink">
+                      {leadSelecionado.data_ultimo_contato
+                        ? tempoRelativo(leadSelecionado.data_ultimo_contato)
+                        : "nenhum"}
+                    </span>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-semibold">Conta WhatsApp usada</label>
                     <select
@@ -2646,7 +2670,7 @@ function PainelProspeccao() {
                           <button
                             type="button"
                             onClick={() => void alternarCongelado({ id: l.id, nome: l.nome }, !l.congelado)}
-                            disabled={Boolean(l.arquivado)}
+                            disabled={Boolean(l.arquivado) || acaoProcessando === l.id}
                             className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-400 hover:bg-canvas disabled:opacity-40"
                             title={
                               l.arquivado
@@ -2656,15 +2680,16 @@ function PainelProspeccao() {
                                   : "Congelar (vai para o fim da fila)"
                             }
                           >
-                            {l.congelado ? "Descongelar" : "Congelar"}
+                            {acaoProcessando === l.id ? "…" : l.congelado ? "Descongelar" : "Congelar"}
                           </button>
                           <button
                             type="button"
                             onClick={() => void alternarArquivado({ id: l.id, nome: l.nome }, !l.arquivado)}
-                            className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                            disabled={acaoProcessando === l.id}
+                            className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
                             title={l.arquivado ? "Restaurar para a fila" : "Remover da fila (reversível)"}
                           >
-                            {l.arquivado ? "Restaurar" : "Remover"}
+                            {acaoProcessando === l.id ? "…" : l.arquivado ? "Restaurar" : "Remover"}
                           </button>
                           {l.arquivado ? (
                             <button
@@ -2739,17 +2764,18 @@ function PainelProspeccao() {
                     <button
                       type="button"
                       onClick={() => void alternarCongelado({ id: l.id, nome: l.nome }, !l.congelado)}
-                      disabled={Boolean(l.arquivado)}
+                      disabled={Boolean(l.arquivado) || acaoProcessando === l.id}
                       className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-slate-600 hover:border-slate-400 disabled:opacity-40"
                     >
-                      {l.congelado ? "Descongelar" : "Congelar"}
+                      {acaoProcessando === l.id ? "…" : l.congelado ? "Descongelar" : "Congelar"}
                     </button>
                     <button
                       type="button"
                       onClick={() => void alternarArquivado({ id: l.id, nome: l.nome }, !l.arquivado)}
-                      className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                      disabled={acaoProcessando === l.id}
+                      className="rounded-full border border-line px-3 py-2 text-[11px] font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
                     >
-                      {l.arquivado ? "Restaurar" : "Remover"}
+                      {acaoProcessando === l.id ? "…" : l.arquivado ? "Restaurar" : "Remover"}
                     </button>
                     {l.arquivado ? (
                       <button

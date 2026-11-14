@@ -66,6 +66,8 @@ const ETAPAS = [
 const LIMITE_FAQ_FORM = 10;
 const RASCUNHO_ESTUDIO_KEY = "guix.estudio.rascunho";
 const ESTUDIO_HISTORY_MARKER = "__guixEstudioRascunho";
+/** Por quanto tempo um rascunho guardado no navegador continua válido. */
+const RASCUNHO_ESTUDIO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function registroDoRascunho(valor: unknown): Record<string, unknown> | null {
   return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : null;
@@ -73,7 +75,9 @@ function registroDoRascunho(valor: unknown): Record<string, unknown> | null {
 
 function gravarRascunhoEstudio(dados: Record<string, unknown>) {
   try {
-    sessionStorage.setItem(
+    // localStorage (não sessionStorage): o rascunho sobrevive ao fechar a aba
+    // ou o navegador e volta na próxima visita, dentro da validade.
+    localStorage.setItem(
       RASCUNHO_ESTUDIO_KEY,
       JSON.stringify({ versao: 1, salvoEm: Date.now(), dados }),
     );
@@ -477,7 +481,7 @@ export function EstudioForm() {
       return;
     }
     try {
-      const raw = sessionStorage.getItem(RASCUNHO_ESTUDIO_KEY);
+      const raw = localStorage.getItem(RASCUNHO_ESTUDIO_KEY);
       if (raw) {
         const envelope = registroDoRascunho(JSON.parse(raw));
         const dados = registroDoRascunho(envelope?.dados);
@@ -486,7 +490,8 @@ export function EstudioForm() {
           envelope?.versao === 1 &&
           dados &&
           salvoEm > 0 &&
-          salvoEm <= Date.now() + 60_000
+          salvoEm <= Date.now() + 60_000 &&
+          salvoEm >= Date.now() - RASCUNHO_ESTUDIO_VALIDADE_MS
         ) {
           const nichoSalvo =
             typeof dados.nicho === "string" && nichos.some((item) => item.slug === dados.nicho)
@@ -563,9 +568,9 @@ export function EstudioForm() {
               galeria: tocadas.galeria === true,
             };
           }
-          setRascunhoStatus("Rascunho restaurado nesta aba");
+          setRascunhoStatus("Rascunho restaurado");
         } else {
-          sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+          localStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
         }
       }
     } catch {
@@ -1025,10 +1030,10 @@ export function EstudioForm() {
         setErroSalvarRascunho("Não foi possível salvar. Verifique o espaço disponível no navegador.");
         return;
       }
-      setRascunhoStatus("Rascunho salvo nesta aba");
+      setRascunhoStatus("Rascunho salvo (válido por 7 dias)");
     } else {
       try {
-        sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+        localStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
       } catch {
         setErroSalvarRascunho("Não foi possível descartar o rascunho no navegador.");
         return;
@@ -2089,7 +2094,7 @@ export function EstudioForm() {
           return;
         }
         try {
-          sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+          localStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
         } catch {
           // The prototype is already saved; storage cleanup is best effort.
         }
@@ -2172,7 +2177,7 @@ export function EstudioForm() {
       }
       const t = String(data.token || "");
       try {
-        sessionStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
+        localStorage.removeItem(RASCUNHO_ESTUDIO_KEY);
       } catch {
         // The prototype is already saved; storage cleanup is best effort.
       }
@@ -3549,7 +3554,7 @@ export function EstudioForm() {
               Guardar este rascunho?
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted">
-              Você pode salvar e voltar a este protótipo enquanto continuar nesta aba. Ao fechar a aba, o rascunho será removido.
+              Você pode salvar e voltar a este protótipo quando quiser. O rascunho fica guardado neste navegador por até 7 dias.
             </p>
             {erroSalvarRascunho ? (
               <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">

@@ -120,15 +120,15 @@ export default function HomePage() {
                   <p className="mt-1 text-sm text-muted">{item.lugar}</p>
                   <p className="mt-3 flex-1 text-sm leading-6 text-ink">{item.frase}</p>
                   <div className="mt-5 flex flex-col gap-2">
-                    <a href={item.demo} className={`${primario} w-full`}>
+                    <Link href={item.demo} className={`${primario} w-full`}>
                       Ver demonstração
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href={`/prototipar?nicho=${item.slug}`}
                       className={`${secundario} w-full text-center`}
                     >
                       Usar este modelo
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </article>
