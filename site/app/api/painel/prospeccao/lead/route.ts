@@ -3,13 +3,12 @@ import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   buscarLeadPorTelefone,
   contaPublica,
-  contarEnviosHoje,
+  contarEnviosHojeConta,
   gravarLead,
   hojeIso,
   leadEnviadoHoje,
   lerConfig,
   lerLead,
-  listarEnvios,
   normalizarTelefone,
   novoIdLead,
   registrarEnvio,
@@ -209,6 +208,7 @@ export async function PATCH(req: NextRequest) {
 
   // Marca/envia: grava no log de envios e atualiza lead + contador (derivado)
   let envioRegistrado = false;
+  let aviso: string | null = null;
   if (body.marcar_enviado === true) {
     const contaId = String(body.conta_whatsapp || lead.conta_whatsapp || "");
     const conta = config.contas.find((c) => c.id === contaId);
@@ -216,26 +216,27 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ erro: "Conta WhatsApp inválida." }, { status: 400 });
     }
 
-    const envios = await listarEnvios();
     // Idempotência: não conta duas vezes o mesmo lead no mesmo dia.
-    if (!leadEnviadoHoje(envios, lead.id)) {
-      if (contarEnviosHoje(envios, contaId) >= conta.limite_diario) {
-        return NextResponse.json(
-          { erro: `Limite diário de ${conta.limite_diario} mensagens na ${conta.nome} atingido.` },
-          { status: 429 },
-        );
+    if (!(await leadEnviadoHoje(lead.id))) {
+      if ((await contarEnviosHojeConta(contaId)) >= conta.limite_diario) {
+        // O envio foi feito pelo usuário no WhatsApp (link manual); o contador
+        // diário é apenas um guia. Não bloqueamos a marcação do lead como
+        // "enviado" — só não somamos no contador e avisamos o usuário.
+        aviso = `Limite diário de ${conta.limite_diario} na ${conta.nome} atingido — lead marcado como enviado, mas não contado no limite de hoje.`;
+      } else {
+        await registrarEnvio({
+          lead_id: lead.id,
+          nome: lead.nome,
+          telefone: lead.telefone,
+          nicho: lead.nicho,
+          cidade: lead.cidade,
+          conta_id: conta.id,
+          conta_nome: conta.nome,
+          mensagem: lead.mensagem_gerada || "",
+          canal: "link",
+        });
+        envioRegistrado = true;
       }
-      await registrarEnvio({
-        lead_id: lead.id,
-        nome: lead.nome,
-        telefone: lead.telefone,
-        nicho: lead.nicho,
-        conta_id: conta.id,
-        conta_nome: conta.nome,
-        mensagem: lead.mensagem_gerada || "",
-        canal: "link",
-      });
-      envioRegistrado = true;
     }
 
     lead.conta_whatsapp = contaId;
@@ -259,18 +260,19 @@ export async function PATCH(req: NextRequest) {
   lead.updated_at = agora;
   await gravarLead(lead);
 
-  const envios = await listarEnvios(200);
-  const contasComContagem = config.contas.map((c) => ({
-    ...contaPublica(c),
-    enviados_hoje: contarEnviosHoje(envios, c.id, hojeIso()),
-  }));
+  const contasComContagem = await Promise.all(
+    config.contas.map(async (c) => ({
+      ...contaPublica(c),
+      enviados_hoje: await contarEnviosHojeConta(c.id, hojeIso()),
+    })),
+  );
 
   return NextResponse.json({
     ok: true,
     lead,
-    envios,
     contas: contasComContagem,
     enviado_registrado: envioRegistrado,
+    aviso,
   });
 }
 

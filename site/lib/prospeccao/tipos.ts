@@ -90,6 +90,8 @@ export type ResultadoBusca = {
   status: StatusLead;
   ja_contatado: boolean;
   contatado_recentemente: boolean;
+  /** Data do último contato (ISO) ou null se nunca foi contatado. */
+  data_ultimo_contato: string | null;
   /** O lead correspondente está congelado/oculto. */
   congelado: boolean;
   /** O lead correspondente foi removido (soft delete) e está fora da fila. */
@@ -107,8 +109,12 @@ export type BuscaExecucao = {
   filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
   totalBruto: number;
   totalExibido: number;
-  /** external_ids já exibidos — usados para não repetir nas próximas buscas. */
-  ids: string[];
+  /**
+   * external_ids já exibidos — usados para não repetir nas próximas buscas.
+   * Fica em uma tabela própria (`busca_exibidos`), então normalmente NÃO é
+   * enviado ao painel (só carregado quando necessário).
+   */
+  ids?: string[];
   /** Resultados exibidos nesta execução (permite reabrir a "Busca N" depois). */
   resultados?: ResultadoBusca[];
 };
@@ -118,9 +124,15 @@ export type SessaoBusca = {
   nicho: string;
   cidade: string;
   atualizadoEm: string;
-  /** Resultados da última busca desta cidade+nicho (para restaurar o painel). */
-  resultados: ResultadoBusca[];
+  /**
+   * Resultados da última busca desta cidade+nicho. Fica no banco em
+   * `busca_execucoes.resultados` e é carregado sob demanda ao reabrir a busca —
+   * por isso é opcional na listagem leve do painel.
+   */
+  resultados?: ResultadoBusca[];
   buscas: BuscaExecucao[];
+  /** Total de leads distintos já exibidos nesta cidade+nicho (contagem). */
+  totalLeads?: number;
 };
 
 /** Registro imutável de uma mensagem efetivamente enviada (log append-only no R2). */
@@ -131,6 +143,8 @@ export type EnvioRegistro = {
   nome: string;
   telefone: string;
   nicho: string;
+  /** Cidade do lead (pode faltar em registros antigos, de antes deste campo). */
+  cidade?: string;
   conta_id: string;
   conta_nome: string;
   /** Texto exato enviado. */

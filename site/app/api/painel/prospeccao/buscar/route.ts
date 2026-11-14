@@ -9,18 +9,18 @@ import {
 import {
   buscarSessaoBusca,
   chaveApiEfetiva,
-  gravarSessaoBusca,
   hojeIso,
   idsJaExibidos,
   lerConfig,
   listarLeadsPorTelefones,
   normalizarTelefone,
   novoIdLead,
-  proximaBuscaExecucao,
   registrarBusca,
+  registrarExecucaoBusca,
+  resultadosDaExecucao,
   salvarLeads,
 } from "@/lib/prospeccao/store";
-import type { Lead, ResultadoBusca, SessaoBusca } from "@/lib/prospeccao/tipos";
+import type { Lead, ResultadoBusca } from "@/lib/prospeccao/tipos";
 
 export const runtime = "nodejs";
 
@@ -54,6 +54,36 @@ async function buscarEmails(lugares: LugarEncontrado[]): Promise<Map<string, str
 }
 
 /**
+ * GET /api/painel/prospeccao/buscar?execucao=<id>
+ *
+ * Reabre uma "Busca N" do histórico. Carrega os resultados arquivados daquela
+ * execução (que fica no banco) e recalcula o status ATUAL de cada lead — sem
+ * gastar cota da Google. É o que permite ter milhares de buscas sem baixar
+ * tudo de uma vez no painel.
+ */
+export async function GET(req: NextRequest) {
+  if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
+  const execucaoId = (req.nextUrl.searchParams.get("execucao") || "").trim();
+  if (!execucaoId) {
+    return NextResponse.json({ erro: "Informe ?execucao=<id>." }, { status: 400 });
+  }
+
+  const { execucao, nicho, cidade, resultados } = await resultadosDaExecucao(execucaoId);
+  if (!execucao) {
+    return NextResponse.json({ erro: "Busca não encontrada." }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    execucao,
+    nicho,
+    cidade,
+    resultados,
+    total: resultados.length,
+  });
+}
+
+/**
  * POST /api/painel/prospeccao/buscar
  * body: { nicho: string, cidade: string, soComTelefone?: boolean, excluirContatados?: boolean, excluirRecontato?: boolean }
  *
@@ -84,7 +114,7 @@ export async function POST(req: NextRequest) {
   const numeroBusca = (sessaoAnterior?.buscas.length || 0) + 1;
   const termos = nicho.termos_busca.length ? nicho.termos_busca : [nicho.nome];
   const termo = termos[(numeroBusca - 1) % termos.length];
-  const jaExibidos = idsJaExibidos(sessaoAnterior);
+  const jaExibidos = await idsJaExibidos(nichoSlug, cidade);
 
   let lugares: LugarEncontrado[] = [];
   let erroBusca: string | null = null;
@@ -179,6 +209,7 @@ export async function POST(req: NextRequest) {
       status: statusAtual,
       ja_contatado: jaContatado,
       contatado_recentemente: Boolean(contatadoRecentemente),
+      data_ultimo_contato: existente?.data_ultimo_contato || null,
       congelado: Boolean(existente?.congelado),
       arquivado: Boolean(existente?.arquivado),
     };
@@ -225,28 +256,22 @@ export async function POST(req: NextRequest) {
 
   // Registra a execução no histórico: "Busca N" com o que foi exibido agora
   // (ids exibidos = nunca mais voltam nas próximas buscas da mesma cidade).
-  const execucao = proximaBuscaExecucao(
-    sessaoAnterior,
-    termo,
-    { soComTelefone, soNovos: excluirContatados, naoContatados: excluirRecontato },
-    totalEncontrado,
-    filtrados.map((r) => r.external_id),
-    filtrados,
-  );
-  const sessao: SessaoBusca = {
+  await registrarExecucaoBusca({
     nicho: nichoSlug,
     cidade,
-    atualizadoEm: new Date().toISOString(),
+    termo,
+    filtros: { soComTelefone, soNovos: excluirContatados, naoContatados: excluirRecontato },
+    totalBruto: totalEncontrado,
+    ids: filtrados.map((r) => r.external_id),
     resultados: filtrados,
-    buscas: [...(sessaoAnterior?.buscas || []), execucao],
-  };
-  await gravarSessaoBusca(sessao).catch(() => {
+  }).catch(() => {
     /* a busca não falha se o histórico não puder ser gravado */
   });
 
+  const numero = numeroBusca;
   const esgotado = filtrados.length === 0 && repetidos > 0;
   const aviso = esgotado
-    ? `Todos os resultados desta cidade já foram exibidos nas buscas anteriores (Busca ${execucao.numero}). Tente outra cidade ou outro nicho.`
+    ? `Todos os resultados desta cidade já foram exibidos nas buscas anteriores (Busca ${numero}). Tente outra cidade ou outro nicho.`
     : filtrados.length === 0
       ? "Nenhum resultado novo para este termo nesta cidade."
       : null;
@@ -257,8 +282,7 @@ export async function POST(req: NextRequest) {
     total: filtrados.length,
     total_bruto: totalEncontrado,
     repetidos,
-    busca: { numero: execucao.numero, termo, total_bruto: totalEncontrado },
-    sessao,
+    busca: { numero, termo, total_bruto: totalEncontrado },
     aviso,
     leads_salvos: leadsSalvos,
     hoje: hojeIso(),

@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { senhaComercialConfere } from "@/lib/cupons/auth";
 import {
   chaveApiEfetiva,
+  cidadesDeEnvios,
+  cidadesDeLeads,
   contaPublica,
-  contarEnviosHoje,
+  contarEnvios,
+  contarEnviosHojeConta,
+  contarLeads,
+  contarLeadsOcultos,
   gravarConfig,
   lerConfig,
   lerUso,
-  listarEnvios,
-  listarLeads,
+  listarEnviosPainel,
+  listarLeadsPainel,
   listarMensagens,
   listarSessoesBusca,
+  type FiltrosEnvios,
+  type FiltrosLeads,
 } from "@/lib/prospeccao/store";
 import { embeddedSignupConfigurado, metaAppId, metaConfigId, metaConfigurado } from "@/lib/prospeccao/whatsapp";
 import type { ConfigProspecção, ContaWhatsApp } from "@/lib/prospeccao/tipos";
@@ -25,28 +32,84 @@ function autorizado(req: NextRequest) {
   return senhaComercialConfere(bearer) || senhaComercialConfere(q) || senhaComercialConfere(x);
 }
 
+/** Lê um inteiro da query, dentro dos limites [min, max]. */
+function numeroQuery(valor: string | null, padrao: number, min: number, max: number): number {
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return padrao;
+  return Math.max(min, Math.min(max, Math.trunc(n)));
+}
+
 /**
  * GET /api/painel/prospeccao?token=...
- * Retorna configuração, leads, contadores diários, log de envios e a última busca.
+ *
+ * O histórico de leads e o de envios são paginados/filtrados no SERVIDOR
+ * (query no banco) — assim o painel continua leve mesmo com milhares de buscas,
+ * leads e envios. As sessões de busca vêm sem os resultados (carregados sob
+ * demanda pela rota /busca) e com o total de leads de cada par nicho+cidade.
+ *
+ * Query (todas opcionais):
+ *   leads_pagina, leads_por_pagina, leads_nicho, leads_cidade, leads_status,
+ *   leads_texto, incluir_ocultos
+ *   envios_pagina, envios_por_pagina, envios_nicho, envios_cidade
  */
 export async function GET(req: NextRequest) {
   if (!autorizado(req)) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
 
-  const [config, leads, envios, uso, sessoesBusca, mensagens] = await Promise.all([
+  const p = req.nextUrl.searchParams;
+  const t = (nome: string) => (p.get(nome) || "").trim();
+  const incluirOcultos = p.get("incluir_ocultos") === "1" || p.get("incluir_ocultos") === "true";
+
+  const filtrosLeads: FiltrosLeads = {
+    nicho: t("leads_nicho") || undefined,
+    cidade: t("leads_cidade") || undefined,
+    status: t("leads_status") || undefined,
+    texto: t("leads_texto") || undefined,
+    incluirOcultos,
+  };
+  const leadsPorPagina = numeroQuery(p.get("leads_por_pagina"), 25, 1, 200);
+  const leadsPagina = numeroQuery(p.get("leads_pagina"), 1, 1, 1_000_000);
+
+  const filtrosEnvios: FiltrosEnvios = {
+    nicho: t("envios_nicho") || undefined,
+    cidade: t("envios_cidade") || undefined,
+  };
+  const enviosPorPagina = numeroQuery(p.get("envios_por_pagina"), 15, 1, 100);
+  const enviosPagina = numeroQuery(p.get("envios_pagina"), 1, 1, 1_000_000);
+
+  const [
+    config,
+    leads,
+    leadsTotal,
+    leadsOcultos,
+    leadsCidades,
+    envios,
+    enviosTotal,
+    enviosCidades,
+    mensagens,
+    sessoesBusca,
+    uso,
+  ] = await Promise.all([
     lerConfig(),
-    listarLeads(500),
-    listarEnvios(200),
-    lerUso(),
-    listarSessoesBusca(),
+    listarLeadsPainel(filtrosLeads, leadsPorPagina, (leadsPagina - 1) * leadsPorPagina),
+    contarLeads(filtrosLeads),
+    contarLeadsOcultos(filtrosLeads),
+    cidadesDeLeads(),
+    listarEnviosPainel(filtrosEnvios, enviosPorPagina, (enviosPagina - 1) * enviosPorPagina),
+    contarEnvios(filtrosEnvios),
+    cidadesDeEnvios(),
     listarMensagens(200),
+    listarSessoesBusca(),
+    lerUso(),
   ]);
 
   // Contadores diários derivados do log de envios (fonte única da verdade).
   // Os tokens das contas nunca saem daqui (contaPublica remove).
-  const contasComContagem = config.contas.map((c) => ({
-    ...contaPublica(c),
-    enviados_hoje: contarEnviosHoje(envios, c.id),
-  }));
+  const contasComContagem = await Promise.all(
+    config.contas.map(async (c) => ({
+      ...contaPublica(c),
+      enviados_hoje: await contarEnviosHojeConta(c.id),
+    })),
+  );
 
   // Não devolve a chave da API em texto puro para o cliente
   const configPublica = {
@@ -58,9 +121,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     leads,
+    leads_total: leadsTotal,
+    leads_ocultos: leadsOcultos,
+    leads_cidades: leadsCidades,
     config: configPublica,
     contas: contasComContagem,
     envios,
+    envios_total: enviosTotal,
+    envios_cidades: enviosCidades,
     mensagens,
     sessoes_busca: sessoesBusca,
     uso,

@@ -6,7 +6,6 @@
 .trae
 node_modules
 data/
-clientes/
 tmp-marcas-*
 *.log
 *.tsbuildinfo

@@ -1,0 +1,5 @@
+Prospeccao: nao expor token das contas no PATCH do lead
+
+O PATCH /api/painel/prospeccao/lead montava a lista de contas clonando o
+objeto cru do config, o que vazava o token da Cloud API para o frontend.
+Passa a usar contaPublica(), que remove o token antes de responder.

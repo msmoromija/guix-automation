@@ -45,6 +45,7 @@ type EnvioRegistro = {
   nome: string;
   telefone: string;
   nicho: string;
+  cidade?: string;
   conta_id: string;
   conta_nome: string;
   mensagem: string;
@@ -121,6 +122,7 @@ type ResultadoBusca = {
   status: StatusLead;
   ja_contatado: boolean;
   contatado_recentemente: boolean;
+  data_ultimo_contato: string | null;
   congelado: boolean;
   arquivado: boolean;
 };
@@ -133,8 +135,9 @@ type BuscaExecucao = {
   filtros: { soComTelefone: boolean; soNovos: boolean; naoContatados: boolean };
   totalBruto: number;
   totalExibido: number;
-  ids: string[];
-  /** Resultados exibidos nesta execução (permite reabrir a "Busca N"). */
+  /** external_ids exibidos — fica no banco, não vem na listagem leve. */
+  ids?: string[];
+  /** Resultados exibidos nesta execução (carregados sob demanda ao reabrir). */
   resultados?: ResultadoBusca[];
 };
 
@@ -142,8 +145,11 @@ type SessaoBusca = {
   nicho: string;
   cidade: string;
   atualizadoEm: string;
-  resultados: ResultadoBusca[];
+  /** Resultados da última busca — agora carregados sob demanda (opcional). */
+  resultados?: ResultadoBusca[];
   buscas: BuscaExecucao[];
+  /** Total de leads distintos já exibidos neste par nicho+cidade. */
+  totalLeads?: number;
 };
 
 type Config = {
@@ -171,8 +177,37 @@ const EVENTO_META: Record<StatusLead | "observacao", { label: string; cor: strin
   observacao: { label: "Observação", cor: "bg-slate-100 text-slate-700" },
 };
 
+/** Fallback para status/eventos desconhecidos (dados antigos): nunca deixa a tela em branco. */
+const META_FALLBACK = { label: "—", cor: "bg-slate-100 text-slate-600" };
+
+function metaStatus(status: string) {
+  return STATUS_META[status as StatusLead] ?? META_FALLBACK;
+}
+
+function metaEvento(tipo: string) {
+  return EVENTO_META[tipo as StatusLead | "observacao"] ?? META_FALLBACK;
+}
+
 function inicial(chave: string) {
   return chave.slice(0, 2).toUpperCase();
+}
+
+/** Data relativa em pt-BR: "hoje", "ontem", "há 2 dias", "há 1 mês" ou "nunca". */
+function tempoRelativo(iso: string | null | undefined): string {
+  if (!iso) return "nunca";
+  const d = new Date(iso).getTime();
+  if (Number.isNaN(d)) return "nunca";
+  const diffMs = Date.now() - d;
+  const dia = 86_400_000;
+  const dias = Math.floor(diffMs / dia);
+  if (dias <= 0) return "hoje";
+  if (dias === 1) return "ontem";
+  if (dias < 30) return `há ${dias} dias`;
+  const meses = Math.floor(dias / 30);
+  if (meses === 1) return "há 1 mês";
+  if (meses < 12) return `há ${meses} meses`;
+  const anos = Math.floor(meses / 12);
+  return anos === 1 ? "há 1 ano" : `há ${anos} anos`;
 }
 
 function PainelProspeccao() {
@@ -226,6 +261,31 @@ function PainelProspeccao() {
   const [uso, setUso] = useState<{ mes: string; buscas: number; limite_mensal: number } | null>(null);
 
   const [abaConfig, setAbaConfig] = useState(false);
+  /** Bloco de conexão das contas WhatsApp: colapsado por padrão para não competir com a prévia. */
+  const [contasAberto, setContasAberto] = useState(false);
+  /** Menu "⋮" de ações secundárias aberto (chave = id da linha). */
+  const [acoesAbertas, setAcoesAbertas] = useState<string | null>(null);
+  /** Filtros do histórico de envios (nicho/cidade) e paginação. */
+  const [filtroEnvioNicho, setFiltroEnvioNicho] = useState("");
+  const [filtroEnvioCidade, setFiltroEnvioCidade] = useState("");
+  const [paginaEnvios, setPaginaEnvios] = useState(1);
+  const [enviosTotal, setEnviosTotal] = useState(0);
+  const [enviosCidades, setEnviosCidades] = useState<string[]>([]);
+
+  // Histórico de leads — paginado e filtrado no servidor (aguenta milhares).
+  const [leadsTotal, setLeadsTotal] = useState(0);
+  const [leadsOcultos, setLeadsOcultos] = useState(0);
+  const [leadsCidades, setLeadsCidades] = useState<string[]>([]);
+  const [paginaLeads, setPaginaLeads] = useState(1);
+  const [filtroLeadNicho, setFiltroLeadNicho] = useState("");
+  const [filtroLeadCidade, setFiltroLeadCidade] = useState("");
+  const [filtroLeadStatus, setFiltroLeadStatus] = useState("");
+  const [filtroLeadTexto, setFiltroLeadTexto] = useState("");
+  const LEADS_POR_PAGINA = 25;
+  /** Filtro da lista "Nichos pesquisados" — acha uma busca entre milhares. */
+  const [filtroSessao, setFiltroSessao] = useState("");
+  /** Enquanto reabre uma "Busca N" do histórico (busca os resultados no servidor). */
+  const [abrindoBusca, setAbrindoBusca] = useState(false);
 
   // Conexão real da conta WhatsApp Business (Embedded Signup + fallback manual).
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -238,6 +298,10 @@ function PainelProspeccao() {
 
   // Restaura a última busca apenas uma vez, na primeira carga do painel.
   const restauradoRef = useRef(false);
+  // Evita refazer a busca no primeiro render: só refaz quando o usuário mexe
+  // nos filtros/paginação (depois da carga inicial).
+  const leadsCarregadosRef = useRef(false);
+  const enviosCarregadosRef = useRef(false);
   // Preenchido pelo postMessage do Embedded Signup (waba_id/phone_number_id).
   const signupRef = useRef<{ waba_id: string; phone_number_id: string }>({
     waba_id: "",
@@ -337,16 +401,48 @@ function PainelProspeccao() {
     setPaginaAtual(1);
   }, [resultados]);
 
+  // Refaz o histórico de leads no servidor quando os filtros/página mudam.
+  useEffect(() => {
+    if (!leadsCarregadosRef.current) return;
+    void carregarLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaLeads, filtroLeadNicho, filtroLeadCidade, filtroLeadStatus, filtroLeadTexto, mostrarOcultos]);
+
+  // Refaz o histórico de envios no servidor quando os filtros/página mudam.
+  useEffect(() => {
+    if (!enviosCarregadosRef.current) return;
+    void carregarEnvios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaEnvios, filtroEnvioNicho, filtroEnvioCidade]);
+
   const headers = () => ({
     "Content-Type": "application/json",
     "x-painel-token": senha,
   });
 
+  /** Monta a query de paginação/filtros do servidor (histórico de leads e envios). */
+  function queryPainel(opts?: { leadsPagina?: number; enviosPagina?: number }) {
+    const q = new URLSearchParams();
+    q.set("leads_pagina", String(opts?.leadsPagina ?? paginaLeads));
+    q.set("leads_por_pagina", String(LEADS_POR_PAGINA));
+    q.set("incluir_ocultos", mostrarOcultos ? "1" : "0");
+    if (filtroLeadNicho) q.set("leads_nicho", filtroLeadNicho);
+    if (filtroLeadCidade) q.set("leads_cidade", filtroLeadCidade);
+    if (filtroLeadStatus) q.set("leads_status", filtroLeadStatus);
+    if (filtroLeadTexto) q.set("leads_texto", filtroLeadTexto);
+    q.set("envios_pagina", String(opts?.enviosPagina ?? paginaEnvios));
+    if (filtroEnvioNicho) q.set("envios_nicho", filtroEnvioNicho);
+    if (filtroEnvioCidade) q.set("envios_cidade", filtroEnvioCidade);
+    return q;
+  }
+
   async function carregarTudo() {
     setErro("");
-    const res = await fetch("/api/painel/prospeccao", { headers: headers() });
-    const j = await res.json();
-    if (!res.ok) {
+    const res = await fetch(`/api/painel/prospeccao?${queryPainel()}`, { headers: headers() });
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      // Só desloga quando a senha realmente não confere. Falhas transitórias
+      // (banco lento/timeout) não devem "apagar" o painel na cara do usuário.
       setErro(j.erro || "Senha incorreta.");
       setLiberado(false);
       try {
@@ -356,16 +452,27 @@ function PainelProspeccao() {
       }
       return;
     }
+    if (!res.ok) {
+      setErro(j.erro || "Não foi possível carregar o painel agora. Tente novamente.");
+      return;
+    }
     setConfig(j.config);
     setContas(j.contas || []);
     setLeads(j.leads || []);
+    setLeadsTotal(Number(j.leads_total || 0));
+    setLeadsOcultos(Number(j.leads_ocultos || 0));
+    setLeadsCidades(j.leads_cidades || []);
     setEnvios(j.envios || []);
+    setEnviosTotal(Number(j.envios_total || 0));
+    setEnviosCidades(j.envios_cidades || []);
     setMensagens(j.mensagens || []);
     if (j.meta) setMeta(j.meta);
     if (j.uso) setUso(j.uso);
 
     const listaSessoes = (j.sessoes_busca as SessaoBusca[]) || [];
     setSessoes(listaSessoes);
+    leadsCarregadosRef.current = true;
+    enviosCarregadosRef.current = true;
 
     // Nicho, conta de envio e a busca aberta só são inicializados uma vez.
     // Assim recargas disparadas por outras ações não resetam o que o usuário
@@ -376,72 +483,166 @@ function PainelProspeccao() {
       const maisRecente = [...listaSessoes].sort(
         (a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime(),
       )[0];
-      if (maisRecente && (maisRecente.resultados?.length || 0) > 0) {
-        abrirSessao(maisRecente, false);
+      if (maisRecente && maisRecente.buscas.length > 0) {
+        void abrirSessao(maisRecente, false);
       } else if (j.config?.nichos?.[0]?.slug) {
         setNicho(j.config.nichos[0].slug);
       }
     }
   }
 
+  /** Recarrega só o histórico de leads (paginação/filtros ou após uma busca). */
+  async function carregarLeads(pagina = paginaLeads) {
+    const res = await fetch(`/api/painel/prospeccao?${queryPainel({ leadsPagina: pagina })}`, {
+      headers: headers(),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return;
+    setLeads(j.leads || []);
+    setLeadsTotal(Number(j.leads_total || 0));
+    setLeadsOcultos(Number(j.leads_ocultos || 0));
+    setLeadsCidades(j.leads_cidades || []);
+  }
+
+  /** Recarrega só o histórico de envios (paginação/filtros ou após um envio). */
+  async function carregarEnvios(pagina = paginaEnvios) {
+    const res = await fetch(`/api/painel/prospeccao?${queryPainel({ enviosPagina: pagina })}`, {
+      headers: headers(),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return;
+    setEnvios(j.envios || []);
+    setEnviosTotal(Number(j.envios_total || 0));
+    setEnviosCidades(j.envios_cidades || []);
+  }
+
   /** Recarrega só a lista de leads (usado após uma busca que salva leads). */
   async function recarregarLeads() {
-    const res = await fetch("/api/painel/prospeccao", { headers: headers() });
-    const j = await res.json();
-    if (res.ok) setLeads(j.leads || []);
+    await carregarLeads();
   }
 
   /**
-   * Abre uma sessão do histórico de buscas (cidade+nicho): mostra os
-   * resultados da última busca daquela cidade, sem gastar cota da API.
+   * Reabre uma "Busca N" do histórico: carrega os resultados arquivados no
+   * servidor (sem gastar cota) e reaplica o status ATUAL de cada lead.
    */
-  function abrirBusca(s: SessaoBusca, b: BuscaExecucao, avisar = true) {
-    const ultima = s.buscas[s.buscas.length - 1];
-    // Buscas antigas podem não ter os resultados arquivados: nesse caso só a
-    // última busca tem como ser restaurada (via `s.resultados`).
-    const ress = (b.resultados?.length ? b.resultados : b.id === ultima?.id ? s.resultados : []) as ResultadoBusca[];
-    setResultados(ress);
-    setTotalBruto(b.totalBruto || ress.length);
+  async function abrirBusca(s: SessaoBusca, b: BuscaExecucao, avisar = true) {
+    setAbrindoBusca(true);
     setNicho(s.nicho);
     setCidade(s.cidade);
     setBuscaAtual({ numero: b.numero, termo: b.termo });
-    if (b.filtros) {
-      setSoComTelefone(b.filtros.soComTelefone);
-      setSoNovos(b.filtros.soNovos);
-      setNaoContatados(b.filtros.naoContatados);
-    }
+    // Ao reabrir um histórico, mostramos TODOS os resultados salvos. Os filtros
+    // rápidos dependem do status ATUAL dos leads (que muda com o tempo) e
+    // esconderiam resultados que a busca realmente trouxe — fazendo um histórico
+    // antigo parecer vazio. Por isso são zerados ao abrir uma busca salva.
+    setSoComTelefone(false);
+    setSoNovos(false);
+    setNaoContatados(false);
     setPaginaAtual(1);
-    if (avisar) {
-      setOk(
-        ress.length
-          ? `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}): ${ress.length} resultado(s), sem gastar cota.`
-          : `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}) sem resultados arquivados (busca feita antes da atualização).`,
+    try {
+      const res = await fetch(
+        `/api/painel/prospeccao/buscar?execucao=${encodeURIComponent(b.id)}`,
+        { headers: headers() },
       );
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(j.erro || "Não foi possível abrir esta busca.");
+        setResultados([]);
+        return;
+      }
+      const ress = (j.resultados || []) as ResultadoBusca[];
+      setResultados(ress);
+      setTotalBruto(Number(j.execucao?.totalBruto ?? b.totalBruto) || ress.length);
+      if (avisar) {
+        setOk(
+          ress.length
+            ? `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}): ${ress.length} resultado(s), sem gastar cota.`
+            : `${s.cidade} · ${nomeDoNicho(s.nicho)} — Busca ${b.numero} (${b.termo}) sem resultados arquivados.`,
+        );
+      }
+    } catch {
+      setErro("Falha de rede ao abrir a busca.");
+    } finally {
+      setAbrindoBusca(false);
     }
   }
 
   function abrirSessao(s: SessaoBusca, avisar = true) {
     const ultima = s.buscas[s.buscas.length - 1];
     if (ultima) {
-      abrirBusca(s, ultima, avisar);
+      void abrirBusca(s, ultima, avisar);
       return;
     }
     // Sessão antiga, sem execuções registradas.
-    const ress = (s.resultados || []) as ResultadoBusca[];
-    setResultados(ress);
-    setTotalBruto(ress.length);
+    setResultados([]);
+    setTotalBruto(0);
     setNicho(s.nicho);
     setCidade(s.cidade);
     setBuscaAtual(null);
+    setSoComTelefone(false);
+    setSoNovos(false);
+    setNaoContatados(false);
     setPaginaAtual(1);
     if (avisar) {
-      setOk(`${s.cidade} · ${nomeDoNicho(s.nicho)} — ${ress.length} resultado(s) salvos (sem gastar cota).`);
+      setOk(`${s.cidade} · ${nomeDoNicho(s.nicho)} — sem buscas registradas.`);
     }
   }
 
   /** Nome amigável do nicho a partir do slug. */
   function nomeDoNicho(slug: string) {
     return config?.nichos.find((n) => n.slug === slug)?.nome || slug;
+  }
+
+  /**
+   * Menu "⋮" com as ações secundárias de um resultado (Congelar/Remover),
+   * mantendo a linha limpa — só "Abrir WhatsApp" e "Gerar msg" ficam visíveis.
+   */
+  function menuAcoesResultado(r: ResultadoBusca, chave: string) {
+    const aberto = acoesAbertas === chave;
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setAcoesAbertas(aberto ? null : chave)}
+          aria-label="Mais ações"
+          className={`grid h-8 w-8 place-items-center rounded-full border text-base leading-none ${
+            aberto ? "border-accent text-accent" : "border-line text-slate-500 hover:border-accent hover:text-accent"
+          }`}
+        >
+          ⋮
+        </button>
+        {aberto ? (
+          <>
+            <div className="fixed inset-0 z-10 cursor-default" onClick={() => setAcoesAbertas(null)} />
+            <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-line bg-white py-1 text-left shadow-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setAcoesAbertas(null);
+                  if (r.lead_id) void alternarCongelado({ id: r.lead_id, nome: r.nome }, !r.congelado);
+                }}
+                disabled={!r.lead_id || r.arquivado}
+                title={!r.lead_id ? "Disponível após salvar o lead" : r.arquivado ? "Restaure o lead para poder congelar" : undefined}
+                className="block w-full px-3 py-2 text-xs font-semibold hover:bg-canvas disabled:opacity-40"
+              >
+                {r.congelado ? "Descongelar" : "Congelar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAcoesAbertas(null);
+                  if (r.lead_id) void alternarArquivado({ id: r.lead_id, nome: r.nome }, !r.arquivado);
+                }}
+                disabled={!r.lead_id}
+                title={r.lead_id ? (r.arquivado ? "Restaurar para a fila" : "Remover da fila (dá para restaurar depois)") : "Disponível após salvar o lead"}
+                className="block w-full px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+              >
+                {r.arquivado ? "Restaurar" : "Remover"}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </div>
+    );
   }
 
   function entrar(e: React.FormEvent) {
@@ -619,7 +820,11 @@ function PainelProspeccao() {
       if (j.sessao) {
         const sessaoNova = j.sessao as SessaoBusca;
         setSessoes((atual) => {
-          const outras = atual.filter((s) => !(s.nicho === sessaoNova.nicho && s.cidade === sessaoNova.cidade));
+          const mesma = (a: string, b: string) =>
+            String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+          const outras = atual.filter(
+            (s) => !(s.nicho === sessaoNova.nicho && mesma(s.cidade, sessaoNova.cidade)),
+          );
           return [sessaoNova, ...outras];
         });
       }
@@ -705,6 +910,110 @@ function PainelProspeccao() {
       setContaEnvio(j.lead.conta_whatsapp || contas[0]?.id || "");
       setOk(`Mensagem gerada para ${j.lead.nome}.`);
       await carregarTudo();
+    } finally {
+      setGerandoMsg(false);
+    }
+  }
+
+  /**
+   * Ação principal em 1 clique: gera a mensagem, abre o WhatsApp e marca o
+   * lead como enviado — tudo de uma vez. Evita o fluxo antigo de vários cliques
+   * (gerar → abrir → marcar). Não dispara carregarTudo() para não travar a tela.
+   */
+  async function gerarEEnviar(r: ResultadoBusca) {
+    setErro("");
+    setOk("");
+    setGerandoMsg(true);
+    setLeadSelecionado(null);
+    setMensagem("");
+    setWhatsappUrl("");
+    try {
+      const res = await fetch("/api/painel/prospeccao/lead", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          nome: r.nome,
+          telefone: r.telefone,
+          cidade: r.cidade,
+          nicho,
+          endereco: r.endereco,
+          categoria: r.categoria,
+          site: r.site,
+          email: r.email,
+          external_id: r.external_id,
+          fonte: "google",
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErro(j.erro || "Não foi possível gerar a mensagem.");
+        return;
+      }
+      const leadGerado: Lead = j.lead;
+      const mensagemGerada: string = j.mensagem;
+      const waUrl: string = j.whatsapp_url;
+
+      // Abre o WhatsApp com o texto já preenchido.
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+
+      setLeadSelecionado(leadGerado);
+      setMensagem(mensagemGerada);
+      setWhatsappUrl(waUrl);
+      setObservacoes(leadGerado.observacoes || "");
+
+      // Atualização otimista: a linha já reflete "Enviado" + "hoje" na hora,
+      // sem esperar o PATCH (deixa a sensação de resposta instantânea).
+      const marcadoAgora = new Date().toISOString();
+      setResultados((atual) =>
+        atual.map((x) =>
+          x.external_id === r.external_id || x.lead_id === leadGerado.id
+            ? { ...x, lead_id: leadGerado.id, status: "enviado", ja_contatado: true, data_ultimo_contato: marcadoAgora }
+            : x,
+        ),
+      );
+
+      const conta = contaEnvio || contas[0]?.id || "";
+      if (!conta) {
+        setErro("Mensagem gerada e WhatsApp aberto, mas escolha uma conta para registrar o envio.");
+        return;
+      }
+
+      // Marca como enviado na conta escolhida.
+      const patchRes = await fetch("/api/painel/prospeccao/lead", {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({
+          id: leadGerado.id,
+          marcar_enviado: true,
+          conta_whatsapp: conta,
+          observacoes,
+        }),
+      });
+      const pj = await patchRes.json();
+      if (!patchRes.ok) {
+        setErro(pj.erro || "WhatsApp aberto, mas não foi possível registrar o envio.");
+        return;
+      }
+
+      setLeadSelecionado(pj.lead);
+      setContas(pj.contas || contas);
+      setPaginaEnvios(1);
+      void carregarEnvios(1);
+      // Atualiza estado local sem recarregar tudo.
+      setLeads((atual) =>
+        atual.map((l) => (l.id === pj.lead.id ? { ...l, ...pj.lead, historico: undefined } : l)),
+      );
+      setResultados((atual) =>
+        atual.map((x) =>
+          x.external_id === r.external_id || x.lead_id === pj.lead.id
+            ? { ...x, lead_id: pj.lead.id, status: pj.lead.status, ja_contatado: true, data_ultimo_contato: new Date().toISOString() }
+            : x,
+        ),
+      );
+      setOk(pj.enviado_registrado ? `Envio registrado para ${pj.lead.nome}.` : "Envio já registrado hoje (não duplicado).");
+      if (pj.aviso) setErro(pj.aviso);
+    } catch {
+      setErro("Falha ao gerar/enviar mensagem.");
     } finally {
       setGerandoMsg(false);
     }
@@ -812,9 +1121,18 @@ function PainelProspeccao() {
     }
     setLeadSelecionado(j.lead);
     setContas(j.contas || contas);
-    if (j.envios) setEnvios(j.envios);
+    setPaginaEnvios(1);
+    void carregarEnvios(1);
+    // Reflete no estado local com o retorno do PATCH em vez de recarregar tudo:
+    // o reload pesado (até 500 leituras no R2) travava a tela logo após o envio.
+    setLeads((atual) =>
+      atual.map((l) => (l.id === j.lead.id ? { ...l, ...j.lead, historico: undefined } : l)),
+    );
+    setResultados((atual) =>
+      atual.map((r) => (r.lead_id === j.lead.id ? { ...r, status: j.lead.status, ja_contatado: true, data_ultimo_contato: new Date().toISOString() } : r)),
+    );
     setOk(j.enviado_registrado ? "Envio registrado. Contador atualizado." : "Envio já registrado hoje (não duplicado).");
-    await carregarTudo();
+    if (j.aviso) setErro(j.aviso);
   }
 
   /**
@@ -848,9 +1166,18 @@ function PainelProspeccao() {
       }
       setLeadSelecionado(j.lead);
       setContas(j.contas || contas);
-      if (j.envios) setEnvios(j.envios);
+      setPaginaEnvios(1);
+      void carregarEnvios(1);
+      // Reflete no estado local com o retorno do PATCH em vez de recarregar tudo:
+      // o reload pesado (até 500 leituras no R2) travava a tela logo após o envio.
+      setLeads((atual) =>
+        atual.map((l) => (l.id === j.lead.id ? { ...l, ...j.lead, historico: undefined } : l)),
+      );
+      setResultados((atual) =>
+        atual.map((r) => (r.lead_id === j.lead.id ? { ...r, status: j.lead.status, ja_contatado: true, data_ultimo_contato: new Date().toISOString() } : r)),
+      );
       setOk(j.enviado_registrado ? "Envio registrado automaticamente na conta escolhida." : "Envio já constava hoje (não duplicado).");
-      void carregarTudo();
+      if (j.aviso) setErro(j.aviso);
     } catch {
       setErro("Enviado, mas falhou o registro no painel.");
     }
@@ -972,20 +1299,55 @@ function PainelProspeccao() {
     o.arquivado ? 2 : o.congelado ? 1 : 0;
 
   const resultadosOrdenados = [...resultados].sort((a, b) => ordem(a) - ordem(b));
+  // Aplica os filtros rápidos client-side (sem nova busca na API).
+  const diasRecontato = config?.periodo_recontato_dias || 45;
+  const limiteContato = Date.now() - diasRecontato * 24 * 60 * 60 * 1000;
+  let resultadosFiltrados = resultadosOrdenados;
+  if (soNovos) resultadosFiltrados = resultadosFiltrados.filter((r) => r.status === "novo");
+  if (soComTelefone) resultadosFiltrados = resultadosFiltrados.filter((r) => Boolean(r.telefone));
+  if (naoContatados) {
+    resultadosFiltrados = resultadosFiltrados.filter(
+      (r) =>
+        !r.ja_contatado ||
+        (r.data_ultimo_contato && new Date(r.data_ultimo_contato).getTime() < limiteContato),
+    );
+  }
   const resultadosVisiveis = mostrarOcultos
-    ? resultadosOrdenados
-    : resultadosOrdenados.filter((r) => ordem(r) === 0);
+    ? resultadosFiltrados
+    : resultadosFiltrados.filter((r) => ordem(r) === 0);
   const resultadosOcultosCount = resultados.filter((r) => ordem(r) > 0).length;
 
-  const leadsOrdenados = [...leads].sort((a, b) => ordem(a) - ordem(b));
-  const leadsVisiveis = mostrarOcultos ? leadsOrdenados : leadsOrdenados.filter((l) => ordem(l) === 0);
-  const leadsOcultosCount = leads.filter((l) => ordem(l) > 0).length;
+  // Histórico de leads: já vem paginado/filtrado pelo servidor (ativos primeiro,
+  // depois congelados/removidos). O cliente não re-filtra a página.
+  const leadsVisiveis = leads;
+  const leadsOcultosCount = leadsOcultos;
+  const totalPaginasLeads = Math.max(1, Math.ceil(leadsTotal / LEADS_POR_PAGINA));
+  const paginaLeadsAtual = Math.min(paginaLeads, totalPaginasLeads);
+  const inicioLeads = (paginaLeadsAtual - 1) * LEADS_POR_PAGINA;
 
-  // Sessões de busca agrupadas por nicho (acesso ao histórico por nicho).
-  const sessoesPorNicho = sessoes.reduce<Record<string, SessaoBusca[]>>((acc, s) => {
+  // Sessões de busca filtradas pelo texto digitado (acha uma cidade/nicho entre
+  // milhares de buscas) e agrupadas por nicho.
+  const termoSessao = filtroSessao.trim().toLowerCase();
+  const sessoesVisiveis = termoSessao
+    ? sessoes.filter(
+        (s) =>
+          s.cidade.toLowerCase().includes(termoSessao) ||
+          s.nicho.toLowerCase().includes(termoSessao) ||
+          nomeDoNicho(s.nicho).toLowerCase().includes(termoSessao),
+      )
+    : sessoes;
+  const sessoesPorNicho = sessoesVisiveis.reduce<Record<string, SessaoBusca[]>>((acc, s) => {
     (acc[s.nicho] = acc[s.nicho] || []).push(s);
     return acc;
   }, {});
+
+  // Histórico de envios: já vem paginado/filtrado pelo servidor.
+  const ENVIOS_POR_PAGINA = 15;
+  const totalPaginasEnvios = Math.max(1, Math.ceil(enviosTotal / ENVIOS_POR_PAGINA));
+  const paginaEnviosAtual = Math.min(paginaEnvios, totalPaginasEnvios);
+  const inicioEnvios = (paginaEnviosAtual - 1) * ENVIOS_POR_PAGINA;
+  const enviosPagina = envios;
+  const cidadesEnvio = enviosCidades;
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8">
@@ -1022,8 +1384,16 @@ function PainelProspeccao() {
         </div>
       </header>
 
-      {erro ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{erro}</p> : null}
-      {ok ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{ok}</p> : null}
+      {erro ? (
+        <p className="sticky top-2 z-40 mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700 shadow-md">
+          {erro}
+        </p>
+      ) : null}
+      {ok ? (
+        <p className="sticky top-2 z-40 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 shadow-md">
+          {ok}
+        </p>
+      ) : null}
 
       {/* Layout principal */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)_24rem] xl:grid-cols-[18rem_minmax(0,1fr)_26rem]">
@@ -1076,32 +1446,11 @@ function PainelProspeccao() {
               {resultados.length > 0 ? `${resultados.length} resultado(s) exibidos` : "Resultados aparecerão aqui."}
             </p>
 
-            <div className="mt-4 space-y-2 border-t border-line pt-4">
+            <div className="mt-4 border-t border-line pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Filtros rápidos</p>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={soNovos}
-                  onChange={(e) => setSoNovos(e.target.checked)}
-                />
-                Só novos
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={soComTelefone}
-                  onChange={(e) => setSoComTelefone(e.target.checked)}
-                />
-                Com telefone
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={naoContatados}
-                  onChange={(e) => setNaoContatados(e.target.checked)}
-                />
-                Não contatados {config?.periodo_recontato_dias || 45} dias
-              </label>
+              <p className="mt-1 text-xs text-muted">
+                Use os botões com contagem acima da lista de resultados.
+              </p>
             </div>
           </form>
 
@@ -1192,68 +1541,79 @@ function PainelProspeccao() {
           {sessoes.length > 0 ? (
             <div className="order-3 rounded-2xl border border-line bg-white p-5 lg:order-none">
               <h2 className="flex items-center gap-2 text-sm font-bold">
-                <span>🗂️</span> Nichos pesquisados
+                <span>🗂️</span> Nichos pesquisados ({sessoes.length})
               </h2>
               <p className="mt-1 text-[11px] text-muted">
                 Cada nicho mantém suas próprias buscas. Clique em uma cidade para reabrir o resultado sem gastar cota.
               </p>
-              <div className="mt-3 space-y-3">
-                {Object.entries(sessoesPorNicho).map(([slug, lista]) => (
-                  <div key={slug}>
-                    <p className="text-xs font-bold uppercase tracking-wide text-accent">{nomeDoNicho(slug)}</p>
-                    <div className="mt-1.5 space-y-1.5">
-                      {[...lista]
-                        .sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime())
-                        .map((s) => {
-                          const ativa =
-                            nicho === s.nicho && s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase();
-                          const distintos = new Set(s.buscas.flatMap((b) => b.ids || [])).size;
-                          return (
-                            <div
-                              key={`${s.nicho}-${s.cidade}`}
-                              className={`rounded-xl border p-2.5 ${ativa ? "border-accent bg-accent/5" : "border-line"}`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  abrirSessao(s);
-                                  setPaginaAtual(1);
-                                }}
-                                className="flex w-full items-center justify-between gap-2 text-left"
+              <input
+                value={filtroSessao}
+                onChange={(e) => setFiltroSessao(e.target.value)}
+                placeholder="Filtrar por cidade ou nicho"
+                className="mt-2 w-full rounded-full border border-line bg-white px-3 py-1.5 text-xs"
+                aria-label="Filtrar buscas por cidade ou nicho"
+              />
+              {sessoesVisiveis.length === 0 ? (
+                <p className="mt-3 text-xs text-muted">Nenhuma busca encontrada para “{filtroSessao}”.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {Object.entries(sessoesPorNicho).map(([slug, lista]) => (
+                    <div key={slug}>
+                      <p className="text-xs font-bold uppercase tracking-wide text-accent">{nomeDoNicho(slug)}</p>
+                      <div className="mt-1.5 space-y-1.5">
+                        {[...lista]
+                          .sort((a, b) => new Date(b.atualizadoEm).getTime() - new Date(a.atualizadoEm).getTime())
+                          .map((s) => {
+                            const ativa =
+                              nicho === s.nicho && s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase();
+                            const distintos = s.totalLeads ?? 0;
+                            return (
+                              <div
+                                key={`${s.nicho}-${s.cidade}`}
+                                className={`rounded-xl border p-2.5 ${ativa ? "border-accent bg-accent/5" : "border-line"}`}
                               >
-                                <span className="truncate text-sm font-semibold">{s.cidade}</span>
-                                <span className="shrink-0 text-[10px] text-muted">
-                                  {s.buscas.length} busca(s) · {distintos} lead(s)
-                                </span>
-                              </button>
-                              <div className="mt-1.5 flex flex-wrap gap-1">
-                                {s.buscas.map((b) => {
-                                  const ativa =
-                                    nicho === s.nicho &&
-                                    s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase() &&
-                                    buscaAtual?.numero === b.numero;
-                                  return (
-                                    <button
-                                      key={b.id}
-                                      type="button"
-                                      onClick={() => abrirBusca(s, b)}
-                                      title={`Termo: ${b.termo} · ${b.totalExibido} exibido(s) de ${b.totalBruto} bruto(s). Clique para reabrir sem gastar cota.`}
-                                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        ativa ? "bg-accent text-white" : "bg-canvas text-muted hover:bg-accent/10"
-                                      }`}
-                                    >
-                                      Busca {b.numero} · {b.totalExibido}
-                                    </button>
-                                  );
-                                })}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    abrirSessao(s);
+                                    setPaginaAtual(1);
+                                  }}
+                                  className="flex w-full items-center justify-between gap-2 text-left"
+                                >
+                                  <span className="truncate text-sm font-semibold">{s.cidade}</span>
+                                  <span className="shrink-0 text-[10px] text-muted">
+                                    {s.buscas.length} busca(s) · {distintos} lead(s)
+                                  </span>
+                                </button>
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {s.buscas.map((b) => {
+                                    const ativa =
+                                      nicho === s.nicho &&
+                                      s.cidade.trim().toLowerCase() === cidade.trim().toLowerCase() &&
+                                      buscaAtual?.numero === b.numero;
+                                    return (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        onClick={() => abrirBusca(s, b)}
+                                        title={`Termo: ${b.termo} · ${b.totalExibido} exibido(s) de ${b.totalBruto} bruto(s). Clique para reabrir sem gastar cota.`}
+                                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                          ativa ? "bg-accent text-white" : "bg-canvas text-muted hover:bg-accent/10"
+                                        }`}
+                                      >
+                                        Busca {b.numero} · {b.totalExibido}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
         </aside>
@@ -1291,6 +1651,51 @@ function PainelProspeccao() {
             ) : null}
           </div>
 
+          {/* Filtros rápidos como botões toggle, sempre visíveis com contagem. */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
+            {(() => {
+              const base = resultados;
+              const cNovos = base.filter((r) => r.status === "novo").length;
+              const cTel = base.filter((r) => Boolean(r.telefone)).length;
+              const dias = config?.periodo_recontato_dias || 45;
+              const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
+              const cNaoCont = base.filter(
+                (r) => !r.ja_contatado || (r.data_ultimo_contato && new Date(r.data_ultimo_contato).getTime() < limite),
+              ).length;
+              const btn = (ativo: boolean) =>
+                `rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  ativo
+                    ? "bg-accent text-white"
+                    : "border border-line text-slate-600 hover:border-accent hover:text-accent"
+                }`;
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setSoNovos((v) => !v); setPaginaAtual(1); }}
+                    className={btn(soNovos)}
+                  >
+                    Só novos ({cNovos})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSoComTelefone((v) => !v); setPaginaAtual(1); }}
+                    className={btn(soComTelefone)}
+                  >
+                    Com telefone ({cTel})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setNaoContatados((v) => !v); setPaginaAtual(1); }}
+                    className={btn(naoContatados)}
+                  >
+                    Não contatados {dias}d ({cNaoCont})
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+
           {resultadosVisiveis.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted">
               {buscando
@@ -1321,8 +1726,13 @@ function PainelProspeccao() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-line">
-                        {resultadosPagina.map((r, i) => (
-                          <tr key={`${r.external_id}-${inicio + i}`} className="hover:bg-canvas/50">
+                        {resultadosPagina.map((r, i) => {
+                          const destaque = Boolean(r.telefone) && r.status === "novo";
+                          return (
+                          <tr
+                            key={`${r.external_id}-${inicio + i}`}
+                            className={`hover:bg-canvas/50 ${destaque ? "border-l-4 border-l-accent" : "border-l-4 border-l-transparent"}`}
+                          >
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-3">
                                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-xs font-bold text-accent">
@@ -1370,81 +1780,63 @@ function PainelProspeccao() {
                             </td>
                             <td className="px-3 py-3">
                               <span
-                                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[r.status].cor}`}
+                                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${metaStatus(r.status).cor}`}
                               >
-                                {STATUS_META[r.status].label}
+                                {metaStatus(r.status).label}
                               </span>
+                              <p className="mt-1 text-[10px] text-muted">
+                                {r.ja_contatado ? `último contato: ${tempoRelativo(r.data_ultimo_contato)}` : "sem contato"}
+                              </p>
                               {r.contatado_recentemente ? (
-                                <p className="mt-1 text-[10px] text-rose-600">contatado recentemente</p>
+                                <p className="mt-0.5 text-[10px] text-rose-600">contatado recentemente</p>
                               ) : null}
                               {r.congelado ? (
-                                <p className="mt-1 text-[10px] font-semibold text-amber-700">congelado</p>
+                                <p className="mt-0.5 text-[10px] font-semibold text-amber-700">congelado</p>
                               ) : null}
                               {r.arquivado ? (
-                                <p className="mt-1 text-[10px] font-semibold text-rose-600">removido</p>
+                                <p className="mt-0.5 text-[10px] font-semibold text-rose-600">removido</p>
                               ) : null}
                             </td>
                             <td className="px-5 py-3">
-                              <div className="flex flex-wrap justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => void gerarEEnviar(r)}
+                                  disabled={gerandoMsg}
+                                  className="rounded-full bg-[#25D366] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                                  title="Gera a mensagem, abre o WhatsApp e marca como enviado"
+                                >
+                                  💬 Abrir WhatsApp
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => void gerarMensagem(r)}
                                   disabled={gerandoMsg}
-                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                                  className="rounded-full px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-accent disabled:opacity-50"
+                                  title="Só gera a mensagem para editar antes de enviar"
                                 >
-                                  Gerar mensagem
+                                  Gerar msg
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    r.lead_id && void alternarCongelado({ id: r.lead_id, nome: r.nome }, !r.congelado)
-                                  }
-                                  disabled={!r.lead_id || r.arquivado}
-                                  title={
-                                    !r.lead_id
-                                      ? "Disponível após salvar o lead"
-                                      : r.arquivado
-                                        ? "Restaure o lead para poder congelar"
-                                        : undefined
-                                  }
-                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-400 hover:bg-canvas disabled:opacity-40"
-                                >
-                                  {r.congelado ? "Descongelar" : "Congelar"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    r.lead_id &&
-                                    void alternarArquivado({ id: r.lead_id, nome: r.nome }, !r.arquivado)
-                                  }
-                                  disabled={!r.lead_id}
-                                  title={
-                                    r.lead_id
-                                      ? r.arquivado
-                                        ? "Restaurar para a fila"
-                                        : "Remover da fila (dá para restaurar depois)"
-                                      : "Disponível após salvar o lead"
-                                  }
-                                  className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
-                                >
-                                  {r.arquivado ? "Restaurar" : "Remover"}
-                                </button>
+                                {menuAcoesResultado(r, `${r.external_id}-d`)}
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
 
                   {/* Mobile: cartões */}
                   <ul className="divide-y divide-line md:hidden">
-                    {resultadosPagina.map((r, i) => (
+                    {resultadosPagina.map((r, i) => {
+                      const destaque = Boolean(r.telefone) && r.status === "novo";
+                      return (
                       <li
                         key={`${r.external_id}-${inicio + i}`}
                         className={`space-y-2.5 p-4 ${
                           r.arquivado ? "bg-rose-50/60" : r.congelado ? "bg-amber-50/60" : ""
-                        }`}
+                        } ${destaque ? "border-l-4 border-l-accent" : "border-l-4 border-l-transparent"}`}
                       >
                         <div className="flex items-start gap-3">
                           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent/10 text-sm font-bold text-accent">
@@ -1459,11 +1851,14 @@ function PainelProspeccao() {
                             ) : null}
                           </div>
                           <span
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[r.status].cor}`}
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${metaStatus(r.status).cor}`}
                           >
-                            {STATUS_META[r.status].label}
+                            {metaStatus(r.status).label}
                           </span>
                         </div>
+                        <p className="text-[11px] text-muted">
+                          {r.ja_contatado ? `último contato: ${tempoRelativo(r.data_ultimo_contato)}` : "sem contato"}
+                        </p>
                         {r.email || r.site ? (
                           <div className="space-y-0.5">
                             {r.email ? (
@@ -1492,38 +1887,28 @@ function PainelProspeccao() {
                         {r.arquivado ? (
                           <p className="text-[11px] font-semibold text-rose-600">removido — fora da fila</p>
                         ) : null}
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void gerarEEnviar(r)}
+                            disabled={gerandoMsg}
+                            className="min-w-[8rem] flex-1 rounded-full bg-[#25D366] px-3 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                          >
+                            💬 Abrir WhatsApp
+                          </button>
                           <button
                             type="button"
                             onClick={() => void gerarMensagem(r)}
                             disabled={gerandoMsg}
-                            className="min-w-[8rem] flex-1 rounded-full border border-line px-3 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
+                            className="rounded-full px-3 py-2.5 text-sm font-semibold text-slate-500 hover:text-accent disabled:opacity-50"
                           >
-                            Gerar mensagem
+                            Gerar msg
                           </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              r.lead_id && void alternarCongelado({ id: r.lead_id, nome: r.nome }, !r.congelado)
-                            }
-                            disabled={!r.lead_id || r.arquivado}
-                            className="rounded-full border border-line px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-slate-400 disabled:opacity-40"
-                          >
-                            {r.congelado ? "Descongelar" : "Congelar"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              r.lead_id && void alternarArquivado({ id: r.lead_id, nome: r.nome }, !r.arquivado)
-                            }
-                            disabled={!r.lead_id}
-                            className="rounded-full border border-line px-3 py-2.5 text-sm font-semibold text-rose-600 hover:border-rose-400 hover:bg-rose-50 disabled:opacity-40"
-                          >
-                            {r.arquivado ? "Restaurar" : "Remover"}
-                          </button>
+                          {menuAcoesResultado(r, `${r.external_id}-m`)}
                         </div>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
 
               {/* Controles de paginação */}
@@ -1593,8 +1978,8 @@ function PainelProspeccao() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Legenda de status</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(Object.keys(STATUS_META) as StatusLead[]).map((s) => (
-                <span key={s} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[s].cor}`}>
-                  {STATUS_META[s].label}
+                <span key={s} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${metaStatus(s).cor}`}>
+                  {metaStatus(s).label}
                 </span>
               ))}
             </div>
@@ -1607,11 +1992,25 @@ function PainelProspeccao() {
         {/* Coluna direita: prévia WhatsApp + configurações */}
         <aside className="order-6 space-y-4 lg:order-none">
           {/* Conexão real da conta WhatsApp Business (Cloud API oficial) */}
-          <div className="rounded-2xl border border-line bg-white p-5">
-            <h2 className="flex items-center gap-2 text-sm font-bold">
-              <span>📱</span> Contas WhatsApp Business
-            </h2>
-            <p className="mt-1 text-xs text-muted">
+          <div className="rounded-2xl border border-line bg-white">
+            <button
+              type="button"
+              onClick={() => setContasAberto((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 p-5 text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold">
+                <span>📱</span> Contas WhatsApp Business
+              </span>
+              <span className="flex shrink-0 items-center gap-2 text-[11px] text-muted">
+                {contas.filter((c) => c.conectada).length > 0
+                  ? `${contas.filter((c) => c.conectada).length} conectada(s)`
+                  : "nenhuma conectada"}
+                <span aria-hidden="true">{contasAberto ? "▲" : "▼"}</span>
+              </span>
+            </button>
+            {contasAberto ? (
+            <div className="px-5 pb-5">
+            <p className="text-xs text-muted">
               Conecte um número pela WhatsApp Business Platform (Cloud API) oficial para receber mensagens
               e o status de entrega (enviada/entregue/lida). O recebimento é gratuito.
             </p>
@@ -1728,6 +2127,8 @@ function PainelProspeccao() {
                 </form>
               ) : null}
             </div>
+            </div>
+            ) : null}
           </div>
 
           <div
@@ -1839,9 +2240,9 @@ function PainelProspeccao() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Status do lead</span>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_META[leadSelecionado.status].cor}`}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${metaStatus(leadSelecionado.status).cor}`}
                     >
-                      {STATUS_META[leadSelecionado.status].label}
+                      {metaStatus(leadSelecionado.status).label}
                     </span>
                   </div>
 
@@ -1919,9 +2320,9 @@ function PainelProspeccao() {
                       {[...(leadSelecionado.historico || [])].reverse().map((ev, i) => (
                         <li key={`${ev.em}-${i}`} className="flex gap-2">
                           <span
-                            className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${EVENTO_META[ev.tipo].cor}`}
+                            className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${metaEvento(ev.tipo).cor}`}
                           >
-                            {EVENTO_META[ev.tipo].label}
+                            {metaEvento(ev.tipo).label}
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="text-[11px] text-muted">
@@ -1945,8 +2346,8 @@ function PainelProspeccao() {
                 <span className="text-4xl">💬</span>
                 <p className="mt-3 text-sm font-semibold text-ink">Nenhum lead selecionado</p>
                 <p className="mt-1 text-xs text-muted">
-                  Clique em <strong>&ldquo;Gerar mensagem&rdquo;</strong> em um lead da lista ao lado para
-                  visualizar e editar a mensagem aqui.
+                  Clique em <strong>&ldquo;Abrir WhatsApp&rdquo;</strong> para enviar direto ou em{" "}
+                  <strong>&ldquo;Gerar msg&rdquo;</strong> para editar antes.
                 </p>
               </div>
             )}
@@ -1985,7 +2386,7 @@ function PainelProspeccao() {
       <section className="mt-6 rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold">Histórico de leads ({leadsVisiveis.length})</h2>
+            <h2 className="text-sm font-bold">Histórico de leads ({leadsTotal})</h2>
             <p className="mt-1 text-xs text-muted">
               Todos os leads gerados ficam salvos para consulta futura e para a IA da Meta.
             </p>
@@ -1995,17 +2396,100 @@ function PainelProspeccao() {
               <input
                 type="checkbox"
                 checked={mostrarOcultos}
-                onChange={(e) => setMostrarOcultos(e.target.checked)}
+                onChange={(e) => {
+                  setMostrarOcultos(e.target.checked);
+                  setPaginaLeads(1);
+                }}
               />
               Mostrar congelados e removidos ({leadsOcultosCount})
             </label>
           ) : null}
         </div>
+
+        {/* Filtros do histórico de leads — resolvidos no servidor (aguenta milhares). */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <select
+            value={filtroLeadNicho}
+            onChange={(e) => {
+              setFiltroLeadNicho(e.target.value);
+              setPaginaLeads(1);
+            }}
+            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold"
+            aria-label="Filtrar lead por nicho"
+          >
+            <option value="">Todos os nichos</option>
+            {config?.nichos.map((n) => (
+              <option key={n.slug} value={n.slug}>
+                {n.nome}
+              </option>
+            ))}
+          </select>
+          <input
+            list="cidades-lead"
+            value={filtroLeadCidade}
+            onChange={(e) => {
+              setFiltroLeadCidade(e.target.value);
+              setPaginaLeads(1);
+            }}
+            placeholder="Cidade"
+            className="w-36 rounded-full border border-line bg-white px-3 py-1.5 text-xs"
+            aria-label="Filtrar lead por cidade"
+          />
+          <datalist id="cidades-lead">
+            {leadsCidades.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+          <select
+            value={filtroLeadStatus}
+            onChange={(e) => {
+              setFiltroLeadStatus(e.target.value);
+              setPaginaLeads(1);
+            }}
+            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold"
+            aria-label="Filtrar lead por status"
+          >
+            <option value="">Todos os status</option>
+            {Object.entries(STATUS_META).map(([valor, meta]) => (
+              <option key={valor} value={valor}>
+                {meta.label}
+              </option>
+            ))}
+          </select>
+          <input
+            value={filtroLeadTexto}
+            onChange={(e) => {
+              setFiltroLeadTexto(e.target.value);
+              setPaginaLeads(1);
+            }}
+            placeholder="Nome, telefone ou cidade"
+            className="w-48 rounded-full border border-line bg-white px-3 py-1.5 text-xs"
+            aria-label="Buscar lead por nome, telefone ou cidade"
+          />
+          {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroLeadNicho("");
+                setFiltroLeadCidade("");
+                setFiltroLeadStatus("");
+                setFiltroLeadTexto("");
+                setPaginaLeads(1);
+              }}
+              className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-accent hover:text-accent"
+            >
+              Limpar
+            </button>
+          ) : null}
+        </div>
+
         {leads.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">Nenhum lead salvo ainda.</p>
-        ) : leadsVisiveis.length === 0 ? (
           <p className="mt-4 text-sm text-muted">
-            Todos os leads estão congelados ou removidos. Marque “Mostrar congelados e removidos” para vê-los.
+            {filtroLeadNicho || filtroLeadCidade || filtroLeadStatus || filtroLeadTexto
+              ? "Nenhum lead encontrado com esses filtros."
+              : leadsOcultosCount > 0 && !mostrarOcultos
+                ? "Todos os leads estão congelados ou removidos. Marque “Mostrar congelados e removidos” para vê-los."
+                : "Nenhum lead salvo ainda."}
           </p>
         ) : (
           <>
@@ -2023,7 +2507,7 @@ function PainelProspeccao() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {leadsVisiveis.slice(0, 50).map((l) => (
+                  {leadsVisiveis.map((l) => (
                     <tr key={l.id} className="hover:bg-canvas/50">
                       <td className="px-3 py-2 font-semibold">{l.nome}</td>
                       <td className="px-3 py-2 font-mono text-xs">{l.telefone}</td>
@@ -2057,8 +2541,8 @@ function PainelProspeccao() {
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[l.status].cor}`}>
-                          {STATUS_META[l.status].label}
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${metaStatus(l.status).cor}`}>
+                          {metaStatus(l.status).label}
                         </span>
                         {l.congelado ? (
                           <p className="mt-1 text-[10px] font-semibold text-amber-700">congelado</p>
@@ -2080,7 +2564,7 @@ function PainelProspeccao() {
                             disabled={gerandoMsg}
                             className="rounded-full border border-line px-3 py-1 text-[11px] font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
                           >
-                            Gerar mensagem
+                            Gerar msg
                           </button>
                           <button
                             type="button"
@@ -2125,7 +2609,7 @@ function PainelProspeccao() {
 
             {/* Mobile: cartões */}
             <ul className="mt-4 divide-y divide-line md:hidden">
-              {leadsVisiveis.slice(0, 50).map((l) => (
+              {leadsVisiveis.map((l) => (
                 <li
                   key={l.id}
                   className={`space-y-2 rounded-xl px-2 py-3 ${
@@ -2161,9 +2645,9 @@ function PainelProspeccao() {
                       {l.arquivado ? <p className="text-[11px] font-semibold text-rose-600">removido</p> : null}
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[l.status].cor}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${metaStatus(l.status).cor}`}
                     >
-                      {STATUS_META[l.status].label}
+                      {metaStatus(l.status).label}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -2173,7 +2657,7 @@ function PainelProspeccao() {
                       disabled={gerandoMsg}
                       className="min-w-[8rem] flex-1 rounded-full border border-line px-3 py-2 text-[11px] font-semibold hover:border-accent hover:text-accent disabled:opacity-50"
                     >
-                      Gerar mensagem
+                      Gerar msg
                     </button>
                     <button
                       type="button"
@@ -2204,18 +2688,130 @@ function PainelProspeccao() {
                 </li>
               ))}
             </ul>
+
+            {/* Controles de paginação do histórico de leads */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+              <p className="text-xs text-muted">
+                {inicioLeads + 1}–{Math.min(inicioLeads + LEADS_POR_PAGINA, leadsTotal)} de{" "}
+                {leadsTotal} lead(s)
+              </p>
+              {totalPaginasLeads > 1 ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaLeads((p) => Math.max(1, p - 1))}
+                    disabled={paginaLeadsAtual <= 1}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  {Array.from({ length: totalPaginasLeads }, (_, i) => i + 1).map((p) => {
+                    const mostrar =
+                      totalPaginasLeads <= 7 ||
+                      p === 1 ||
+                      p === totalPaginasLeads ||
+                      Math.abs(p - paginaLeadsAtual) <= 1;
+                    if (!mostrar) {
+                      if (p === paginaLeadsAtual - 2 || p === paginaLeadsAtual + 2) {
+                        return (
+                          <span key={`e-${p}`} className="px-1 text-xs text-muted">
+                            …
+                          </span>
+                        );
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPaginaLeads(p)}
+                        className={`h-8 min-w-[2rem] rounded-full px-2 text-xs font-semibold ${
+                          p === paginaLeadsAtual
+                            ? "bg-accent text-white"
+                            : "border border-line hover:border-accent"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setPaginaLeads((p) => Math.min(totalPaginasLeads, p + 1))}
+                    disabled={paginaLeadsAtual >= totalPaginasLeads}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    →
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </>
         )}
       </section>
 
       {/* Histórico de envios (log fiel por conta WhatsApp) */}
       <section className="mt-6 rounded-2xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold">Histórico de envios ({envios.length})</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold">
+            Histórico de envios ({enviosTotal})
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filtroEnvioNicho}
+              onChange={(e) => {
+                setFiltroEnvioNicho(e.target.value);
+                setPaginaEnvios(1);
+              }}
+              className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold"
+              aria-label="Filtrar por nicho"
+            >
+              <option value="">Todos os nichos</option>
+              {config?.nichos.map((n) => (
+                <option key={n.slug} value={n.slug}>
+                  {n.nome}
+                </option>
+              ))}
+            </select>
+            <input
+              list="cidades-envio"
+              value={filtroEnvioCidade}
+              onChange={(e) => {
+                setFiltroEnvioCidade(e.target.value);
+                setPaginaEnvios(1);
+              }}
+              placeholder="Cidade"
+              className="w-36 rounded-full border border-line bg-white px-3 py-1.5 text-xs"
+              aria-label="Filtrar por cidade"
+            />
+            <datalist id="cidades-envio">
+              {cidadesEnvio.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            {filtroEnvioNicho || filtroEnvioCidade ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setFiltroEnvioNicho("");
+                  setFiltroEnvioCidade("");
+                  setPaginaEnvios(1);
+                }}
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-accent hover:text-accent"
+              >
+                Limpar
+              </button>
+            ) : null}
+          </div>
+        </div>
         <p className="mt-1 text-xs text-muted">
           Registro imutável de cada mensagem enviada: texto exato, lead e conta WhatsApp usada.
         </p>
-        {envios.length === 0 ? (
+        {enviosTotal === 0 ? (
           <p className="mt-4 text-sm text-muted">Nenhuma mensagem enviada ainda.</p>
+        ) : envios.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">Nenhum envio encontrado com esse filtro.</p>
         ) : (
           <>
             <div className="mt-4 hidden overflow-x-auto md:block">
@@ -2231,7 +2827,7 @@ function PainelProspeccao() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {envios.slice(0, 50).map((e) => (
+                  {enviosPagina.map((e) => (
                     <tr key={e.id} className="hover:bg-canvas/50">
                       <td className="px-3 py-2 text-xs text-muted whitespace-nowrap">
                         {new Date(e.em).toLocaleString("pt-BR")}
@@ -2277,7 +2873,7 @@ function PainelProspeccao() {
 
             {/* Mobile: cartões */}
             <ul className="mt-4 divide-y divide-line md:hidden">
-              {envios.slice(0, 50).map((e) => (
+              {enviosPagina.map((e) => (
                 <li key={e.id} className="space-y-1.5 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -2316,6 +2912,65 @@ function PainelProspeccao() {
                 </li>
               ))}
             </ul>
+
+            {/* Controles de paginação do histórico de envios */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+              <p className="text-xs text-muted">
+                {inicioEnvios + 1}–{Math.min(inicioEnvios + ENVIOS_POR_PAGINA, enviosTotal)} de{" "}
+                {enviosTotal} envio(s)
+              </p>
+              {totalPaginasEnvios > 1 ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaEnvios((p) => Math.max(1, p - 1))}
+                    disabled={paginaEnviosAtual <= 1}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  {Array.from({ length: totalPaginasEnvios }, (_, i) => i + 1).map((p) => {
+                    const mostrar =
+                      totalPaginasEnvios <= 7 ||
+                      p === 1 ||
+                      p === totalPaginasEnvios ||
+                      Math.abs(p - paginaEnviosAtual) <= 1;
+                    if (!mostrar) {
+                      if (p === paginaEnviosAtual - 2 || p === paginaEnviosAtual + 2) {
+                        return (
+                          <span key={`e-${p}`} className="px-1 text-xs text-muted">
+                            …
+                          </span>
+                        );
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPaginaEnvios(p)}
+                        className={`h-8 min-w-[2rem] rounded-full px-2 text-xs font-semibold ${
+                          p === paginaEnviosAtual
+                            ? "bg-accent text-white"
+                            : "border border-line hover:border-accent"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setPaginaEnvios((p) => Math.min(totalPaginasEnvios, p + 1))}
+                    disabled={paginaEnviosAtual >= totalPaginasEnvios}
+                    className="h-8 rounded-full border border-line px-3 text-xs font-semibold disabled:opacity-40"
+                  >
+                    →
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </>
         )}
       </section>
